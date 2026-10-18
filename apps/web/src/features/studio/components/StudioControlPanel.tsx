@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { ProcessingStatus, YouTubeVideoMetadata } from "../types";
 import { YouTubeConfirmCard } from "./YouTubeConfirmCard";
+import { DurationSelector } from "./DurationSelector";
 
 function YoutubeIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -262,60 +263,13 @@ export function StudioControlPanel({
           </div>
         </div>
 
-        {/* Column 2: Duration */}
-        <div className="lg:px-4 flex flex-col justify-between">
-          <h3 className="text-xs font-semibold text-[#8ca4aa] mb-2">
-            Duration
-          </h3>
-          <div className="grid grid-cols-2 gap-1.5 w-full max-w-[200px]">
-            {/* Top Left: 30 Detik */}
-            <button
-              type="button"
-              onClick={() => setDuration(30)}
-              className={`h-7 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center select-none cursor-pointer ${
-                duration === 30
-                  ? "bg-[#20b2aa] text-white shadow-[0_0_10px_rgba(32,178,170,0.5)] font-bold"
-                  : "bg-[#14282e] text-[#8fa4aa] hover:bg-[#1a343c] hover:text-white"
-              }`}
-            >
-              30 Detik
-            </button>
-
-            {/* Top Right: 45 (Active Teal Pill in screenshot) */}
-            <button
-              type="button"
-              onClick={() => setDuration(45)}
-              className={`h-7 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center select-none cursor-pointer ${
-                duration === 45
-                  ? "bg-[#20b2aa] text-white shadow-[0_0_10px_rgba(32,178,170,0.5)] font-bold"
-                  : "bg-[#14282e] text-[#8fa4aa] hover:bg-[#1a343c] hover:text-white"
-              }`}
-            >
-              45
-            </button>
-
-            {/* Bottom Left: Detik */}
-            <button
-              type="button"
-              onClick={() => setDuration(45)}
-              className="h-7 px-3 rounded-lg text-xs font-medium bg-[#14282e] text-[#8fa4aa] hover:bg-[#1a343c] hover:text-white flex items-center justify-center select-none cursor-pointer"
-            >
-              Detik
-            </button>
-
-            {/* Bottom Right: 60 Detik */}
-            <button
-              type="button"
-              onClick={() => setDuration(60)}
-              className={`h-7 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center select-none cursor-pointer ${
-                duration === 60
-                  ? "bg-[#20b2aa] text-white shadow-[0_0_10px_rgba(32,178,170,0.5)] font-bold"
-                  : "bg-[#14282e] text-[#8fa4aa] hover:bg-[#1a343c] hover:text-white"
-              }`}
-            >
-              60 Detik
-            </button>
-          </div>
+        {/* Column 2: Duration (30 Detik, 45 Detik, 1 Menit) */}
+        <div className="lg:px-4">
+          <DurationSelector
+            duration={duration}
+            setDuration={setDuration}
+            disabled={isProcessing}
+          />
         </div>
 
         {/* Column 3: AI Style Cloner */}
