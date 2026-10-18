@@ -11,9 +11,15 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { ProcessingStatus, YouTubeVideoMetadata } from "../types";
+import type {
+  EditingStylePreset,
+  MotionGraphicPreset,
+  SubtitleStylePreset,
+} from "../presets/types";
 import { YouTubeConfirmCard } from "./YouTubeConfirmCard";
 import { DurationSelector } from "./DurationSelector";
 import { ClippingLimitSelector } from "./ClippingLimitSelector";
+import { CreativeStylePanel } from "./CreativeStylePanel";
 
 function YoutubeIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -36,10 +42,16 @@ interface StudioControlPanelProps {
   usedQuota?: number;
   duration: number;
   setDuration: (duration: number) => void;
-  preset: string;
-  setPreset: (preset: string) => void;
-  autoMotionGraphic: boolean;
-  setAutoMotionGraphic: (enabled: boolean) => void;
+  editingStyle: string;
+  setEditingStyle: (style: string) => void;
+  motionGraphicStyle: string;
+  setMotionGraphicStyle: (style: string) => void;
+  subtitleStyle: string;
+  setSubtitleStyle: (style: string) => void;
+  editingStyles: EditingStylePreset[];
+  motionGraphics: MotionGraphicPreset[];
+  subtitleStyles: SubtitleStylePreset[];
+  onAddNewPreset: (category: "editing" | "motion" | "subtitle", preset: any) => void;
   refFileName: string;
   setRefFileName: (name: string) => void;
   status: ProcessingStatus;
@@ -61,10 +73,16 @@ export function StudioControlPanel({
   usedQuota = 5,
   duration,
   setDuration,
-  preset,
-  setPreset,
-  autoMotionGraphic,
-  setAutoMotionGraphic,
+  editingStyle,
+  setEditingStyle,
+  motionGraphicStyle,
+  setMotionGraphicStyle,
+  subtitleStyle,
+  setSubtitleStyle,
+  editingStyles,
+  motionGraphics,
+  subtitleStyles,
+  onAddNewPreset,
   refFileName,
   setRefFileName,
   status,
@@ -240,8 +258,8 @@ export function StudioControlPanel({
         </div>
       )}
 
-      {/* Row 2: 4 Columns Configuration Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-0 lg:divide-x divide-[#1d3a41]">
+      {/* Row 2: 3 Columns Configuration Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-0 lg:divide-x divide-[#1d3a41]">
         {/* Column 1: Clipping Limit (Maks 10) & Sisa Kuota */}
         <div className="lg:pr-4">
           <ClippingLimitSelector
@@ -263,7 +281,7 @@ export function StudioControlPanel({
         </div>
 
         {/* Column 3: AI Style Cloner */}
-        <div className="lg:px-4 flex flex-col justify-between">
+        <div className="lg:pl-4 flex flex-col justify-between">
           <h3 className="text-xs font-semibold text-[#8ca4aa] mb-2 flex items-center gap-1">
             <span>AI Style Cloner</span>
             <span>🪄</span>
@@ -295,83 +313,22 @@ export function StudioControlPanel({
             </div>
           </div>
         </div>
-
-        {/* Column 4: Subtitle & Motion Preset */}
-        <div className="lg:pl-4 flex flex-col justify-between">
-          <h3 className="text-xs font-semibold text-[#8ca4aa] mb-2">
-            Subtitle & Motion Preset
-          </h3>
-
-          {/* Presets Row */}
-          <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
-            {/* Netflix Style */}
-            <button
-              type="button"
-              onClick={() => setPreset("netflix")}
-              className={`px-2 py-1 rounded-full text-[10px] sm:text-[11px] font-medium transition flex items-center gap-1 select-none cursor-pointer ${
-                preset === "netflix"
-                  ? "bg-[#156670] border border-[#2cd3c6]/60 text-white shadow-sm"
-                  : "bg-[#14282e] border border-[#1f3e46] text-[#7d979e] hover:text-white"
-              }`}
-            >
-              <span>🍿</span>
-              <span>Netflix Style (Minimal)</span>
-            </button>
-
-            {/* Viral Motion */}
-            <button
-              type="button"
-              onClick={() => setPreset("viral")}
-              className={`px-2 py-1 rounded-full text-[10px] sm:text-[11px] font-medium transition flex items-center gap-1 select-none cursor-pointer ${
-                preset === "viral"
-                  ? "bg-[#156670] border border-[#2cd3c6]/60 text-white shadow-sm"
-                  : "bg-[#14282e] border border-[#1f3e46] text-[#7d979e] hover:text-white"
-              }`}
-            >
-              <span>🔥</span>
-              <span>Viral Motion (Bounce)</span>
-            </button>
-
-            {/* AI Cloned (Active) */}
-            <button
-              type="button"
-              onClick={() => setPreset("ai-cloned")}
-              className={`px-2 py-1 rounded-full text-[10px] sm:text-[11px] font-medium transition flex items-center gap-1 select-none cursor-pointer ${
-                preset === "ai-cloned"
-                  ? "bg-[#136f7c] border border-[#2cd3c6]/80 text-white shadow-[0_0_8px_rgba(44,211,198,0.3)]"
-                  : "bg-[#14282e] border border-[#1f3e46] text-[#7d979e] hover:text-white"
-              }`}
-            >
-              <span>🪄</span>
-              <span>AI Cloned</span>
-            </button>
-          </div>
-
-          {/* Toggle Switch */}
-          <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#1b373e]/50">
-            <span className="text-[11px] text-[#819ca2] font-medium leading-tight">
-              Auto Motion Graphic (Progress Bar & Zoom)
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={autoMotionGraphic}
-              onClick={() => setAutoMotionGraphic(!autoMotionGraphic)}
-              className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer p-0.5 shrink-0 ${
-                autoMotionGraphic
-                  ? "bg-[#2cd3c6] shadow-[0_0_8px_rgba(44,211,198,0.5)]"
-                  : "bg-[#14282e] border border-[#1f3e46]"
-              }`}
-            >
-              <div
-                className={`w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-200 ${
-                  autoMotionGraphic ? "translate-x-4" : "translate-x-0"
-                }`}
-              />
-            </button>
-          </div>
-        </div>
       </div>
+
+      {/* Row 3: 3 Distinct Preset Selectors (Editing Style, Motion Graphic, Subtitle) */}
+      <CreativeStylePanel
+        editingStyle={editingStyle}
+        setEditingStyle={setEditingStyle}
+        motionGraphicStyle={motionGraphicStyle}
+        setMotionGraphicStyle={setMotionGraphicStyle}
+        subtitleStyle={subtitleStyle}
+        setSubtitleStyle={setSubtitleStyle}
+        editingStyles={editingStyles}
+        motionGraphics={motionGraphics}
+        subtitleStyles={subtitleStyles}
+        onAddNewPreset={onAddNewPreset}
+        disabled={isProcessing}
+      />
     </section>
   );
 }

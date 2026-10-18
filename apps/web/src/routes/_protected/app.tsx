@@ -14,6 +14,14 @@ import {
   validateYouTubeUrl,
   sampleYouTubeVideos,
 } from "@/features/studio/utils/youtube";
+import {
+  defaultEditingStyles,
+  defaultMotionGraphics,
+  defaultSubtitleStyles,
+  type EditingStylePreset,
+  type MotionGraphicPreset,
+  type SubtitleStylePreset,
+} from "@/features/studio/presets";
 
 export const Route = createFileRoute("/_protected/app")({
   head: () => ({ meta: [{ title: `Studio Potong Video | ${siteConfig.name}` }] }),
@@ -39,8 +47,32 @@ function StudioPotongVideoPage() {
     used: 5,
   });
   const [duration, setDuration] = useState<number>(45);
-  const [preset, setPreset] = useState<string>("ai-cloned");
-  const [autoMotionGraphic, setAutoMotionGraphic] = useState<boolean>(true);
+
+  // 3 distinct style presets: Editing Style, Motion Graphic, Subtitle Style
+  const [editingStyles, setEditingStyles] =
+    useState<EditingStylePreset[]>(defaultEditingStyles);
+  const [motionGraphics, setMotionGraphics] =
+    useState<MotionGraphicPreset[]>(defaultMotionGraphics);
+  const [subtitleStyles, setSubtitleStyles] =
+    useState<SubtitleStylePreset[]>(defaultSubtitleStyles);
+
+  const [editingStyle, setEditingStyle] = useState<string>("theo-podcast");
+  const [motionGraphicStyle, setMotionGraphicStyle] = useState<string>("theo-infographics");
+  const [subtitleStyle, setSubtitleStyle] = useState<string>("theo-red-pill");
+
+  const handleAddNewPreset = (
+    category: "editing" | "motion" | "subtitle",
+    newPreset: any
+  ) => {
+    if (category === "editing") {
+      setEditingStyles((prev) => [...prev, newPreset]);
+    } else if (category === "motion") {
+      setMotionGraphics((prev) => [...prev, newPreset]);
+    } else if (category === "subtitle") {
+      setSubtitleStyles((prev) => [...prev, newPreset]);
+    }
+  };
+
   const [refFileName, setRefFileName] = useState<string>("reference_style.mp4");
 
   const [status, setStatus] = useState<ProcessingStatus>("idle");
@@ -181,10 +213,15 @@ function StudioPotongVideoPage() {
         );
 
         setTimeout(() => {
+          const activeEditing = editingStyles.find((e) => e.id === editingStyle);
+          const activeSubtitle = subtitleStyles.find((s) => s.id === subtitleStyle);
+          const activeEditingName = activeEditing?.name || "Theo Podcast";
+          const activeSubtitleName = activeSubtitle?.name || "Red Pill Highlight";
+
           setProcessingPercent(100);
           setStatus("completed");
           setStatusMessage(
-            `Selesai! Berhasil memotong ${clippingLimit} klip berpotensi viral (${duration}s) dari "${videoTitle}". Kuota terpakai: ${clippingLimit}.`
+            `Selesai! Berhasil memotong ${clippingLimit} klip (${duration}s) dengan Gaya Editing "${activeEditingName}" & Subtitle "${activeSubtitleName}". Kuota terpakai: ${clippingLimit}.`
           );
 
           // Deduct user quota
@@ -193,11 +230,15 @@ function StudioPotongVideoPage() {
             used: Math.min(prev.total, prev.used + clippingLimit),
           }));
 
-          // Generate dynamic mock clips based on clipping limit and duration
+          // Generate dynamic mock clips based on clipping limit, duration, and selected styles
           const updated = initialClips.map((c, i) => ({
             ...c,
             duration: `${duration}s`,
             viralScore: `${Math.floor(92 + (i === 0 ? 7 : Math.random() * 6))}/100`,
+            bottomPresetText:
+              (activeEditing?.badge || activeEditingName.split(" ")[0]) +
+              " • " +
+              (activeSubtitle?.highlightStyle === "red-pill" ? "Red Pill" : "Minimal"),
           }));
           setClips(updated);
         }, 1200);
@@ -242,10 +283,16 @@ function StudioPotongVideoPage() {
         usedQuota={userQuota.used}
         duration={duration}
         setDuration={setDuration}
-        preset={preset}
-        setPreset={setPreset}
-        autoMotionGraphic={autoMotionGraphic}
-        setAutoMotionGraphic={setAutoMotionGraphic}
+        editingStyle={editingStyle}
+        setEditingStyle={setEditingStyle}
+        motionGraphicStyle={motionGraphicStyle}
+        setMotionGraphicStyle={setMotionGraphicStyle}
+        subtitleStyle={subtitleStyle}
+        setSubtitleStyle={setSubtitleStyle}
+        editingStyles={editingStyles}
+        motionGraphics={motionGraphics}
+        subtitleStyles={subtitleStyles}
+        onAddNewPreset={handleAddNewPreset}
         refFileName={refFileName}
         setRefFileName={setRefFileName}
         status={status}
