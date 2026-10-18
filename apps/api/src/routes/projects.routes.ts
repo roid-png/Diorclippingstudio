@@ -10,6 +10,7 @@ import { requireTrustedOrigin } from "../middleware/origin";
 import {
   createProjectJob,
   getProjectById,
+  getProjectStatusAndClips,
   getUserQuota,
   listUserProjects,
 } from "../services/projects.service";
@@ -45,6 +46,15 @@ projectsRouter.post("/:id/cut", async (req, res) => {
   if (!project) throw new HttpError(404, "NOT_FOUND", "Proyek tidak ditemukan.");
   const generatedClips = await autoCutProjectVideo(id);
   res.json({ data: { project, clips: generatedClips } });
+});
+
+// Get job status and clips for polling
+projectsRouter.get("/:id/status", async (req, res) => {
+  const userId = getAuth(req).user.id;
+  const id = projectIdSchema.parse(req.params.id);
+  const statusInfo = await getProjectStatusAndClips(userId, id);
+  if (!statusInfo) throw new HttpError(404, "NOT_FOUND", "Proyek tidak ditemukan.");
+  res.json({ data: statusInfo });
 });
 
 // Get clips for a project
