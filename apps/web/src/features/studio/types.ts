@@ -13,4 +13,16 @@ export interface ClipItem {
   bottomPresetText: string;
 }
 
+export interface YouTubeVideoMetadata {
+  videoId: string;
+  url: string;
+  title: string;
+  channelTitle: string;
+  durationSeconds: number;
+  durationFormatted: string;
+  thumbnailUrl: string;
+  viewCount?: string;
+  isConfirmed: boolean;
+}
+
 export type ProcessingStatus = 'idle' | 'downloading' | 'analyzing' | 'completed' | 'error';

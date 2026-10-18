@@ -1,11 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { siteConfig } from "@/config/site";
 import { initialClips } from "@/features/studio/mock-data";
-import type { ClipItem, ProcessingStatus } from "@/features/studio/types";
+import type { ClipItem, ProcessingStatus, YouTubeVideoMetadata } from "@/features/studio/types";
 import { StudioControlPanel } from "@/features/studio/components/StudioControlPanel";
 import { ClipCard } from "@/features/studio/components/ClipCard";
 import { VideoModal } from "@/features/studio/components/VideoModal";
+import {
+  fetchYouTubeMetadata,
+  validateYouTubeUrl,
+  sampleYouTubeVideos,
+} from "@/features/studio/utils/youtube";
 
 export const Route = createFileRoute("/_protected/app")({
   head: () => ({ meta: [{ title: `Studio Potong Video | ${siteConfig.name}` }] }),
@@ -16,6 +21,15 @@ function StudioPotongVideoPage() {
   const [youtubeUrl, setYoutubeUrl] = useState<string>(
     "https://www.youtube.com/watch?v=V0k9u"
   );
+
+  // Initialize with confirmed metadata for default sample video
+  const [videoMetadata, setVideoMetadata] = useState<YouTubeVideoMetadata | null>({
+    ...sampleYouTubeVideos.V0k9u,
+    url: "https://www.youtube.com/watch?v=V0k9u",
+    isConfirmed: true,
+  });
+
+  const [isValidatingUrl, setIsValidatingUrl] = useState<boolean>(false);
   const [clippingLimit, setClippingLimit] = useState<number>(10);
   const [duration, setDuration] = useState<number>(45);
   const [preset, setPreset] = useState<string>("ai-cloned");
@@ -29,35 +43,76 @@ function StudioPotongVideoPage() {
   const [clips, setClips] = useState<ClipItem[]>(initialClips);
   const [selectedClip, setSelectedClip] = useState<ClipItem | null>(null);
 
+  const handleValidateAndConfirm = useCallback(async (url: string) => {
+    if (!url.trim()) {
+      setErrorMessage("Silakan masukkan link video YouTube terlebih dahulu.");
+      setVideoMetadata(null);
+      return;
+    }
+
+    const validation = validateYouTubeUrl(url);
+    if (!validation.isValid) {
+      setErrorMessage(
+        validation.error ||
+          "Link YouTube tidak valid. Gunakan format seperti: https://www.youtube.com/watch?v=... atau https://youtu.be/..."
+      );
+      setVideoMetadata(null);
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsValidatingUrl(true);
+
+    try {
+      const meta = await fetchYouTubeMetadata(url);
+      setVideoMetadata(meta);
+      setErrorMessage(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal memverifikasi video YouTube.";
+      setErrorMessage(msg);
+      setVideoMetadata(null);
+    } finally {
+      setIsValidatingUrl(false);
+    }
+  }, []);
+
   const handleGenerate = () => {
-    // Validate YouTube URL
-    const urlPattern = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[\w-]{11}/i;
     if (!youtubeUrl.trim()) {
       setErrorMessage("Silakan masukkan link video YouTube terlebih dahulu.");
       setStatus("error");
       return;
     }
 
-    if (!urlPattern.test(youtubeUrl.trim())) {
+    const validation = validateYouTubeUrl(youtubeUrl);
+    if (!validation.isValid) {
       setErrorMessage(
-        "Link YouTube tidak valid. Masukkan format link yang benar (contoh: https://www.youtube.com/watch?v=V0k9u atau https://youtu.be/...)."
+        validation.error ||
+          "Link YouTube tidak valid. Mohon periksa kembali link yang Anda masukkan."
       );
       setStatus("error");
       return;
     }
 
+    if (!videoMetadata) {
+      handleValidateAndConfirm(youtubeUrl);
+    }
+
+    const videoTitle = videoMetadata?.title || "Video Sumber YouTube";
+
     setErrorMessage(null);
     setStatus("downloading");
-    setStatusMessage("Langkah 1/3: Mengunduh video sumber dari YouTube...");
+    setStatusMessage(`Langkah 1/3: Mengunduh audio & video "${videoTitle}"...`);
 
     setTimeout(() => {
       setStatus("analyzing");
-      setStatusMessage("Langkah 2/3: Menganalisis momen puncak & menghitung skor potensi viral AI...");
+      setStatusMessage(
+        `Langkah 2/3: Menganalisis momen puncak viral & sentimen pada "${videoTitle}"...`
+      );
 
       setTimeout(() => {
         setStatus("completed");
         setStatusMessage(
-          `Langkah 3/3: Selesai! ${clippingLimit} klip berpotensi viral siap ditonton dan diunduh.`
+          `Langkah 3/3: Selesai! Berhasil memotong ${clippingLimit} klip berpotensi viral (${duration}s) dari "${videoTitle}".`
         );
 
         // Generate dynamic mock clips based on clipping limit and duration
@@ -89,13 +144,17 @@ function StudioPotongVideoPage() {
         </div>
       </div>
 
-      {/* Main Control Panel (Glassmorphism Card) */}
+      {/* Main Control Panel with YouTube Validation & Title Confirmation */}
       <StudioControlPanel
         youtubeUrl={youtubeUrl}
         setYoutubeUrl={(val) => {
           setYoutubeUrl(val);
           if (errorMessage) setErrorMessage(null);
         }}
+        videoMetadata={videoMetadata}
+        setVideoMetadata={setVideoMetadata}
+        isValidatingUrl={isValidatingUrl}
+        onValidateAndConfirm={handleValidateAndConfirm}
         clippingLimit={clippingLimit}
         setClippingLimit={setClippingLimit}
         duration={duration}

@@ -1,10 +1,33 @@
-import React, { useRef, useState } from "react";
-import { Search, Upload, FileText, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
-import type { ProcessingStatus } from "../types";
+import { useRef, useState, type SVGProps } from "react";
+import {
+  Search,
+  Upload,
+  FileText,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  Clipboard,
+  X,
+  Sparkles,
+} from "lucide-react";
+import type { ProcessingStatus, YouTubeVideoMetadata } from "../types";
+import { YouTubeConfirmCard } from "./YouTubeConfirmCard";
+
+function YoutubeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+    </svg>
+  );
+}
 
 interface StudioControlPanelProps {
   youtubeUrl: string;
   setYoutubeUrl: (url: string) => void;
+  videoMetadata: YouTubeVideoMetadata | null;
+  setVideoMetadata: (metadata: YouTubeVideoMetadata | null) => void;
+  isValidatingUrl: boolean;
+  onValidateAndConfirm: (url: string) => void;
   clippingLimit: number;
   setClippingLimit: (limit: number) => void;
   duration: number;
@@ -24,6 +47,10 @@ interface StudioControlPanelProps {
 export function StudioControlPanel({
   youtubeUrl,
   setYoutubeUrl,
+  videoMetadata,
+  setVideoMetadata,
+  isValidatingUrl,
+  onValidateAndConfirm,
   clippingLimit,
   setClippingLimit,
   duration,
@@ -40,12 +67,35 @@ export function StudioControlPanel({
   errorMessage,
 }: StudioControlPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pasteNotice, setPasteNotice] = useState<string | null>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setRefFileName(file.name);
     }
+  };
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      if (navigator?.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          setYoutubeUrl(text.trim());
+          onValidateAndConfirm(text.trim());
+          setPasteNotice("Link berhasil ditempel dari clipboard!");
+          setTimeout(() => setPasteNotice(null), 2500);
+        }
+      }
+    } catch {
+      setPasteNotice("Gunakan Ctrl+V untuk menempelkan link YouTube.");
+      setTimeout(() => setPasteNotice(null), 3000);
+    }
+  };
+
+  const handleClearUrl = () => {
+    setYoutubeUrl("");
+    setVideoMetadata(null);
   };
 
   const isProcessing = status === "downloading" || status === "analyzing";
@@ -56,15 +106,76 @@ export function StudioControlPanel({
       <div className="flex flex-col md:flex-row items-stretch gap-3 mb-3">
         {/* Input container */}
         <div className="relative flex-1 group">
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-red-500 flex items-center pointer-events-none">
+            <YoutubeIcon className="w-4 h-4" />
+          </div>
+
           <input
             type="text"
             value={youtubeUrl}
-            onChange={(e) => setYoutubeUrl(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setYoutubeUrl(val);
+              if (val.trim()) {
+                onValidateAndConfirm(val);
+              } else {
+                setVideoMetadata(null);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                onValidateAndConfirm(youtubeUrl);
+              }
+            }}
             placeholder="Paste YouTube Link here... https://www.youtube.com/watch?v=V0k9u"
-            className="w-full h-11 bg-[#14282e] border border-[#1f3e46] rounded-xl pl-4 pr-11 text-xs sm:text-sm text-gray-200 placeholder-[#58737a] focus:outline-none focus:border-[#2cd3c6] transition shadow-inner font-sans"
+            className={`w-full h-11 bg-[#14282e] border ${
+              errorMessage
+                ? "border-red-500/60 focus:border-red-400"
+                : videoMetadata
+                ? "border-[#20b2aa]/70 focus:border-[#2cd3c6]"
+                : "border-[#1f3e46] focus:border-[#2cd3c6]"
+            } rounded-xl pl-10 pr-24 text-xs sm:text-sm text-gray-200 placeholder-[#58737a] focus:outline-none transition shadow-inner font-sans`}
           />
-          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#58737a] group-hover:text-[#2cd3c6] transition cursor-pointer">
-            <Search className="w-4 h-4" />
+
+          {/* Quick Action Buttons inside Input */}
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            {isValidatingUrl ? (
+              <Loader2 className="w-4 h-4 text-[#2cd3c6] animate-spin" />
+            ) : videoMetadata ? (
+              <span className="text-emerald-400 p-1" title="Link YouTube Valid & Terverifikasi">
+                <CheckCircle2 className="w-4 h-4" />
+              </span>
+            ) : null}
+
+            {youtubeUrl ? (
+              <button
+                type="button"
+                onClick={handleClearUrl}
+                className="p-1 text-[#658188] hover:text-white rounded transition cursor-pointer"
+                title="Hapus Link"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handlePasteFromClipboard}
+                className="px-2 py-0.5 rounded-md bg-[#1d3a42] hover:bg-[#254953] text-[#2cd3c6] text-[11px] font-medium flex items-center gap-1 transition cursor-pointer shadow-xs"
+                title="Tempel dari Clipboard"
+              >
+                <Clipboard className="w-3 h-3" />
+                <span>Tempel</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => onValidateAndConfirm(youtubeUrl)}
+              className="p-1 text-[#58737a] hover:text-[#2cd3c6] transition cursor-pointer"
+              title="Cek Link Video"
+            >
+              <Search className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
@@ -88,9 +199,25 @@ export function StudioControlPanel({
         </button>
       </div>
 
+      {/* Paste notification toast */}
+      {pasteNotice && (
+        <div className="mb-3 px-3 py-1.5 rounded-lg bg-[#143239] border border-[#20b2aa]/40 text-[#2cd3c6] text-xs flex items-center gap-2 animate-fadeIn">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>{pasteNotice}</span>
+        </div>
+      )}
+
+      {/* Video Title Confirmation Card */}
+      {videoMetadata && !errorMessage && (
+        <YouTubeConfirmCard
+          metadata={videoMetadata}
+          onClear={handleClearUrl}
+        />
+      )}
+
       {/* Error / Processing Feedback */}
       {errorMessage && (
-        <div className="mb-4 p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-center gap-2">
+        <div className="mb-4 p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-center gap-2 animate-shake">
           <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
           <span>{errorMessage}</span>
         </div>
