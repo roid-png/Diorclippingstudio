@@ -1,80 +1,148 @@
-// STARTER PLACEHOLDER. Replace this page with your app's first screen. The
-// data-starter-placeholder attribute below lets `pnpm run doctor` remind you
-// while it is still here; delete e2e/starter.spec.ts along with it.
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, Plus, ShieldCheck } from "lucide-react";
-import { roleHasPermission } from "@starter/shared/permissions";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { siteConfig } from "@/config/site";
-import { CopyPrompt } from "@/components/copy-prompt";
-import { Button } from "@/components/ui/button";
-
-const prompt =
-  "Read AGENTS.md and use the build-feature skill. Replace the blank app page with [describe your first feature]. Add the API route and service in apps/api, the shared validator in packages/shared, and TanStack Query hooks in apps/web like the Notes example. Keep authentication working and use Context7 to check library APIs.";
+import { initialClips } from "@/features/studio/mock-data";
+import type { ClipItem, ProcessingStatus } from "@/features/studio/types";
+import { StudioControlPanel } from "@/features/studio/components/StudioControlPanel";
+import { ClipCard } from "@/features/studio/components/ClipCard";
+import { VideoModal } from "@/features/studio/components/VideoModal";
 
 export const Route = createFileRoute("/_protected/app")({
-  head: () => ({ meta: [{ title: `Your app | ${siteConfig.name}` }] }),
-  component: AppPage,
+  head: () => ({ meta: [{ title: `Studio Potong Video | ${siteConfig.name}` }] }),
+  component: StudioPotongVideoPage,
 });
 
-function AppPage() {
-  const { user } = Route.useRouteContext().session;
-  // Hiding the link is presentation only. /admin and its API guard themselves.
-  const isAdmin = roleHasPermission(user.role, { notes: ["read-any"] });
+function StudioPotongVideoPage() {
+  const [youtubeUrl, setYoutubeUrl] = useState<string>(
+    "https://www.youtube.com/watch?v=V0k9u"
+  );
+  const [clippingLimit, setClippingLimit] = useState<number>(10);
+  const [duration, setDuration] = useState<number>(45);
+  const [preset, setPreset] = useState<string>("ai-cloned");
+  const [autoMotionGraphic, setAutoMotionGraphic] = useState<boolean>(true);
+  const [refFileName, setRefFileName] = useState<string>("reference_style.mp4");
+
+  const [status, setStatus] = useState<ProcessingStatus>("idle");
+  const [statusMessage, setStatusMessage] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [clips, setClips] = useState<ClipItem[]>(initialClips);
+  const [selectedClip, setSelectedClip] = useState<ClipItem | null>(null);
+
+  const handleGenerate = () => {
+    // Validate YouTube URL
+    const urlPattern = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[\w-]{11}/i;
+    if (!youtubeUrl.trim()) {
+      setErrorMessage("Silakan masukkan link video YouTube terlebih dahulu.");
+      setStatus("error");
+      return;
+    }
+
+    if (!urlPattern.test(youtubeUrl.trim())) {
+      setErrorMessage(
+        "Link YouTube tidak valid. Masukkan format link yang benar (contoh: https://www.youtube.com/watch?v=V0k9u atau https://youtu.be/...)."
+      );
+      setStatus("error");
+      return;
+    }
+
+    setErrorMessage(null);
+    setStatus("downloading");
+    setStatusMessage("Langkah 1/3: Mengunduh video sumber dari YouTube...");
+
+    setTimeout(() => {
+      setStatus("analyzing");
+      setStatusMessage("Langkah 2/3: Menganalisis momen puncak & menghitung skor potensi viral AI...");
+
+      setTimeout(() => {
+        setStatus("completed");
+        setStatusMessage(
+          `Langkah 3/3: Selesai! ${clippingLimit} klip berpotensi viral siap ditonton dan diunduh.`
+        );
+
+        // Generate dynamic mock clips based on clipping limit and duration
+        const updated = initialClips.map((c, i) => ({
+          ...c,
+          duration: `${duration}s`,
+          viralScore: `${Math.floor(92 + (i === 0 ? 7 : Math.random() * 6))}/100`,
+        }));
+        setClips(updated);
+      }, 1500);
+    }, 1200);
+  };
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <p className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary">
-        <Check className="size-4" aria-hidden="true" /> You’re signed in
-      </p>
-      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-        Welcome, {user.name}.
-      </h1>
-      <p className="mt-3 text-lg leading-7 text-muted-foreground">
-        This is your app. Let’s give it something to do.
-      </p>
-      <section
-        className="mt-9 rounded-2xl border border-dashed bg-card px-6 py-10 sm:px-10"
-        aria-labelledby="blank-canvas"
-        data-starter-placeholder
-      >
-        <div className="mb-6 flex size-12 items-center justify-center rounded-xl border bg-muted">
-          <Plus className="size-5 text-muted-foreground" aria-hidden="true" />
+    <div className="w-full text-slate-100">
+      {/* Top Breadcrumb & Status */}
+      <div className="flex items-center justify-between py-2 px-1 mb-5">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-[#6d868c] font-medium">Dashboard</span>
+          <span className="text-[#3c565d]">/</span>
+          <span className="text-white font-medium tracking-wide">
+            Auto Video Clipper
+          </span>
         </div>
-        <h2 id="blank-canvas" className="text-xl font-semibold tracking-tight">
-          Your first feature starts here
-        </h2>
-        <p className="mt-3 max-w-xl text-base leading-7 text-muted-foreground">
-          A reading list? A space for project ideas? Tell your AI editor what
-          you need, and build from this blank canvas. The{" "}
-          <Link
-            to="/notes"
-            className="font-medium text-foreground underline underline-offset-4"
-          >
-            Notes example
-          </Link>{" "}
-          shows the full path from Express route to React hook.
-        </p>
-        <blockquote className="my-6 border-l-2 border-primary/50 pl-4 text-sm leading-7 text-muted-foreground">
-          {prompt}
-        </blockquote>
-        <CopyPrompt text={prompt} />
+        <div className="flex items-center gap-2">
+          <span className="text-xs px-2.5 py-1 rounded-full bg-[#136f7c]/50 text-[#2cd3c6] border border-[#2cd3c6]/30 font-medium">
+            AI Video Clipper Pro
+          </span>
+        </div>
+      </div>
+
+      {/* Main Control Panel (Glassmorphism Card) */}
+      <StudioControlPanel
+        youtubeUrl={youtubeUrl}
+        setYoutubeUrl={(val) => {
+          setYoutubeUrl(val);
+          if (errorMessage) setErrorMessage(null);
+        }}
+        clippingLimit={clippingLimit}
+        setClippingLimit={setClippingLimit}
+        duration={duration}
+        setDuration={setDuration}
+        preset={preset}
+        setPreset={setPreset}
+        autoMotionGraphic={autoMotionGraphic}
+        setAutoMotionGraphic={setAutoMotionGraphic}
+        refFileName={refFileName}
+        setRefFileName={setRefFileName}
+        status={status}
+        statusMessage={statusMessage}
+        onGenerate={handleGenerate}
+        errorMessage={errorMessage}
+      />
+
+      {/* Section: All Generated Clips */}
+      <section className="mt-2 flex-1 flex flex-col">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+            <span>All Generated Clips</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-[#136f7c]/40 text-[#2cd3c6] border border-[#2cd3c6]/30 font-medium">
+              {clips.length} Klip Siap
+            </span>
+          </h2>
+          <span className="text-xs text-[#7d9399]">
+            Urutan berdasarkan skor potensi viral tertinggi
+          </span>
+        </div>
+
+        {/* 4-Columns Grid: Aspect 9:16 locked with rounded corners */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4.5">
+          {clips.map((clip) => (
+            <ClipCard
+              key={clip.id}
+              clip={clip}
+              onSelectClip={(c) => setSelectedClip(c)}
+            />
+          ))}
+        </div>
       </section>
-      {isAdmin && (
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card px-5 py-4">
-          <p className="text-sm leading-6 text-muted-foreground">
-            Your role can read every account’s notes.
-          </p>
-          <Button variant="outline" asChild size="sm">
-            <Link to="/admin">
-              <ShieldCheck aria-hidden="true" />
-              Open admin
-            </Link>
-          </Button>
-        </div>
-      )}
-      <p className="mt-6 break-all text-sm text-muted-foreground">
-        Signed in as {user.email}
-      </p>
+
+      {/* Video Preview Modal */}
+      <VideoModal
+        clip={selectedClip}
+        onClose={() => setSelectedClip(null)}
+      />
     </div>
   );
 }
