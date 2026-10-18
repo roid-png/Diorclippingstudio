@@ -4,3 +4,9 @@ export * from "./session";
 export * from "./account";
 export * from "./verification";
 export * from "./notes";
+export * from "./projects";
+export * from "./clips";
+export * from "./render-jobs";
+export * from "./subtitles";
+export * from "./quotas";
+

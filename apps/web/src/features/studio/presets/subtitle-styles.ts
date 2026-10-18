@@ -39,3 +39,4 @@ export const defaultSubtitleStyles: SubtitleStylePreset[] = [
     highlightStyle: "karaoke",
   },
 ];
+

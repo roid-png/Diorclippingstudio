@@ -36,3 +36,4 @@ export const defaultMotionGraphics: MotionGraphicPreset[] = [
     features: ["Clean Video Only"],
   },
 ];
+

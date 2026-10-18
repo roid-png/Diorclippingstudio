@@ -37,3 +37,4 @@ export const defaultEditingStyles: EditingStylePreset[] = [
     aspectRatio: "9:16",
   },
 ];
+

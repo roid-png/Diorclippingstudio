@@ -29,3 +29,4 @@ export interface SubtitleStylePreset {
   speakerBadge: boolean;
   highlightStyle: "red-pill" | "yellow-glow" | "white-shadow" | "karaoke";
 }
+

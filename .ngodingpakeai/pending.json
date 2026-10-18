@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "a73e125dec8639398bc50a5821b86af50721b289",
+  "generatedForCommit": "20e498180200135f9b3bae5d7c5aad4de8951e6f",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -534,31 +534,55 @@
       "path": "apps/web/src/features/studio/components/ClipCard.tsx",
       "reason": "changed",
       "language": "typescript",
-      "size": 10584
+      "size": 11991
     },
     {
       "path": "apps/web/src/features/studio/components/ClippingLimitSelector.tsx",
+      "reason": "changed",
+      "language": "typescript",
+      "size": 3572
+    },
+    {
+      "path": "apps/web/src/features/studio/components/CreativeStylePanel.tsx",
       "reason": "new",
       "language": "typescript",
-      "size": 3571
+      "size": 14177
     },
     {
       "path": "apps/web/src/features/studio/components/DurationSelector.tsx",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 2666
+      "size": 2667
+    },
+    {
+      "path": "apps/web/src/features/studio/components/EmptyClipsState.tsx",
+      "reason": "new",
+      "language": "typescript",
+      "size": 1965
+    },
+    {
+      "path": "apps/web/src/features/studio/components/ErrorClipsState.tsx",
+      "reason": "new",
+      "language": "typescript",
+      "size": 2130
+    },
+    {
+      "path": "apps/web/src/features/studio/components/ProcessingProgressBar.tsx",
+      "reason": "new",
+      "language": "typescript",
+      "size": 5484
     },
     {
       "path": "apps/web/src/features/studio/components/StudioControlPanel.tsx",
       "reason": "changed",
       "language": "typescript",
-      "size": 14413
+      "size": 12210
     },
     {
       "path": "apps/web/src/features/studio/components/VideoModal.tsx",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 5169
+      "size": 7036
     },
     {
       "path": "apps/web/src/features/studio/components/YouTubeConfirmCard.tsx",
@@ -570,19 +594,49 @@
       "path": "apps/web/src/features/studio/mock-data.ts",
       "reason": "changed",
       "language": "typescript",
-      "size": 2551
+      "size": 3044
+    },
+    {
+      "path": "apps/web/src/features/studio/presets/editing-styles.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 1142
+    },
+    {
+      "path": "apps/web/src/features/studio/presets/index.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 129
+    },
+    {
+      "path": "apps/web/src/features/studio/presets/motion-graphics.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 1310
+    },
+    {
+      "path": "apps/web/src/features/studio/presets/subtitle-styles.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 1330
+    },
+    {
+      "path": "apps/web/src/features/studio/presets/types.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 728
     },
     {
       "path": "apps/web/src/features/studio/types.ts",
       "reason": "changed",
       "language": "typescript",
-      "size": 754
+      "size": 798
     },
     {
       "path": "apps/web/src/features/studio/utils/youtube.ts",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 3892
+      "size": 3893
     },
     {
       "path": "apps/web/src/lib/api/client.ts",
@@ -684,7 +738,7 @@
       "path": "apps/web/src/routes/_protected/app.tsx",
       "reason": "changed",
       "language": "typescript",
-      "size": 8389
+      "size": 13012
     },
     {
       "path": "apps/web/src/routes/_protected/notes.tsx",
