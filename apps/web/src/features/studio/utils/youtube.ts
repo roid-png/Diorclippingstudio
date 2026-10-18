@@ -131,3 +131,4 @@ export async function fetchYouTubeMetadata(url: string): Promise<YouTubeVideoMet
     isConfirmed: true,
   };
 }
+

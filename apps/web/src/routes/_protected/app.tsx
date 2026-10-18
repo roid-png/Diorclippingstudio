@@ -1,11 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { siteConfig } from "@/config/site";
 import { initialClips } from "@/features/studio/mock-data";
 import type { ClipItem, ProcessingStatus, YouTubeVideoMetadata } from "@/features/studio/types";
 import { StudioControlPanel } from "@/features/studio/components/StudioControlPanel";
 import { ClipCard } from "@/features/studio/components/ClipCard";
 import { VideoModal } from "@/features/studio/components/VideoModal";
+import { ProcessingProgressBar } from "@/features/studio/components/ProcessingProgressBar";
+import { EmptyClipsState } from "@/features/studio/components/EmptyClipsState";
+import { ErrorClipsState } from "@/features/studio/components/ErrorClipsState";
 import {
   fetchYouTubeMetadata,
   validateYouTubeUrl,
@@ -43,10 +46,21 @@ function StudioPotongVideoPage() {
   const [status, setStatus] = useState<ProcessingStatus>("idle");
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [processingPercent, setProcessingPercent] = useState<number>(0);
 
   const [clips, setClips] = useState<ClipItem[]>(initialClips);
   const [selectedClip, setSelectedClip] = useState<ClipItem | null>(null);
   const [activePlayingClipId, setActivePlayingClipId] = useState<string | null>(null);
+
+  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleTogglePlayInline = (clipId: string) => {
     setActivePlayingClipId((prev) => (prev === clipId ? null : clipId));
@@ -85,6 +99,35 @@ function StudioPotongVideoPage() {
     }
   }, []);
 
+  const handleResetUrl = () => {
+    setYoutubeUrl("");
+    setVideoMetadata(null);
+    setErrorMessage(null);
+    setStatus("idle");
+  };
+
+  const handleLoadSampleVideo = () => {
+    const sampleUrl = "https://www.youtube.com/watch?v=V0k9u";
+    setYoutubeUrl(sampleUrl);
+    setVideoMetadata({
+      ...sampleYouTubeVideos.V0k9u,
+      url: sampleUrl,
+      isConfirmed: true,
+    });
+    setErrorMessage(null);
+    setStatus("idle");
+  };
+
+  const handleCancelProcessing = () => {
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+    setStatus("idle");
+    setProcessingPercent(0);
+    setStatusMessage("Proses pemotongan video dibatalkan.");
+  };
+
   const handleGenerate = () => {
     if (!youtubeUrl.trim()) {
       setErrorMessage("Silakan masukkan link video YouTube terlebih dahulu.");
@@ -119,36 +162,50 @@ function StudioPotongVideoPage() {
 
     setErrorMessage(null);
     setStatus("downloading");
+    setProcessingPercent(15);
     setStatusMessage(`Langkah 1/3: Mengunduh audio & video "${videoTitle}"...`);
 
+    // Stage 1 -> Stage 2
     setTimeout(() => {
       setStatus("analyzing");
+      setProcessingPercent(55);
       setStatusMessage(
         `Langkah 2/3: Menganalisis momen puncak viral & sentimen pada "${videoTitle}"...`
       );
 
+      // Stage 2 -> Stage 3
       setTimeout(() => {
-        setStatus("completed");
+        setProcessingPercent(88);
         setStatusMessage(
-          `Langkah 3/3: Selesai! Berhasil memotong ${clippingLimit} klip berpotensi viral (${duration}s) dari "${videoTitle}". Kuota terpakai: ${clippingLimit}.`
+          `Langkah 3/3: Memotong ${clippingLimit} klip vertikal 9:16 & sinkronisasi subtitle...`
         );
 
-        // Deduct user quota
-        setUserQuota((prev) => ({
-          ...prev,
-          used: Math.min(prev.total, prev.used + clippingLimit),
-        }));
+        setTimeout(() => {
+          setProcessingPercent(100);
+          setStatus("completed");
+          setStatusMessage(
+            `Selesai! Berhasil memotong ${clippingLimit} klip berpotensi viral (${duration}s) dari "${videoTitle}". Kuota terpakai: ${clippingLimit}.`
+          );
 
-        // Generate dynamic mock clips based on clipping limit and duration
-        const updated = initialClips.map((c, i) => ({
-          ...c,
-          duration: `${duration}s`,
-          viralScore: `${Math.floor(92 + (i === 0 ? 7 : Math.random() * 6))}/100`,
-        }));
-        setClips(updated);
-      }, 1500);
+          // Deduct user quota
+          setUserQuota((prev) => ({
+            ...prev,
+            used: Math.min(prev.total, prev.used + clippingLimit),
+          }));
+
+          // Generate dynamic mock clips based on clipping limit and duration
+          const updated = initialClips.map((c, i) => ({
+            ...c,
+            duration: `${duration}s`,
+            viralScore: `${Math.floor(92 + (i === 0 ? 7 : Math.random() * 6))}/100`,
+          }));
+          setClips(updated);
+        }, 1200);
+      }, 1400);
     }, 1200);
   };
+
+  const isProcessing = status === "downloading" || status === "analyzing";
 
   return (
     <div className="w-full text-slate-100">
@@ -197,33 +254,61 @@ function StudioPotongVideoPage() {
         errorMessage={errorMessage}
       />
 
-      {/* Section: All Generated Clips */}
-      <section className="mt-2 flex-1 flex flex-col">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
-            <span>All Generated Clips</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-[#136f7c]/40 text-[#2cd3c6] border border-[#2cd3c6]/30 font-medium">
-              {clips.length} Klip Siap
-            </span>
-          </h2>
-          <span className="text-xs text-[#7d9399]">
-            Urutan berdasarkan skor potensi viral tertinggi
-          </span>
-        </div>
+      {/* Multi-stage Progress Bar when actively processing */}
+      {isProcessing && (
+        <ProcessingProgressBar
+          status={status}
+          progressPercent={processingPercent}
+          currentStepMessage={statusMessage}
+          clippingLimit={clippingLimit}
+          duration={duration}
+          onCancel={handleCancelProcessing}
+        />
+      )}
 
-        {/* 4-Columns Grid: Aspect 9:16 locked with rounded corners */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4.5">
-          {clips.map((clip) => (
-            <ClipCard
-              key={clip.id}
-              clip={clip}
-              isPlayingInline={activePlayingClipId === clip.id}
-              onTogglePlayInline={handleTogglePlayInline}
-              onSelectClip={(c) => setSelectedClip(c)}
-            />
-          ))}
-        </div>
-      </section>
+      {/* Error State Banner */}
+      {status === "error" && errorMessage && (
+        <ErrorClipsState
+          errorMessage={errorMessage}
+          onRetry={handleGenerate}
+          onReset={handleResetUrl}
+        />
+      )}
+
+      {/* Empty State when no clips exist */}
+      {clips.length === 0 && status !== "error" && !isProcessing && (
+        <EmptyClipsState onLoadSample={handleLoadSampleVideo} />
+      )}
+
+      {/* Section: All Generated Clips */}
+      {clips.length > 0 && (
+        <section className="mt-2 flex-1 flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+              <span>All Generated Clips</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-[#136f7c]/40 text-[#2cd3c6] border border-[#2cd3c6]/30 font-medium">
+                {clips.length} Klip Siap
+              </span>
+            </h2>
+            <span className="text-xs text-[#7d9399]">
+              Urutan berdasarkan skor potensi viral tertinggi
+            </span>
+          </div>
+
+          {/* 4-Columns Grid: Aspect 9:16 locked with rounded corners */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4.5">
+            {clips.map((clip) => (
+              <ClipCard
+                key={clip.id}
+                clip={clip}
+                isPlayingInline={activePlayingClipId === clip.id}
+                onTogglePlayInline={handleTogglePlayInline}
+                onSelectClip={(c) => setSelectedClip(c)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Video Preview Modal */}
       <VideoModal
