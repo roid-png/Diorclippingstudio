@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "c2dda5d1a93b8b56a1c242431eca725d8d2c7386",
+  "generatedForCommit": "e0a5f3faf16d9b736562fc9451b8c3251950d9fb",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -537,10 +537,16 @@
       "size": 4668
     },
     {
+      "path": "apps/web/src/features/studio/components/DurationSelector.tsx",
+      "reason": "new",
+      "language": "typescript",
+      "size": 2666
+    },
+    {
       "path": "apps/web/src/features/studio/components/StudioControlPanel.tsx",
       "reason": "changed",
       "language": "typescript",
-      "size": 17104
+      "size": 14998
     },
     {
       "path": "apps/web/src/features/studio/components/VideoModal.tsx",
@@ -550,7 +556,7 @@
     },
     {
       "path": "apps/web/src/features/studio/components/YouTubeConfirmCard.tsx",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 5093
     },
@@ -562,13 +568,13 @@
     },
     {
       "path": "apps/web/src/features/studio/types.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 623
     },
     {
       "path": "apps/web/src/features/studio/utils/youtube.ts",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 3892
     },
@@ -670,7 +676,7 @@
     },
     {
       "path": "apps/web/src/routes/_protected/app.tsx",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 7350
     },

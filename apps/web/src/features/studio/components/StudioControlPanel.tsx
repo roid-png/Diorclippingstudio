@@ -13,6 +13,7 @@ import {
 import type { ProcessingStatus, YouTubeVideoMetadata } from "../types";
 import { YouTubeConfirmCard } from "./YouTubeConfirmCard";
 import { DurationSelector } from "./DurationSelector";
+import { ClippingLimitSelector } from "./ClippingLimitSelector";
 
 function YoutubeIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -31,6 +32,8 @@ interface StudioControlPanelProps {
   onValidateAndConfirm: (url: string) => void;
   clippingLimit: number;
   setClippingLimit: (limit: number) => void;
+  totalQuota?: number;
+  usedQuota?: number;
   duration: number;
   setDuration: (duration: number) => void;
   preset: string;
@@ -54,6 +57,8 @@ export function StudioControlPanel({
   onValidateAndConfirm,
   clippingLimit,
   setClippingLimit,
+  totalQuota = 50,
+  usedQuota = 5,
   duration,
   setDuration,
   preset,
@@ -237,30 +242,15 @@ export function StudioControlPanel({
 
       {/* Row 2: 4 Columns Configuration Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-0 lg:divide-x divide-[#1d3a41]">
-        {/* Column 1: Clipping Limit */}
-        <div className="lg:pr-4 flex flex-col justify-between">
-          <h3 className="text-xs font-semibold text-[#8ca4aa] mb-2">
-            Clipping Limit
-          </h3>
-          <div className="grid grid-cols-5 gap-1.5 w-full max-w-[210px]">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
-              const isActive = clippingLimit === num;
-              return (
-                <button
-                  key={num}
-                  type="button"
-                  onClick={() => setClippingLimit(num)}
-                  className={`h-7 rounded-lg text-xs font-semibold transition-all flex items-center justify-center select-none cursor-pointer ${
-                    isActive
-                      ? "bg-[#20b2aa] text-white shadow-[0_0_10px_rgba(32,178,170,0.5)] font-bold"
-                      : "bg-[#14282e] text-[#8fa4aa] hover:bg-[#1a343c] hover:text-white"
-                  }`}
-                >
-                  {num}
-                </button>
-              );
-            })}
-          </div>
+        {/* Column 1: Clipping Limit (Maks 10) & Sisa Kuota */}
+        <div className="lg:pr-4">
+          <ClippingLimitSelector
+            clippingLimit={clippingLimit}
+            setClippingLimit={setClippingLimit}
+            totalQuota={totalQuota}
+            usedQuota={usedQuota}
+            disabled={isProcessing}
+          />
         </div>
 
         {/* Column 2: Duration (30 Detik, 45 Detik, 1 Menit) */}

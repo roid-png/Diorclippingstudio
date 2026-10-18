@@ -31,6 +31,10 @@ function StudioPotongVideoPage() {
 
   const [isValidatingUrl, setIsValidatingUrl] = useState<boolean>(false);
   const [clippingLimit, setClippingLimit] = useState<number>(10);
+  const [userQuota, setUserQuota] = useState<{ total: number; used: number }>({
+    total: 50,
+    used: 5,
+  });
   const [duration, setDuration] = useState<number>(45);
   const [preset, setPreset] = useState<string>("ai-cloned");
   const [autoMotionGraphic, setAutoMotionGraphic] = useState<boolean>(true);
@@ -93,6 +97,15 @@ function StudioPotongVideoPage() {
       return;
     }
 
+    const remainingQuota = userQuota.total - userQuota.used;
+    if (clippingLimit > remainingQuota) {
+      setErrorMessage(
+        `Jumlah klip yang dipilih (${clippingLimit}) melebihi sisa kuota Anda (${remainingQuota} klip). Silakan kurangi limit klip.`
+      );
+      setStatus("error");
+      return;
+    }
+
     if (!videoMetadata) {
       handleValidateAndConfirm(youtubeUrl);
     }
@@ -112,8 +125,14 @@ function StudioPotongVideoPage() {
       setTimeout(() => {
         setStatus("completed");
         setStatusMessage(
-          `Langkah 3/3: Selesai! Berhasil memotong ${clippingLimit} klip berpotensi viral (${duration}s) dari "${videoTitle}".`
+          `Langkah 3/3: Selesai! Berhasil memotong ${clippingLimit} klip berpotensi viral (${duration}s) dari "${videoTitle}". Kuota terpakai: ${clippingLimit}.`
         );
+
+        // Deduct user quota
+        setUserQuota((prev) => ({
+          ...prev,
+          used: Math.min(prev.total, prev.used + clippingLimit),
+        }));
 
         // Generate dynamic mock clips based on clipping limit and duration
         const updated = initialClips.map((c, i) => ({
@@ -157,6 +176,8 @@ function StudioPotongVideoPage() {
         onValidateAndConfirm={handleValidateAndConfirm}
         clippingLimit={clippingLimit}
         setClippingLimit={setClippingLimit}
+        totalQuota={userQuota.total}
+        usedQuota={userQuota.used}
         duration={duration}
         setDuration={setDuration}
         preset={preset}
