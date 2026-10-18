@@ -46,6 +46,11 @@ function StudioPotongVideoPage() {
 
   const [clips, setClips] = useState<ClipItem[]>(initialClips);
   const [selectedClip, setSelectedClip] = useState<ClipItem | null>(null);
+  const [activePlayingClipId, setActivePlayingClipId] = useState<string | null>(null);
+
+  const handleTogglePlayInline = (clipId: string) => {
+    setActivePlayingClipId((prev) => (prev === clipId ? null : clipId));
+  };
 
   const handleValidateAndConfirm = useCallback(async (url: string) => {
     if (!url.trim()) {
@@ -212,6 +217,8 @@ function StudioPotongVideoPage() {
             <ClipCard
               key={clip.id}
               clip={clip}
+              isPlayingInline={activePlayingClipId === clip.id}
+              onTogglePlayInline={handleTogglePlayInline}
               onSelectClip={(c) => setSelectedClip(c)}
             />
           ))}

@@ -1,3 +1,9 @@
+export interface SubtitleCue {
+  id?: string;
+  time: number;
+  text: string;
+}
+
 export interface ClipItem {
   id: string;
   title: string;
@@ -7,6 +13,8 @@ export interface ClipItem {
   highlightMoment: string;
   preset: string;
   imageSrc: string;
+  videoSrc?: string;
+  subtitles?: SubtitleCue[];
   renderStatus?: string;
   progress?: number;
   bottomScoreText: string;

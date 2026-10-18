@@ -12,6 +12,11 @@ export const initialClips: ClipItem[] = [
     imageSrc: "/images/clip_1.png",
     bottomScoreText: "🔥 Skor Viral: 98/100",
     bottomPresetText: "AI Cloned",
+    subtitles: [
+      { time: 0, text: "INILAH RAHASIANYA!!" },
+      { time: 3, text: "3 detik pertama menentukan algoritma video kamu." },
+      { time: 6, text: "Gunakan hook visual dan emosi yang kuat sekarang!" },
+    ],
   },
   {
     id: "clip-2",
@@ -24,6 +29,11 @@ export const initialClips: ClipItem[] = [
     imageSrc: "/images/clip_2.png",
     bottomScoreText: "🔥 Skor Viral: 45s",
     bottomPresetText: "Netflix Style",
+    subtitles: [
+      { time: 0, text: "Saya tidak pernah menduga..." },
+      { time: 3, text: "Saat semua orang ragu, kamu harus membuktikan dengan aksi nyata." },
+      { time: 7, text: "Kemenangan terbesar lahir dari kegagalan berulang." },
+    ],
   },
   {
     id: "clip-3",
@@ -38,6 +48,11 @@ export const initialClips: ClipItem[] = [
     progress: 92,
     bottomScoreText: "🔥 Skor Viral: 92%",
     bottomPresetText: "Viral Motion",
+    subtitles: [
+      { time: 0, text: "Fast Render Done ⚡" },
+      { time: 3, text: "Proses rendering secepat kilat dengan kualitas 1080p 60fps." },
+      { time: 7, text: "Langsung publish ke TikTok, Reels, dan Shorts!" },
+    ],
   },
   {
     id: "clip-4",
@@ -52,5 +67,10 @@ export const initialClips: ClipItem[] = [
     progress: 89,
     bottomScoreText: "🔥 Skor Viral: 99/100",
     bottomPresetText: "AI Cloned",
+    subtitles: [
+      { time: 0, text: "Fast Render Done 🌟" },
+      { time: 3, text: "Mindset kreator sukses tidak menunggu sempurna untuk mulai." },
+      { time: 7, text: "Buat klip viral pertama kamu hari ini!" },
+    ],
   },
 ];
