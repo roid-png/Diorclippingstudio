@@ -19,6 +19,31 @@ interface ClipCardProps {
   onDownloadNotice?: (msg: string) => void;
 }
 
+function renderNetflixSubtitle(text: string) {
+  if (!text.includes("<hl>")) {
+    return <span>{text}</span>;
+  }
+  const parts = text.split(/(<hl>.*?<\/hl>)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith("<hl>") && part.endsWith("</hl>")) {
+          const content = part.replace(/<\/?hl>/g, "");
+          return (
+            <span
+              key={i}
+              className="bg-red-600 text-white font-black px-1.5 py-0.5 rounded mx-1 shadow-xs tracking-normal inline-block"
+            >
+              {content}
+            </span>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 export function ClipCard({
   clip,
   isPlayingInline = false,
@@ -166,12 +191,28 @@ export function ClipCard({
           )}
         </div>
 
-        {/* Dynamic Subtitle Overlay when Playing Inline */}
+        {/* Dynamic Subtitle Overlay when Playing Inline (Authentic Netflix / Theo Style) */}
         {isPlaying && activeSubtitle && (
-          <div className="absolute bottom-11 left-2 right-2 z-20 flex justify-center pointer-events-none">
-            <span className="bg-black/75 backdrop-blur-xs text-amber-300 font-extrabold text-[11px] leading-tight px-2 py-1 rounded-md border border-amber-400/40 text-center shadow-lg animate-fadeIn">
-              {activeSubtitle.text}
-            </span>
+          <div className="absolute bottom-10 left-2 right-2 z-20 flex flex-col items-center pointer-events-none animate-fadeIn">
+            {/* Speaker Tag Badge (NARASUMBER / HOST) */}
+            {activeSubtitle.speaker && (
+              <span
+                className={`mb-1 px-1.5 py-0.2 rounded text-[8px] font-black tracking-widest uppercase border ${
+                  activeSubtitle.speaker === "HOST"
+                    ? "bg-black/90 text-cyan-400 border-cyan-500/50"
+                    : "bg-black/90 text-red-500 border-red-500/50"
+                }`}
+              >
+                {activeSubtitle.speaker}
+              </span>
+            )}
+
+            {/* Dark Glass Subtitle Container */}
+            <div className="bg-black/85 backdrop-blur-md border border-white/10 rounded-xl px-2.5 py-1.5 text-center shadow-2xl max-w-[95%]">
+              <p className="text-white font-bold text-[11px] sm:text-xs leading-snug tracking-normal font-sans">
+                {renderNetflixSubtitle(activeSubtitle.text)}
+              </p>
+            </div>
           </div>
         )}
 

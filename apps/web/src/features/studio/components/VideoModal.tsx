@@ -8,11 +8,38 @@ interface VideoModalProps {
   onDownloadNotice?: (msg: string) => void;
 }
 
+function renderNetflixSubtitle(text: string) {
+  if (!text.includes("<hl>")) {
+    return <span>{text}</span>;
+  }
+  const parts = text.split(/(<hl>.*?<\/hl>)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith("<hl>") && part.endsWith("</hl>")) {
+          const content = part.replace(/<\/?hl>/g, "");
+          return (
+            <span
+              key={i}
+              className="bg-red-600 text-white font-black px-1.5 py-0.5 rounded mx-1 shadow-xs tracking-normal inline-block"
+            >
+              {content}
+            </span>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 export function VideoModal({ clip, onClose, onDownloadNotice }: VideoModalProps) {
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
 
   if (!clip) return null;
+
+  const activeSubtitle = clip.subtitles && clip.subtitles.length > 0 ? clip.subtitles[0] : null;
 
   const handleDownload = () => {
     if (onDownloadNotice) {
@@ -70,6 +97,28 @@ export function VideoModal({ clip, onClose, onDownloadNotice }: VideoModalProps)
             }`}
           />
 
+          {/* Subtitle Overlay (Authentic Netflix / Theo Style) */}
+          {activeSubtitle && (
+            <div className="absolute bottom-14 left-3 right-3 z-20 flex flex-col items-center pointer-events-none animate-fadeIn">
+              {activeSubtitle.speaker && (
+                <span
+                  className={`mb-1 px-2 py-0.5 rounded text-[9px] font-black tracking-widest uppercase border ${
+                    activeSubtitle.speaker === "HOST"
+                      ? "bg-black/90 text-cyan-400 border-cyan-500/50"
+                      : "bg-black/90 text-red-500 border-red-500/50"
+                  }`}
+                >
+                  {activeSubtitle.speaker}
+                </span>
+              )}
+              <div className="bg-black/85 backdrop-blur-md border border-white/10 rounded-xl px-3 py-2 text-center shadow-2xl max-w-[95%]">
+                <p className="text-white font-bold text-xs sm:text-sm leading-snug font-sans">
+                  {renderNetflixSubtitle(activeSubtitle.text)}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Quick Controls Overlay */}
           <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-center justify-between z-20">
             <div className="flex items-center gap-2">
@@ -110,7 +159,7 @@ export function VideoModal({ clip, onClose, onDownloadNotice }: VideoModalProps)
           className="w-full h-10 rounded-xl bg-gradient-to-r from-[#17858c] via-[#20a3a7] to-[#2cd3c6] text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(44,211,198,0.3)] hover:brightness-110 active:scale-[0.98] transition cursor-pointer"
         >
           <Download className="w-4 h-4" />
-          <span>⬇️ Unduh MP4 (HD 1080p)</span>
+          <span>⬇️ Unduh MP4 Kualitas HD</span>
         </button>
       </div>
     </div>

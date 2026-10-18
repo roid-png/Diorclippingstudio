@@ -2,6 +2,7 @@ export interface SubtitleCue {
   id?: string;
   time: number;
   text: string;
+  speaker?: "NARASUMBER" | "HOST" | string;
 }
 
 export interface ClipItem {
