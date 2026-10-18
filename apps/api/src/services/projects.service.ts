@@ -3,6 +3,7 @@ import { db } from "../db";
 import { projects, quotas, clips, renderJobs } from "../db/schema";
 import type { CreateProjectInput } from "@starter/shared/validators/projects";
 import { HttpError } from "../lib/http-error";
+import { autoCutProjectVideo } from "./video-cutter.service";
 
 export async function getUserQuota(userId: string) {
   const [existingQuota] = await db
@@ -51,7 +52,7 @@ export async function createProjectJob(userId: string, input: CreateProjectInput
   }
 
   // 2. Database transaction to create project and deduct quota
-  return await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     // Insert Project
     const [project] = await tx
       .insert(projects)
@@ -82,6 +83,14 @@ export async function createProjectJob(userId: string, input: CreateProjectInput
       },
     };
   });
+
+  // 3. Automatically cut video segments based on calculated viral potential
+  const generatedClips = await autoCutProjectVideo(result.project.id);
+
+  return {
+    ...result,
+    clips: generatedClips,
+  };
 }
 
 export async function listUserProjects(userId: string) {
