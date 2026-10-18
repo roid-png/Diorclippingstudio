@@ -4,6 +4,7 @@ import { adminRouter } from "./admin.routes";
 import { healthRouter } from "./health.routes";
 import { notesRouter } from "./notes.routes";
 import { youtubeRouter } from "./youtube.routes";
+import { projectsRouter } from "./projects.routes";
 
 // Mounted at /api. Add a router per resource and register it here.
 export const apiRouter = Router();
@@ -13,4 +14,6 @@ apiRouter.use("/health", healthRouter);
 apiRouter.use("/notes", notesRouter);
 apiRouter.use("/admin", adminRouter);
 apiRouter.use("/youtube", youtubeRouter);
+apiRouter.use("/projects", projectsRouter);
+
 
