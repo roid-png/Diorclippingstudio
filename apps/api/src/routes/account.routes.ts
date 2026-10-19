@@ -8,6 +8,7 @@ import {
   getUserByIdOrDefault,
   ensureUserDailyQuota,
   getUserQuotaWithHistory,
+  consumeUserClipQuotaAtomic,
 } from "../services/account.service";
 import { extractSessionToken } from "../middleware/auth";
 
@@ -38,6 +39,18 @@ const loginSchema = z.object({
   password: z
     .string()
     .min(1, "Kata sandi tidak boleh kosong."),
+});
+
+const consumeQuotaSchema = z.object({
+  clipCount: z
+    .number()
+    .int("Jumlah klip harus berupa bilangan bulat.")
+    .min(1, "Minimal pemotongan adalah 1 klip.")
+    .max(10, "Maksimal pemotongan adalah 10 klip per proses."),
+  projectId: z.string().optional().nullable(),
+  projectTitle: z.string().optional(),
+  clipDurationSec: z.number().int().optional(),
+  sourceType: z.string().optional(),
 });
 
 /**
@@ -254,3 +267,65 @@ const handleGetQuota = async (req: Request, res: Response) => {
 
 accountRouter.get("/quota", handleGetQuota);
 accountRouter.get("/quotas", handleGetQuota);
+
+/**
+ * POST /api/account/quota/consume (and /api/quotas/consume)
+ * Atomically deducts daily clip quota when clips are generated.
+ */
+const handleConsumeQuota = async (req: Request, res: Response) => {
+  const parsed = consumeQuotaSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    res.status(400).json({
+      success: false,
+      error: "VALIDATION_ERROR",
+      message: firstIssue?.message || "Jumlah klip tidak valid.",
+    });
+    return;
+  }
+
+  let targetUserId: string | null = null;
+  const token = extractSessionToken(req);
+  if (token) {
+    const verified = await verifySessionToken(token);
+    if (verified) {
+      targetUserId = verified.user.id;
+    }
+  }
+
+  if (!targetUserId) {
+    targetUserId =
+      (typeof req.headers["x-user-id"] === "string" && req.headers["x-user-id"]) ||
+      (typeof req.body?.userId === "string" && req.body.userId) ||
+      "user-creator-demo";
+  }
+
+  try {
+    const updated = await consumeUserClipQuotaAtomic({
+      userId: targetUserId,
+      clipCount: parsed.data.clipCount,
+      projectId: parsed.data.projectId,
+      sourceTitle: parsed.data.projectTitle,
+      actionType: parsed.data.sourceType || "clip_generation",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Berhasil mengurangi ${parsed.data.clipCount} klip. Sisa kuota hari ini: ${updated.quota.remainingQuota}/${updated.quota.totalQuota} klip.`,
+      data: {
+        ...updated.quota,
+        usage: updated.usage,
+      },
+    });
+  } catch (err: any) {
+    const status = typeof err?.status === "number" ? err.status : 400;
+    res.status(status).json({
+      success: false,
+      error: err?.code || "QUOTA_CONSUME_FAILED",
+      message: err?.message || "Gagal mengurangi kuota klip.",
+    });
+  }
+};
+
+accountRouter.post("/quota/consume", handleConsumeQuota);
+accountRouter.post("/consume", handleConsumeQuota);

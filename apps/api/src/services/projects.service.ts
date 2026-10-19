@@ -7,6 +7,7 @@ import type {
 } from "@starter/shared/validators/projects";
 import { HttpError } from "../lib/http-error";
 import { autoCutProjectVideo, getProjectClips } from "./video-cutter.service";
+import { consumeUserClipQuotaAtomic } from "./account.service";
 
 export async function getUserQuota(userId: string) {
   const [existingQuota] = await db
@@ -43,20 +44,16 @@ export async function getUserQuota(userId: string) {
 }
 
 export async function createProjectJob(userId: string, input: CreateProjectInput) {
-  // 1. Quota Check
-  const quota = await getUserQuota(userId);
+  // 1. Atomic Quota Check & Deduction
+  const consumedQuota = await consumeUserClipQuotaAtomic({
+    userId,
+    clipCount: input.maxClips,
+    sourceTitle: input.videoTitle || "Video Sumber YouTube",
+    actionType: "clip_generation",
+  });
 
-  if (input.maxClips > quota.remainingQuota) {
-    throw new HttpError(
-      400,
-      "INSUFFICIENT_QUOTA",
-      `Jumlah klip yang dipilih (${input.maxClips}) melebihi sisa kuota Anda (${quota.remainingQuota} klip). Silakan kurangi limit klip.`
-    );
-  }
-
-  // 2. Database transaction to create project and deduct quota
+  // 2. Database transaction to create project
   const result = await db.transaction(async (tx) => {
-    // Insert Project
     const [project] = await tx
       .insert(projects)
       .values({
@@ -70,19 +67,12 @@ export async function createProjectJob(userId: string, input: CreateProjectInput
       })
       .returning();
 
-    // Update Quota
-    const newUsedQuota = quota.usedQuota + input.maxClips;
-    await tx
-      .update(quotas)
-      .set({ usedQuota: newUsedQuota })
-      .where(eq(quotas.userId, userId));
-
     return {
       project,
       quota: {
-        totalQuota: quota.totalQuota,
-        usedQuota: newUsedQuota,
-        remainingQuota: Math.max(0, quota.totalQuota - newUsedQuota),
+        totalQuota: consumedQuota.quota.totalQuota,
+        usedQuota: consumedQuota.quota.usedQuota,
+        remainingQuota: consumedQuota.quota.remainingQuota,
       },
     };
   });

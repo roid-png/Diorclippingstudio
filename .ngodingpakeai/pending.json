@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "cd6e68f2dd01a929cfc62ded96e2b146f15ce6ff",
+  "generatedForCommit": "d20391a0bbb414c573983391feb33cbcc20f03d6",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -178,7 +178,7 @@
     },
     {
       "path": "apps/api/drizzle/0007_fast_doctor_strange.sql",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "sql",
       "size": 1032
     },
@@ -226,13 +226,13 @@
     },
     {
       "path": "apps/api/drizzle/meta/0007_snapshot.json",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "json",
       "size": 50574
     },
     {
       "path": "apps/api/drizzle/meta/_journal.json",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "json",
       "size": 1201
     },
@@ -316,7 +316,7 @@
     },
     {
       "path": "apps/api/src/db/schema/quotas.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 1746
     },
@@ -340,7 +340,7 @@
     },
     {
       "path": "apps/api/src/db/schema/user.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 1367
     },
@@ -424,9 +424,9 @@
     },
     {
       "path": "apps/api/src/routes/account.routes.ts",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 6035
+      "size": 7101
     },
     {
       "path": "apps/api/src/routes/admin.routes.ts",
@@ -454,9 +454,9 @@
     },
     {
       "path": "apps/api/src/routes/index.ts",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 1178
+      "size": 1219
     },
     {
       "path": "apps/api/src/routes/notes.routes.ts",
@@ -496,9 +496,9 @@
     },
     {
       "path": "apps/api/src/services/account.service.ts",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 16145
+      "size": 18134
     },
     {
       "path": "apps/api/src/services/clip-edit-settings.service.ts",

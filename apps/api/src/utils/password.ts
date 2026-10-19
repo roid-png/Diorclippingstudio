@@ -30,3 +30,4 @@ export function verifyPassword(password: string, storedHash: string | null | und
   if (keyBuffer.length !== derivedBuffer.length) return false;
   return timingSafeEqual(keyBuffer, derivedBuffer);
 }
+

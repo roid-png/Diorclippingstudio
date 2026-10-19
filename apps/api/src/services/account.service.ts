@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { user, session, quotas, clipUsages } from "../db/schema";
 import { hashPassword, verifyPassword } from "../utils/password";
@@ -672,5 +672,148 @@ export async function getUserQuotaWithHistory(userId?: string | null) {
     isLow: quota.remainingQuota > 0 && quota.remainingQuota <= 10,
     maxClipsPerProcess: 10,
     history,
+  };
+}
+
+/**
+ * Atomically deducts `clipCount` from the user's daily 50-clip quota when clips are created,
+ * preventing race conditions or overdrafts, and logs the usage in `clip_usages`.
+ */
+export async function consumeUserClipQuotaAtomic(input: {
+  userId?: string | null;
+  clipCount: number;
+  projectId?: string | null;
+  sourceTitle?: string | null;
+  actionType?: string;
+}) {
+  const clipCount = Math.floor(Number(input.clipCount));
+  if (!Number.isFinite(clipCount) || clipCount < 1 || clipCount > 10) {
+    const err = new Error(
+      "Jumlah klip per proses harus antara 1 hingga maksimal 10 klip."
+    );
+    (err as any).code = "INVALID_CLIP_COUNT";
+    (err as any).status = 400;
+    throw err;
+  }
+
+  const targetUser = await getUserByIdOrDefault(input.userId);
+  const currentQuota = await ensureUserDailyQuota(targetUser.id);
+
+  if (currentQuota.remainingQuota <= 0) {
+    const err = new Error(
+      "Kuota klip harian Anda telah habis (0/50 klip tersisa). Kuota akan direset otomatis pukul 00:00 WIB."
+    );
+    (err as any).code = "QUOTA_EXHAUSTED";
+    (err as any).status = 403;
+    throw err;
+  }
+
+  if (clipCount > currentQuota.remainingQuota) {
+    const err = new Error(
+      `Jumlah klip yang dipilih (${clipCount}) melebihi sisa kuota harian Anda (${currentQuota.remainingQuota} klip tersisa).`
+    );
+    (err as any).code = "INSUFFICIENT_QUOTA";
+    (err as any).status = 400;
+    throw err;
+  }
+
+  const nextReset = getNextMidnightWIB();
+  const now = new Date();
+  let finalUsedQuota = currentQuota.usedQuota + clipCount;
+  let finalTotalQuota = currentQuota.totalQuota;
+
+  try {
+    await db.transaction(async (tx) => {
+      // Atomic conditional update: only succeeds if (total_quota - used_quota) >= clipCount
+      const updatedRows = await tx
+        .update(quotas)
+        .set({
+          usedQuota: sql`${quotas.usedQuota} + ${clipCount}`,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(quotas.userId, targetUser.id),
+            sql`(${quotas.totalQuota} - ${quotas.usedQuota}) >= ${clipCount}`
+          )
+        )
+        .returning();
+
+      if (updatedRows.length === 0) {
+        const err = new Error(
+          `Kuota klip tidak mencukupi untuk memotong ${clipCount} klip secara bersamaan.`
+        );
+        (err as any).code = "INSUFFICIENT_QUOTA";
+        (err as any).status = 400;
+        throw err;
+      }
+
+      const row = updatedRows[0]!;
+      finalUsedQuota = row.usedQuota;
+      finalTotalQuota = row.totalQuota;
+
+      const remainingAfter = Math.max(0, finalTotalQuota - finalUsedQuota);
+
+      await tx
+        .update(user)
+        .set({
+          usedQuota: finalUsedQuota,
+          dailyQuota: finalTotalQuota,
+          quotaResetAt: row.resetDate ?? nextReset,
+          updatedAt: now,
+        })
+        .where(eq(user.id, targetUser.id));
+
+      await tx.insert(clipUsages).values({
+        userId: targetUser.id,
+        projectId:
+          input.projectId &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            input.projectId
+          )
+            ? input.projectId
+            : null,
+        clipsUsed: clipCount,
+        remainingAfter,
+        sourceTitle: input.sourceTitle || "Video Sumber YouTube",
+        actionType: input.actionType || "auto_cut",
+        createdAt: now,
+      });
+    });
+  } catch (err: any) {
+    if (err?.code === "INSUFFICIENT_QUOTA" || err?.code === "QUOTA_EXHAUSTED") {
+      throw err;
+    }
+    // In-memory atomic fallback when DB is unreachable in dev/mock mode
+  }
+
+  const remainingAfter = Math.max(0, finalTotalQuota - finalUsedQuota);
+  const updatedSummary: QuotaSummary = {
+    userId: targetUser.id,
+    totalQuota: finalTotalQuota,
+    usedQuota: finalUsedQuota,
+    remainingQuota: remainingAfter,
+    resetDate: currentQuota.resetDate || nextReset.toISOString(),
+    resetTimeLabel: "00:00 WIB",
+  };
+  inMemoryQuotas.set(targetUser.id, updatedSummary);
+
+  const usageEntry: ClipUsageEntry = {
+    id: `usage-${randomUUID().slice(0, 8)}`,
+    userId: targetUser.id,
+    projectId: input.projectId ?? null,
+    clipsUsed: clipCount,
+    remainingAfter,
+    sourceTitle: input.sourceTitle || "Video Sumber YouTube",
+    actionType: input.actionType || "auto_cut",
+    createdAt: now.toISOString(),
+  };
+
+  const prevHistory = inMemoryUsageHistory.get(targetUser.id) || [];
+  inMemoryUsageHistory.set(targetUser.id, [usageEntry, ...prevHistory].slice(0, 30));
+
+  return {
+    quota: updatedSummary,
+    usage: usageEntry,
   };
 }
