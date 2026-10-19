@@ -1,7 +1,10 @@
 import { Router } from "express";
 import {
+  batchSelectFavoriteClipsSchema,
+  clipIdSchema,
   createProjectSchema,
   projectIdSchema,
+  toggleFavoriteClipSchema,
 } from "@starter/shared/validators/projects";
 import { HttpError } from "../lib/http-error";
 import { getAuth, requireAuth } from "../middleware/auth";
@@ -16,7 +19,9 @@ import {
 } from "../services/projects.service";
 import {
   autoCutProjectVideo,
+  batchUpdateFavoriteClips,
   getProjectClips,
+  toggleClipFavorite,
 } from "../services/video-cutter.service";
 
 export const projectsRouter = Router();
@@ -82,6 +87,34 @@ projectsRouter.get("/:id/clips", async (req, res) => {
   res.json({ data: clips });
 });
 
+// Toggle favorite status for a single clip within a project (max 10)
+projectsRouter.patch("/:id/clips/:clipId/favorite", jsonBody, async (req, res) => {
+  const userId = getAuth(req).user.id;
+  const id = projectIdSchema.parse(req.params.id);
+  const clipId = clipIdSchema.parse(req.params.clipId);
+  const project = await getProjectById(userId, id);
+  if (!project) throw new HttpError(404, "NOT_FOUND", "Proyek tidak ditemukan.");
+
+  const parsedBody =
+    req.body && typeof req.body === "object"
+      ? toggleFavoriteClipSchema.parse(req.body)
+      : {};
+  const result = await toggleClipFavorite(clipId, parsedBody.isSelected);
+  res.json({ data: result });
+});
+
+// Batch update favorite clips for a project (max 10)
+projectsRouter.put("/:id/clips/favorites", jsonBody, async (req, res) => {
+  const userId = getAuth(req).user.id;
+  const id = projectIdSchema.parse(req.params.id);
+  const project = await getProjectById(userId, id);
+  if (!project) throw new HttpError(404, "NOT_FOUND", "Proyek tidak ditemukan.");
+
+  const { clipIds } = batchSelectFavoriteClipsSchema.parse(req.body);
+  const result = await batchUpdateFavoriteClips(id, clipIds);
+  res.json({ data: result });
+});
+
 // List user projects
 projectsRouter.get("/", async (req, res) => {
   const userId = getAuth(req).user.id;
@@ -97,3 +130,4 @@ projectsRouter.get("/:id", async (req, res) => {
   if (!project) throw new HttpError(404, "NOT_FOUND", "Proyek tidak ditemukan.");
   res.json({ data: project });
 });
+

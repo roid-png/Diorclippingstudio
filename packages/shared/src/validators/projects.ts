@@ -20,3 +20,23 @@ export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 
 export const projectIdSchema = z.string().uuid("ID proyek harus berupa UUID yang valid.");
 
+export const clipIdSchema = z.string().uuid("ID klip harus berupa UUID yang valid.");
+
+export const toggleFavoriteClipSchema = z
+  .object({
+    isSelected: z.boolean().optional(),
+  })
+  .strict();
+
+export type ToggleFavoriteClipInput = z.infer<typeof toggleFavoriteClipSchema>;
+
+export const batchSelectFavoriteClipsSchema = z
+  .object({
+    clipIds: z
+      .array(z.string().uuid("ID klip harus berupa UUID yang valid."))
+      .max(10, "Maksimal 10 klip favorit yang dapat dipilih."),
+  })
+  .strict();
+
+export type BatchSelectFavoriteClipsInput = z.infer<typeof batchSelectFavoriteClipsSchema>;
+

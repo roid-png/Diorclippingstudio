@@ -390,3 +390,120 @@ export async function getProjectClips(
   return clipsWithSubtitles.slice(0, maxLimit);
 }
 
+export const MAX_FAVORITE_CLIPS_PER_PROJECT = 10;
+
+export async function toggleClipFavorite(
+  clipId: string,
+  forceState?: boolean
+) {
+  const [targetClip] = await db
+    .select()
+    .from(clips)
+    .where(eq(clips.id, clipId))
+    .limit(1);
+
+  if (!targetClip) {
+    throw new HttpError(404, "CLIP_NOT_FOUND", "Klip tidak ditemukan.");
+  }
+
+  const nextSelected =
+    typeof forceState === "boolean" ? forceState : !targetClip.isSelected;
+
+  if (nextSelected && !targetClip.isSelected) {
+    const existingSelected = await db
+      .select({ id: clips.id })
+      .from(clips)
+      .where(
+        and(
+          eq(clips.projectId, targetClip.projectId),
+          eq(clips.isSelected, true)
+        )
+      );
+
+    if (existingSelected.length >= MAX_FAVORITE_CLIPS_PER_PROJECT) {
+      throw new HttpError(
+        400,
+        "MAX_FAVORITES_EXCEEDED",
+        `Batas maksimal ${MAX_FAVORITE_CLIPS_PER_PROJECT} klip favorit telah tercapai untuk proyek ini.`
+      );
+    }
+  }
+
+  const [updatedClip] = await db
+    .update(clips)
+    .set({ isSelected: nextSelected })
+    .where(eq(clips.id, clipId))
+    .returning();
+
+  const updatedSelectedList = await db
+    .select({ id: clips.id })
+    .from(clips)
+    .where(
+      and(
+        eq(clips.projectId, targetClip.projectId),
+        eq(clips.isSelected, true)
+      )
+    )
+    .orderBy(asc(clips.rank));
+
+  return {
+    clip: updatedClip,
+    selectedCount: updatedSelectedList.length,
+    maxAllowed: MAX_FAVORITE_CLIPS_PER_PROJECT,
+    selectedClipIds: updatedSelectedList.map((item) => item.id),
+  };
+}
+
+export async function batchUpdateFavoriteClips(
+  projectId: string,
+  clipIds: string[]
+) {
+  const uniqueClipIds = Array.from(new Set(clipIds));
+  if (uniqueClipIds.length > MAX_FAVORITE_CLIPS_PER_PROJECT) {
+    throw new HttpError(
+      400,
+      "MAX_FAVORITES_EXCEEDED",
+      `Maksimal ${MAX_FAVORITE_CLIPS_PER_PROJECT} klip favorit yang dapat dipilih.`
+    );
+  }
+
+  const projectClips = await db
+    .select()
+    .from(clips)
+    .where(eq(clips.projectId, projectId))
+    .orderBy(asc(clips.rank));
+
+  if (projectClips.length === 0) {
+    throw new HttpError(
+      404,
+      "CLIPS_NOT_FOUND",
+      "Tidak ada klip yang ditemukan untuk proyek ini."
+    );
+  }
+
+  const selectedSet = new Set(uniqueClipIds);
+
+  await db.transaction(async (tx) => {
+    for (const clip of projectClips) {
+      const shouldBeSelected = selectedSet.has(clip.id);
+      if (clip.isSelected !== shouldBeSelected) {
+        await tx
+          .update(clips)
+          .set({ isSelected: shouldBeSelected })
+          .where(eq(clips.id, clip.id));
+      }
+    }
+  });
+
+  const validSelectedIds = projectClips
+    .filter((clip) => selectedSet.has(clip.id))
+    .map((clip) => clip.id);
+
+  return {
+    projectId,
+    selectedCount: validSelectedIds.length,
+    maxAllowed: MAX_FAVORITE_CLIPS_PER_PROJECT,
+    selectedClipIds: validSelectedIds,
+  };
+}
+

@@ -2,9 +2,15 @@ import { Router } from "express";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { asc, desc, eq } from "drizzle-orm";
+import {
+  clipIdSchema,
+  toggleFavoriteClipSchema,
+} from "@starter/shared/validators/projects";
 import { db } from "../db";
 import { clips, subtitles } from "../db/schema";
 import { HttpError } from "../lib/http-error";
+import { jsonBody } from "../middleware/body";
+import { toggleClipFavorite } from "../services/video-cutter.service";
 import {
   getViralScoreCategory,
   resolveHighlightMomentWithFallback,
@@ -110,6 +116,20 @@ clipsRouter.get("/", async (req, res) => {
     },
   });
 });
+
+// Toggle or set favorite status for a clip (max 10 per project)
+const handleToggleFavorite = async (req: any, res: any) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const parsedBody =
+    req.body && typeof req.body === "object"
+      ? toggleFavoriteClipSchema.parse(req.body)
+      : {};
+  const result = await toggleClipFavorite(clipId, parsedBody.isSelected);
+  res.json({ data: result });
+};
+
+clipsRouter.patch("/:id/favorite", jsonBody, handleToggleFavorite);
+clipsRouter.post("/:id/favorite", jsonBody, handleToggleFavorite);
 
 // Get clip metadata and subtitles
 clipsRouter.get("/:id", async (req, res) => {
