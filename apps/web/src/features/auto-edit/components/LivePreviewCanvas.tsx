@@ -111,6 +111,9 @@ export function LivePreviewCanvas({
   const [isMuted, setIsMuted] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadDone, setDownloadDone] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"combined" | "raw">(
+    "combined"
+  );
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const totalSeconds = clip.durationSeconds || 45;
@@ -182,7 +185,9 @@ export function LivePreviewCanvas({
 
   // Compute color filter based on colorGrade
   const colorFilterClass =
-    clip.config.colorGrade === "netflix-warm"
+    previewMode === "raw"
+      ? ""
+      : clip.config.colorGrade === "netflix-warm"
       ? "contrast-115 saturate-110 sepia-[0.08]"
       : clip.config.colorGrade === "crisp-contrast"
       ? "contrast-125 brightness-105 saturate-120"
@@ -213,13 +218,41 @@ export function LivePreviewCanvas({
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-[#2cd3c6] animate-pulse" />
           <h3 className="text-xs sm:text-sm font-bold text-white tracking-wide">
-            Live Canvas 9:16 (Pratinjau Real-time)
+            Pratinjau Gabungan 9:16 (Subtitle + Gaya)
           </h3>
         </div>
         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40 flex items-center gap-1">
           <Flame className="w-3 h-3 fill-amber-400 text-amber-400" />
           <span>Skor {clip.viralScore}</span>
         </span>
+      </div>
+
+      {/* Mode Perbandingan: Gabungan 3 Pilar vs Video Asli */}
+      <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#091518] border border-[#1b363e]">
+        <button
+          type="button"
+          onClick={() => setPreviewMode("combined")}
+          className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition cursor-pointer flex items-center justify-center gap-1 ${
+            previewMode === "combined"
+              ? "bg-[#163d46] text-[#2cd3c6] border border-[#2cd3c6]/50 shadow-sm"
+              : "text-[#7d9399] hover:text-white"
+          }`}
+        >
+          <Sparkles className="w-3 h-3" />
+          <span>Gabungan 3 Pilar</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setPreviewMode("raw")}
+          className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition cursor-pointer flex items-center justify-center gap-1 ${
+            previewMode === "raw"
+              ? "bg-amber-950/60 text-amber-300 border border-amber-400/50 shadow-sm"
+              : "text-[#7d9399] hover:text-white"
+          }`}
+        >
+          <Film className="w-3 h-3" />
+          <span>Video Asli (Mentah)</span>
+        </button>
       </div>
 
       {/* Active 3-Pillar Badges Bar */}
@@ -328,8 +361,21 @@ export function LivePreviewCanvas({
           </>
         )}
 
+        {/* Raw Mode Badge when viewing unedited video */}
+        {previewMode === "raw" && (
+          <div className="absolute top-3 inset-x-3 z-20 bg-amber-950/90 border border-amber-400/50 rounded-xl p-2 text-center pointer-events-none">
+            <span className="text-[9px] font-black text-amber-300 uppercase tracking-wider block">
+              🎞️ MODE VIDEO ASLI (SEBELUM EDIT OTOMATIS)
+            </span>
+            <span className="text-[8px] text-amber-200/80">
+              Klik &ldquo;Gabungan 3 Pilar&rdquo; di atas untuk melihat hasil komposisi Subtitle + Gaya
+            </span>
+          </div>
+        )}
+
         {/* 2. MOTION GRAPHIC OVERLAY RENDERER */}
-        {clip.config.infographicEnabled &&
+        {previewMode === "combined" &&
+          clip.config.infographicEnabled &&
           motionPreset.type === "infographic-bars" && (
             <div className="absolute top-2.5 inset-x-2.5 z-20 bg-black/85 backdrop-blur-md border border-white/15 rounded-xl p-2.5 shadow-xl pointer-events-none animate-fadeIn">
               <div className="flex items-center justify-between mb-1">
@@ -382,7 +428,7 @@ export function LivePreviewCanvas({
             </div>
           )}
 
-        {motionPreset.type === "stat-counter" && (
+        {previewMode === "combined" && motionPreset.type === "stat-counter" && (
           <div className="absolute top-3 left-2.5 right-2.5 z-20 flex items-center justify-between pointer-events-none">
             <div className="bg-black/80 backdrop-blur-md border-l-4 border-red-500 rounded-r-lg px-2.5 py-1 shadow-lg">
               <div className="text-[8px] text-red-400 font-black tracking-widest uppercase">
@@ -401,7 +447,7 @@ export function LivePreviewCanvas({
           </div>
         )}
 
-        {motionPreset.type === "progress-zoom" && (
+        {previewMode === "combined" && motionPreset.type === "progress-zoom" && (
           <div className="absolute top-3 right-3 z-20 pointer-events-none">
             <span className="px-2 py-0.5 rounded-full bg-[#20b2aa]/80 text-white text-[9px] font-bold flex items-center gap-1 border border-white/30 shadow-md">
               <ZoomIn className="w-3 h-3" />
@@ -411,48 +457,50 @@ export function LivePreviewCanvas({
         )}
 
         {/* 3. SUBTITLE OTOMATIS OVERLAY RENDERER */}
-        {clip.config.subtitleEnabled && activeSubtitle && (
-          <div
-            className={`absolute inset-x-2.5 ${subtitlePosClass} z-20 flex flex-col items-center pointer-events-none transition-all duration-200`}
-          >
-            {subtitlePreset.speakerBadge && activeSubtitle.speaker && (
-              <span
-                className={`mb-1 px-2 py-0.5 rounded text-[8px] font-black tracking-widest uppercase border shadow-md ${
-                  activeSubtitle.speaker === "HOST"
-                    ? "bg-black/90 text-cyan-400 border-cyan-500/50"
-                    : "bg-black/90 text-red-400 border-red-500/50"
-                }`}
-              >
-                {activeSubtitle.speaker}
-              </span>
-            )}
-
+        {previewMode === "combined" &&
+          clip.config.subtitleEnabled &&
+          activeSubtitle && (
             <div
-              className={`px-3 py-1.5 rounded-xl text-center max-w-[96%] transition-all ${
-                subtitlePreset.id === "netflix-minimal"
-                  ? "bg-transparent"
-                  : "bg-black/85 backdrop-blur-md border border-white/15 shadow-2xl"
-              }`}
-              style={{ fontFamily: subtitlePreset.fontFamily }}
+              className={`absolute inset-x-2.5 ${subtitlePosClass} z-20 flex flex-col items-center pointer-events-none transition-all duration-200`}
             >
-              <p
-                className={`font-extrabold leading-snug tracking-tight ${subtitleSizeClass} ${
-                  subtitlePreset.highlightStyle === "yellow-glow"
-                    ? "text-white uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]"
-                    : "text-white"
+              {subtitlePreset.speakerBadge && activeSubtitle.speaker && (
+                <span
+                  className={`mb-1 px-2 py-0.5 rounded text-[8px] font-black tracking-widest uppercase border shadow-md ${
+                    activeSubtitle.speaker === "HOST"
+                      ? "bg-black/90 text-cyan-400 border-cyan-500/50"
+                      : "bg-black/90 text-red-400 border-red-500/50"
+                  }`}
+                >
+                  {activeSubtitle.speaker}
+                </span>
+              )}
+
+              <div
+                className={`px-3 py-1.5 rounded-xl text-center max-w-[96%] transition-all ${
+                  subtitlePreset.id === "netflix-minimal"
+                    ? "bg-transparent"
+                    : "bg-black/85 backdrop-blur-md border border-white/15 shadow-2xl"
                 }`}
+                style={{ fontFamily: subtitlePreset.fontFamily }}
               >
-                {renderStyledSubtitleText(
-                  activeSubtitle.text,
-                  subtitlePreset.highlightStyle
-                )}
-              </p>
+                <p
+                  className={`font-extrabold leading-snug tracking-tight ${subtitleSizeClass} ${
+                    subtitlePreset.highlightStyle === "yellow-glow"
+                      ? "text-white uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]"
+                      : "text-white"
+                  }`}
+                >
+                  {renderStyledSubtitleText(
+                    activeSubtitle.text,
+                    subtitlePreset.highlightStyle
+                  )}
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Bottom Neon Progress Bar (if enabled) */}
-        {clip.config.progressBarEnabled && (
+        {previewMode === "combined" && clip.config.progressBarEnabled && (
           <div className="absolute bottom-10 inset-x-3 h-1 bg-white/20 rounded-full overflow-hidden z-20 pointer-events-none">
             <div
               className="h-full bg-gradient-to-r from-[#20b2aa] via-[#2cd3c6] to-amber-300 transition-all duration-300 shadow-[0_0_8px_#2cd3c6]"
@@ -548,6 +596,38 @@ export function LivePreviewCanvas({
           onChange={(e) => setCurrentTime(Number(e.target.value))}
           className="w-full accent-[#2cd3c6] h-1.5 bg-[#14282e] rounded-lg cursor-pointer"
         />
+      </div>
+
+      {/* Ringkasan Layer Pratinjau Gabungan (3-Layer Compositor Inspector) */}
+      <div className="p-2.5 rounded-xl bg-[#091619]/90 border border-[#1a353c] text-[10px] space-y-1.5">
+        <div className="flex items-center justify-between text-[#8ca4aa] font-semibold border-b border-white/10 pb-1">
+          <span>Komposisi Layer Pratinjau Gabungan:</span>
+          <span className="text-[#2cd3c6] font-mono">9:16 REAL-TIME</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-gray-400">1. Gaya Edit & Warna:</span>
+          <span className="text-white font-semibold truncate max-w-[165px]">
+            {editingPreset.name}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-gray-400">2. Motion Graphic:</span>
+          <span className="text-purple-300 font-semibold truncate max-w-[165px]">
+            {motionPreset.name}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-gray-400">3. Subtitle Otomatis:</span>
+          <span
+            className={`font-semibold truncate max-w-[165px] ${
+              clip.config.subtitleEnabled ? "text-rose-300" : "text-gray-500"
+            }`}
+          >
+            {clip.config.subtitleEnabled
+              ? `${subtitlePreset.name} (${activeSubtitle?.speaker || "AI"})`
+              : "Nonaktif (OFF)"}
+          </span>
+        </div>
       </div>
 
       {/* Action Buttons: Apply to All & Single Full-Width Download MP4 */}

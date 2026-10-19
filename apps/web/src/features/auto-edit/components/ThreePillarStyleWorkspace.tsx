@@ -774,9 +774,9 @@ export function ThreePillarStyleWorkspace({
           </button>
         </div>
 
-        {/* Preset Cards Grid for Subtitle Style */}
+        {/* Preset Cards Grid for Subtitle Style with Mini Visual Previews */}
         <div
-          className={`grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3.5 transition-opacity ${
+          className={`grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3.5 transition-opacity ${
             clip.config.subtitleEnabled ? "opacity-100" : "opacity-50"
           }`}
         >
@@ -791,9 +791,9 @@ export function ThreePillarStyleWorkspace({
                     subtitleEnabled: true,
                   })
                 }
-                className={`p-3 rounded-xl border transition-all cursor-pointer select-none flex flex-col justify-between gap-1.5 ${
+                className={`p-3 rounded-xl border transition-all cursor-pointer select-none flex flex-col justify-between gap-2 ${
                   isSelected
-                    ? "bg-rose-950/35 border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.2)]"
+                    ? "bg-rose-950/35 border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.25)]"
                     : "bg-[#12262b]/80 border-[#1d3940] hover:border-rose-400/40"
                 }`}
               >
@@ -817,6 +817,52 @@ export function ThreePillarStyleWorkspace({
                     )}
                   </div>
                 </div>
+
+                {/* PRATINJAU MINI GAYA SUBTITLE */}
+                <div className="h-14 rounded-lg bg-[#071215] border border-white/10 px-2.5 py-1.5 flex flex-col items-center justify-center text-center relative overflow-hidden">
+                  {sub.speakerBadge && (
+                    <span className="mb-0.5 px-1.5 py-0.2 rounded text-[7px] font-black tracking-widest uppercase bg-black text-red-400 border border-red-500/40">
+                      NARASUMBER
+                    </span>
+                  )}
+                  {sub.highlightStyle === "red-pill" && (
+                    <p className="text-[10px] font-extrabold text-white leading-tight">
+                      Semua{" "}
+                      <span className="bg-red-600 text-white px-1 py-0.2 rounded font-black">
+                        White Collar Jobs
+                      </span>{" "}
+                      terancam AI.
+                    </p>
+                  )}
+                  {sub.highlightStyle === "white-shadow" && (
+                    <p className="text-[10px] font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] leading-tight">
+                      Semua{" "}
+                      <span className="text-amber-300 font-black">
+                        White Collar Jobs
+                      </span>{" "}
+                      terancam AI.
+                    </p>
+                  )}
+                  {sub.highlightStyle === "yellow-glow" && (
+                    <p className="text-[10px] font-black uppercase text-white tracking-tight leading-tight">
+                      SEMUA{" "}
+                      <span className="text-yellow-300 underline decoration-yellow-400">
+                        WHITE COLLAR
+                      </span>{" "}
+                      TERANCAM!
+                    </p>
+                  )}
+                  {sub.highlightStyle === "karaoke" && (
+                    <p className="text-[10px] font-extrabold text-white leading-tight">
+                      Semua{" "}
+                      <span className="bg-[#2cd3c6] text-black px-1 py-0.2 rounded font-black">
+                        White Collar
+                      </span>{" "}
+                      terancam AI.
+                    </p>
+                  )}
+                </div>
+
                 <p className="text-[11px] text-[#93adb3] leading-snug">
                   {sub.description}
                 </p>

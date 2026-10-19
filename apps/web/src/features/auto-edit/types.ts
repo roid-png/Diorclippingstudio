@@ -55,3 +55,4 @@ export interface AutoEditClipItem {
   subtitles: AutoEditSubtitleLine[];
   config: AutoEditClipConfig;
 }
+
