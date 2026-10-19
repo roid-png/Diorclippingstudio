@@ -377,3 +377,150 @@ const handleValidateQuota = async (req: Request, res: Response) => {
 
 accountRouter.post("/quota/validate", handleValidateQuota);
 accountRouter.post("/validate", handleValidateQuota);
+
+const updateProfileSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Nama lengkap minimal harus 2 karakter.")
+    .max(60, "Nama lengkap maksimal 60 karakter.")
+    .optional(),
+  email: z
+    .string()
+    .trim()
+    .email("Format alamat email tidak valid.")
+    .optional(),
+  avatarUrl: z.string().trim().min(1, "Avatar tidak boleh kosong.").optional(),
+  image: z.string().trim().optional(),
+  bio: z
+    .string()
+    .trim()
+    .max(240, "Bio singkat maksimal 240 karakter.")
+    .nullable()
+    .optional(),
+  badge: z
+    .string()
+    .trim()
+    .max(50, "Badge maksimal 50 karakter.")
+    .optional(),
+});
+
+const uploadAvatarSchema = z.object({
+  avatarUrl: z.string().trim().optional(),
+  avatarDataUrl: z.string().trim().optional(),
+  presetId: z.string().trim().optional(),
+  fileName: z.string().trim().optional(),
+  mimeType: z.string().trim().optional(),
+});
+
+async function resolveRequestUserId(req: Request): Promise<string> {
+  const token = extractSessionToken(req);
+  if (token) {
+    const verified = await verifySessionToken(token);
+    if (verified) {
+      return verified.user.id;
+    }
+  }
+
+  return (
+    (typeof req.headers["x-user-id"] === "string" && req.headers["x-user-id"]) ||
+    (typeof req.body?.userId === "string" && req.body.userId) ||
+    (typeof req.query?.userId === "string" && req.query.userId) ||
+    "user-creator-demo"
+  );
+}
+
+/**
+ * PATCH /api/account/profile (and PUT /api/account/profile)
+ * Updates the user's display name, avatar preset/URL/dataURL, bio, and badge.
+ */
+const handleUpdateProfile = async (req: Request, res: Response) => {
+  const parsed = updateProfileSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    res.status(400).json({
+      success: false,
+      error: "VALIDATION_ERROR",
+      message: firstIssue?.message || "Data profil tidak valid.",
+    });
+    return;
+  }
+
+  const targetUserId = await resolveRequestUserId(req);
+
+  try {
+    const { updateUserProfile } = await import("../services/account.service");
+    const updated = await updateUserProfile({
+      userId: targetUserId,
+      name: parsed.data.name,
+      email: parsed.data.email,
+      avatarUrl: parsed.data.avatarUrl ?? parsed.data.image,
+      bio: parsed.data.bio,
+      badge: parsed.data.badge,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Profil dan foto berhasil diperbarui!",
+      data: updated,
+    });
+  } catch (err: any) {
+    const status = typeof err?.status === "number" ? err.status : 400;
+    res.status(status).json({
+      success: false,
+      error: err?.code || "PROFILE_UPDATE_FAILED",
+      message: err?.message || "Gagal memperbarui profil pengguna.",
+    });
+  }
+};
+
+accountRouter.patch("/profile", handleUpdateProfile);
+accountRouter.put("/profile", handleUpdateProfile);
+
+/**
+ * POST /api/account/avatar (and POST /api/account/profile/avatar)
+ * Uploads a new profile photo (base64 data URL, remote image URL, or preset avatar ID)
+ * and updates the user's avatarUrl.
+ */
+const handleUploadAvatar = async (req: Request, res: Response) => {
+  const parsed = uploadAvatarSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    res.status(400).json({
+      success: false,
+      error: "VALIDATION_ERROR",
+      message: firstIssue?.message || "Data unggahan foto profil tidak valid.",
+    });
+    return;
+  }
+
+  const targetUserId = await resolveRequestUserId(req);
+
+  try {
+    const { uploadUserAvatar } = await import("../services/account.service");
+    const result = await uploadUserAvatar({
+      userId: targetUserId,
+      avatarUrl: parsed.data.avatarUrl,
+      avatarDataUrl: parsed.data.avatarDataUrl,
+      presetId: parsed.data.presetId,
+      fileName: parsed.data.fileName,
+      mimeType: parsed.data.mimeType,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Foto profil berhasil diunggah dan diterapkan!",
+      data: result,
+    });
+  } catch (err: any) {
+    const status = typeof err?.status === "number" ? err.status : 400;
+    res.status(status).json({
+      success: false,
+      error: err?.code || "AVATAR_UPLOAD_FAILED",
+      message: err?.message || "Gagal mengunggah foto profil.",
+    });
+  }
+};
+
+accountRouter.post("/avatar", handleUploadAvatar);
+accountRouter.post("/profile/avatar", handleUploadAvatar);

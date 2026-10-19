@@ -845,3 +845,167 @@ export async function consumeUserClipQuotaAtomic(input: {
     usage: usageEntry,
   };
 }
+
+/**
+ * Updates user profile fields (name, email, avatarUrl, bio, badge) in both
+ * PostgreSQL (`user` table) and in-memory cache.
+ */
+export async function updateUserProfile(input: {
+  userId?: string | null;
+  name?: string;
+  email?: string;
+  avatarUrl?: string;
+  bio?: string | null;
+  badge?: string;
+}) {
+  const targetUser = await getUserByIdOrDefault(input.userId);
+  const now = new Date();
+
+  const nextName =
+    typeof input.name === "string" && input.name.trim().length >= 2
+      ? input.name.trim()
+      : targetUser.name;
+  const nextEmail =
+    typeof input.email === "string" && input.email.trim().includes("@")
+      ? input.email.trim().toLowerCase()
+      : targetUser.email;
+  const nextAvatarUrl =
+    typeof input.avatarUrl === "string" && input.avatarUrl.trim().length > 0
+      ? input.avatarUrl.trim()
+      : targetUser.avatarUrl;
+  const nextBio =
+    input.bio !== undefined ? (input.bio ? input.bio.trim() : null) : targetUser.bio;
+  const nextBadge =
+    typeof input.badge === "string" && input.badge.trim().length > 0
+      ? input.badge.trim()
+      : targetUser.badge;
+
+  // Check if email is changed and already used by another user
+  if (nextEmail !== targetUser.email) {
+    for (const existing of inMemoryUsers.values()) {
+      if (
+        existing.email.toLowerCase() === nextEmail &&
+        existing.id !== targetUser.id
+      ) {
+        throw new HttpError(
+          409,
+          "EMAIL_ALREADY_EXISTS",
+          "Alamat email tersebut sudah digunakan oleh akun lain."
+        );
+      }
+    }
+  }
+
+  try {
+    await db
+      .update(user)
+      .set({
+        name: nextName,
+        email: nextEmail,
+        avatarUrl: nextAvatarUrl,
+        image: nextAvatarUrl,
+        bio: nextBio,
+        badge: nextBadge,
+        updatedAt: now,
+      })
+      .where(eq(user.id, targetUser.id));
+  } catch {
+    // Fallback to in-memory update when DB is offline in local dev
+  }
+
+  const updatedRecord: UserAccountRecord = {
+    ...targetUser,
+    name: nextName,
+    email: nextEmail,
+    avatarUrl: nextAvatarUrl,
+    bio: nextBio,
+    badge: nextBadge,
+    updatedAt: now.toISOString(),
+  };
+
+  inMemoryUsers.set(targetUser.id, updatedRecord);
+  const quota = await ensureUserDailyQuota(targetUser.id);
+
+  return {
+    user: {
+      id: updatedRecord.id,
+      name: updatedRecord.name,
+      email: updatedRecord.email,
+      avatarUrl: updatedRecord.avatarUrl,
+      image: updatedRecord.avatarUrl,
+      bio: updatedRecord.bio,
+      badge: updatedRecord.badge,
+      role: updatedRecord.role,
+      emailVerified: updatedRecord.emailVerified,
+      createdAt: updatedRecord.createdAt,
+      updatedAt: updatedRecord.updatedAt,
+    },
+    quota,
+  };
+}
+
+/**
+ * Validates and saves a new profile photo (base64 data URL image, remote URL, or preset avatar ID)
+ * and updates the user's `avatarUrl` / `image`.
+ */
+export async function uploadUserAvatar(input: {
+  userId?: string | null;
+  avatarUrl?: string;
+  avatarDataUrl?: string;
+  presetId?: string;
+  fileName?: string;
+  mimeType?: string;
+}) {
+  const rawAvatar =
+    input.avatarDataUrl?.trim() ||
+    input.avatarUrl?.trim() ||
+    input.presetId?.trim() ||
+    "";
+
+  if (!rawAvatar) {
+    throw new HttpError(
+      400,
+      "EMPTY_AVATAR",
+      "Foto profil atau pilihan avatar tidak boleh kosong."
+    );
+  }
+
+  // If it's a data URL, validate mime type and size (max ~2MB base64 payload)
+  if (rawAvatar.startsWith("data:")) {
+    const isSupportedImage = /^data:image\/(jpeg|jpg|png|webp|gif|svg\+xml);base64,/i.test(
+      rawAvatar
+    );
+    if (!isSupportedImage) {
+      throw new HttpError(
+        400,
+        "INVALID_IMAGE_FORMAT",
+        "Format gambar tidak didukung. Gunakan file JPG, PNG, WebP, atau SVG."
+      );
+    }
+
+    const base64Part = rawAvatar.split(",")[1] || "";
+    const approxBytes = Math.ceil((base64Part.length * 3) / 4);
+    const maxBytes = 2 * 1024 * 1024; // 2 MB
+    if (approxBytes > maxBytes) {
+      throw new HttpError(
+        400,
+        "IMAGE_TOO_LARGE",
+        "Ukuran foto profil maksimal adalah 2 MB. Silakan pilih gambar yang lebih kecil."
+      );
+    }
+  }
+
+  const updated = await updateUserProfile({
+    userId: input.userId,
+    avatarUrl: rawAvatar,
+  });
+
+  return {
+    avatarUrl: updated.user.avatarUrl,
+    fileName: input.fileName || "avatar-profile.png",
+    mimeType: input.mimeType || "image/png",
+    user: updated.user,
+    quota: updated.quota,
+  };
+}
+
