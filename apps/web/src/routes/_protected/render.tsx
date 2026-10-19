@@ -31,6 +31,11 @@ import {
   RenderQueueFilterBar,
   type RenderFilterTab,
 } from "@/features/render/components/RenderQueueFilterBar";
+import {
+  buildClipDownloadFileName,
+  type DownloadHistoryEntry,
+  type NamingConventionPattern,
+} from "@/features/render/utils/file-naming";
 
 export const Route = createFileRoute("/_protected/render")({
   head: () => ({ meta: [{ title: `Render Cepat & Unduh | ${siteConfig.name}` }] }),
@@ -90,9 +95,30 @@ function RenderAndDownloadPage() {
     "1080x1920"
   );
   const [fps, setFps] = useState<60 | 30>(60);
+  const [namingPattern, setNamingPattern] =
+    useState<NamingConventionPattern>("dior-viral-rank");
+  const [downloadHistory, setDownloadHistory] = useState<
+    DownloadHistoryEntry[]
+  >([]);
   const [previewModalClip, setPreviewModalClip] =
     useState<RenderClipItem | null>(null);
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
+
+  // Sync structured downloadFileName whenever namingPattern, resolution, or fps changes
+  useEffect(() => {
+    setClips((prev) =>
+      prev.map((c) => {
+        const updatedClip = { ...c, resolution, fps };
+        return {
+          ...updatedClip,
+          downloadFileName: buildClipDownloadFileName(
+            updatedClip,
+            namingPattern
+          ),
+        };
+      })
+    );
+  }, [namingPattern, resolution, fps]);
 
   // Simulate fast progress ticks for any clip currently in "rendering" state
   useEffect(() => {
@@ -347,14 +373,36 @@ function RenderAndDownloadPage() {
       );
       return;
     }
+    const resolvedFileName = buildClipDownloadFileName(clip, namingPattern);
     const link = document.createElement("a");
     link.href = clip.videoUrl;
-    link.download = clip.downloadFileName;
+    link.download = resolvedFileName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
+      now.getMinutes()
+    ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+
+    setDownloadHistory((prev) => [
+      {
+        id: `${clip.id}-${Date.now()}`,
+        clipId: clip.id,
+        clipTitle: clip.title,
+        fileName: resolvedFileName,
+        fileSizeMb: clip.fileSizeMb,
+        resolution: clip.resolution,
+        fps: clip.fps,
+        viralScore: clip.viralScore,
+        downloadedAt: timeStr,
+      },
+      ...prev.slice(0, 9),
+    ]);
+
     setStatusBanner(
-      `Mengunduh "${clip.downloadFileName}" (${clip.fileSizeMb} MB)...`
+      `Berhasil mengunduh "${resolvedFileName}" (${clip.fileSizeMb} MB) • Siap upload ke TikTok/Reels!`
     );
   };
 
@@ -363,12 +411,7 @@ function RenderAndDownloadPage() {
     if (readyClips.length === 0) return;
     readyClips.forEach((clip, idx) => {
       setTimeout(() => {
-        const link = document.createElement("a");
-        link.href = clip.videoUrl;
-        link.download = clip.downloadFileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        handleTriggerDownload(clip);
       }, idx * 250);
     });
     setStatusBanner(
@@ -620,6 +663,77 @@ function RenderAndDownloadPage() {
         resolution={resolution}
         fps={fps}
       />
+
+      {/* File Naming Convention Selector & Recent Downloads Strip */}
+      <div className="rounded-2xl border border-[#1b3942] bg-[#0a181c]/90 p-4 space-y-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+              <Download className="h-4 w-4 text-emerald-400" />
+              Format Penamaan File Unduhan Otomatis (Auto-Naming Convention)
+            </h3>
+            <p className="text-xs text-slate-400">
+              Pilih struktur nama file MP4 saat diunduh ke perangkat Anda:
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {(
+              [
+                {
+                  id: "dior-viral-rank",
+                  label: "DIOR Viral Rank (Default)",
+                },
+                {
+                  id: "tiktok-reels-seo",
+                  label: "TikTok & Reels SEO",
+                },
+                {
+                  id: "studio-timestamp",
+                  label: "Timestamp Studio",
+                },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setNamingPattern(opt.id)}
+                className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                  namingPattern === opt.id
+                    ? "border-emerald-500/50 bg-emerald-950/40 text-emerald-300"
+                    : "border-[#1d3b44] bg-[#0f2329] text-slate-300 hover:text-white"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {downloadHistory.length > 0 && (
+          <div className="border-t border-[#163038] pt-3">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 mb-2">
+              Riwayat File MP4 yang Baru Diunduh ({downloadHistory.length})
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {downloadHistory.map((item) => (
+                <div
+                  key={item.id}
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/25 px-3 py-1.5 text-xs text-emerald-200"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <code className="font-mono text-[11px] text-white">
+                    {item.fileName}
+                  </code>
+                  <span className="text-[10px] text-emerald-400">
+                    ({item.fileSizeMb} MB • {item.downloadedAt})
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Filter & Batch Action Bar */}
       <RenderQueueFilterBar

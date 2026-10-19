@@ -185,6 +185,14 @@ export function RenderClipQueueCard({
               </Link>
             </div>
 
+            {/* Structured Output File Name Readout */}
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+              <span className="font-semibold text-slate-300">Nama File Output:</span>
+              <code className="rounded bg-[#081317] border border-[#1a3740] px-2 py-0.5 font-mono text-[11px] text-cyan-300 truncate max-w-full">
+                {clip.downloadFileName}
+              </code>
+            </div>
+
             {/* 5-Stage Render Pipeline Progress Indicator */}
             <div className="pt-1.5 space-y-1.5">
               {/* Progress Bar & Explicit Percentage + Frame Counter */}
