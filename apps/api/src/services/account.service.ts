@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "../db";
-import { user, session, quotas } from "../db/schema";
+import { user, session, quotas, clipUsages } from "../db/schema";
 import { hashPassword, verifyPassword } from "../utils/password";
 
 export interface UserAccountRecord {
@@ -595,4 +595,82 @@ export async function logoutSessionToken(token?: string | null) {
   }
 
   return { revoked: true };
+}
+
+export interface ClipUsageEntry {
+  id: string;
+  userId: string;
+  projectId: string | null;
+  clipsUsed: number;
+  remainingAfter: number;
+  sourceTitle: string | null;
+  actionType: string;
+  createdAt: string;
+}
+
+const inMemoryUsageHistory = new Map<string, ClipUsageEntry[]>([
+  [
+    "user-creator-demo",
+    [
+      {
+        id: "usage-demo-1",
+        userId: "user-creator-demo",
+        projectId: "proj-theo-podcast-1",
+        clipsUsed: 5,
+        remainingAfter: 45,
+        sourceTitle: "Theo Von & Guest: Rahasia Industri Konten Viral",
+        actionType: "auto_cut",
+        createdAt: new Date(Date.now() - 3600000).toISOString(),
+      },
+    ],
+  ],
+]);
+
+export async function getUserQuotaWithHistory(userId?: string | null) {
+  const targetUser = await getUserByIdOrDefault(userId);
+  const quota = await ensureUserDailyQuota(targetUser.id);
+
+  let history: ClipUsageEntry[] = [];
+  try {
+    const rows = await db
+      .select()
+      .from(clipUsages)
+      .where(eq(clipUsages.userId, targetUser.id))
+      .orderBy(desc(clipUsages.createdAt))
+      .limit(20);
+
+    if (rows.length > 0) {
+      history = rows.map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        projectId: r.projectId ?? null,
+        clipsUsed: r.clipsUsed,
+        remainingAfter: r.remainingAfter,
+        sourceTitle: r.sourceTitle ?? null,
+        actionType: r.actionType,
+        createdAt: r.createdAt.toISOString(),
+      }));
+    }
+  } catch {
+    // Fallback to in-memory usage history
+  }
+
+  if (history.length === 0) {
+    history = inMemoryUsageHistory.get(targetUser.id) || [];
+  }
+
+  const percentUsed = Math.min(
+    100,
+    Math.round((quota.usedQuota / quota.totalQuota) * 100)
+  );
+
+  return {
+    ...quota,
+    percentUsed,
+    percentRemaining: Math.max(0, 100 - percentUsed),
+    isExhausted: quota.remainingQuota === 0,
+    isLow: quota.remainingQuota > 0 && quota.remainingQuota <= 10,
+    maxClipsPerProcess: 10,
+    history,
+  };
 }

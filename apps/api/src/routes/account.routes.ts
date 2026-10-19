@@ -7,6 +7,7 @@ import {
   logoutSessionToken,
   getUserByIdOrDefault,
   ensureUserDailyQuota,
+  getUserQuotaWithHistory,
 } from "../services/account.service";
 import { extractSessionToken } from "../middleware/auth";
 
@@ -219,3 +220,37 @@ accountRouter.post("/logout", async (req: Request, res: Response) => {
     message: "Sesi berhasil diakhiri. Anda telah keluar dari akun.",
   });
 });
+
+/**
+ * GET /api/account/quota (and /api/quotas, /api/quotas/me)
+ * Returns the remaining daily clip quota, usage percentage, reset time (00:00 WIB), and recent usage history.
+ */
+const handleGetQuota = async (req: Request, res: Response) => {
+  let targetUserId: string | null = null;
+
+  const token = extractSessionToken(req);
+  if (token) {
+    const verified = await verifySessionToken(token);
+    if (verified) {
+      targetUserId = verified.user.id;
+    }
+  }
+
+  if (!targetUserId) {
+    targetUserId =
+      (typeof req.headers["x-user-id"] === "string" && req.headers["x-user-id"]) ||
+      (typeof req.query?.userId === "string" && req.query.userId) ||
+      "user-creator-demo";
+  }
+
+  const quotaDetails = await getUserQuotaWithHistory(targetUserId);
+
+  res.status(200).json({
+    success: true,
+    message: `Sisa kuota klip hari ini: ${quotaDetails.remainingQuota}/${quotaDetails.totalQuota} klip.`,
+    data: quotaDetails,
+  });
+};
+
+accountRouter.get("/quota", handleGetQuota);
+accountRouter.get("/quotas", handleGetQuota);

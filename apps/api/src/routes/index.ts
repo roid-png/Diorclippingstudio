@@ -26,6 +26,7 @@ apiRouter.use("/render", renderRouter);
 apiRouter.use("/notifications", notificationsRouter);
 apiRouter.use("/account", accountRouter);
 apiRouter.use("/users", accountRouter);
+apiRouter.use("/quotas", accountRouter);
 
 
 
