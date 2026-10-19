@@ -57,13 +57,28 @@ projectsRouter.get("/:id/status", async (req, res) => {
   res.json({ data: statusInfo });
 });
 
-// Get clips for a project
+// Get sorted & filtered viral clips for a project
 projectsRouter.get("/:id/clips", async (req, res) => {
   const userId = getAuth(req).user.id;
   const id = projectIdSchema.parse(req.params.id);
   const project = await getProjectById(userId, id);
   if (!project) throw new HttpError(404, "NOT_FOUND", "Proyek tidak ditemukan.");
-  const clips = await getProjectClips(id);
+
+  const sortByRaw = typeof req.query.sortBy === "string" ? req.query.sortBy : undefined;
+  const sortBy =
+    sortByRaw === "viral-asc" ||
+    sortByRaw === "timeline-asc" ||
+    sortByRaw === "duration-desc"
+      ? sortByRaw
+      : "viral-desc";
+  const category =
+    typeof req.query.category === "string" ? req.query.category : undefined;
+  const limit =
+    typeof req.query.limit === "string" && !Number.isNaN(Number(req.query.limit))
+      ? Number(req.query.limit)
+      : undefined;
+
+  const clips = await getProjectClips(id, { sortBy, category, limit });
   res.json({ data: clips });
 });
 

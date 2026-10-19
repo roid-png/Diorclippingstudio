@@ -1,10 +1,12 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "../db";
 import { clips, projects, subtitles } from "../db/schema";
 import { HttpError } from "../lib/http-error";
 import {
   calculateViralPotentialScore,
+  getViralScoreCategory,
   rankViralCandidates,
+  resolveHighlightMomentWithFallback,
 } from "./viral-scoring.service";
 
 export interface ViralMomentCandidate {
@@ -311,26 +313,80 @@ export async function autoCutProjectVideo(projectId: string) {
   return createdClipsWithSubtitles;
 }
 
-export async function getProjectClips(projectId: string) {
+export interface GetProjectClipsOptions {
+  sortBy?: "viral-desc" | "viral-asc" | "timeline-asc" | "duration-desc";
+  category?: string;
+  limit?: number;
+}
+
+export async function getProjectClips(
+  projectId: string,
+  options: GetProjectClipsOptions = {}
+) {
+  const sortBy = options.sortBy || "viral-desc";
+  const maxLimit =
+    typeof options.limit === "number"
+      ? Math.min(Math.max(1, options.limit), 10)
+      : 10;
+
+  const orderByClause =
+    sortBy === "viral-asc"
+      ? [asc(clips.viralScore), asc(clips.rank)]
+      : sortBy === "timeline-asc"
+      ? [asc(clips.startTime)]
+      : sortBy === "duration-desc"
+      ? [desc(clips.duration), desc(clips.viralScore)]
+      : [desc(clips.viralScore), asc(clips.rank)];
+
   const projectClips = await db
     .select()
     .from(clips)
     .where(eq(clips.projectId, projectId))
-    .orderBy(desc(clips.viralScore));
+    .orderBy(...orderByClause);
 
   const clipsWithSubtitles = [];
-  for (const c of projectClips) {
+  for (let idx = 0; idx < projectClips.length; idx++) {
+    const c = projectClips[idx];
+    const numericScore = Number(c.viralScore || 90);
+    const { tier, label } = getViralScoreCategory(numericScore);
+    const resolvedHighlight = resolveHighlightMomentWithFallback(
+      c.highlightMoment,
+      c.startTime,
+      c.endTime
+    );
+    const effectiveRank = c.rank ?? idx + 1;
+
+    // Optional category filter
+    if (options.category && options.category !== "all") {
+      if (options.category === "top3" && effectiveRank > 3) continue;
+      if (options.category === "mega" && numericScore < 95) continue;
+      if (options.category === "favorites" && !c.isSelected) continue;
+      if (
+        !["top3", "mega", "favorites"].includes(options.category) &&
+        c.category !== options.category
+      ) {
+        continue;
+      }
+    }
+
     const subs = await db
       .select()
       .from(subtitles)
       .where(eq(subtitles.clipId, c.id))
       .orderBy(subtitles.startTime);
+
     clipsWithSubtitles.push({
       ...c,
+      rank: effectiveRank,
+      viralLabel: c.viralLabel || label,
+      viralCategoryTier: tier,
+      isPrimaryRecommendation: c.isPrimaryRecommendation || effectiveRank <= 3,
+      highlightMoment: resolvedHighlight.text,
+      hasFallbackHighlight: resolvedHighlight.isFallback,
       subtitles: subs,
     });
   }
 
-  return clipsWithSubtitles;
+  return clipsWithSubtitles.slice(0, maxLimit);
 }
 
