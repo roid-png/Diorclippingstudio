@@ -341,6 +341,12 @@ function RenderAndDownloadPage() {
   };
 
   const handleTriggerDownload = (clip: RenderClipItem) => {
+    if (clip.status !== "completed") {
+      setStatusBanner(
+        `Klip "${clip.title}" belum selesai dirender. Selesaikan render terlebih dahulu sebelum mengunduh.`
+      );
+      return;
+    }
     const link = document.createElement("a");
     link.href = clip.videoUrl;
     link.download = clip.downloadFileName;
@@ -349,6 +355,24 @@ function RenderAndDownloadPage() {
     document.body.removeChild(link);
     setStatusBanner(
       `Mengunduh "${clip.downloadFileName}" (${clip.fileSizeMb} MB)...`
+    );
+  };
+
+  const handleBatchDownloadCompleted = () => {
+    const readyClips = clips.filter((c) => c.status === "completed");
+    if (readyClips.length === 0) return;
+    readyClips.forEach((clip, idx) => {
+      setTimeout(() => {
+        const link = document.createElement("a");
+        link.href = clip.videoUrl;
+        link.download = clip.downloadFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }, idx * 250);
+    });
+    setStatusBanner(
+      `Mengunduh ${readyClips.length} video MP4 yang telah selesai dirender...`
     );
   };
 
@@ -422,9 +446,28 @@ function RenderAndDownloadPage() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
+              onClick={handleBatchDownloadCompleted}
+              disabled={counts.completed === 0}
+              title={
+                counts.completed > 0
+                  ? `Unduh seluruh ${counts.completed} video yang selesai dirender`
+                  : "Belum ada klip yang selesai dirender"
+              }
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition ${
+                counts.completed > 0
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-950/50 hover:bg-emerald-500 cursor-pointer"
+                  : "border border-slate-700 bg-slate-900/70 text-slate-500 opacity-60 cursor-not-allowed"
+              }`}
+            >
+              <Download className="h-4 w-4" />
+              Unduh Selesai ({counts.completed} MP4)
+            </button>
+
+            <button
+              type="button"
               onClick={handleStartBatchRenderAll}
               disabled={renderingClips.length > 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-950/50 hover:from-red-500 hover:to-rose-500 disabled:opacity-50 transition cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-red-950/50 hover:from-red-500 hover:to-rose-500 disabled:opacity-50 transition cursor-pointer"
             >
               <Rocket className="h-4 w-4" />
               {renderingClips.length > 0
@@ -682,11 +725,18 @@ function RenderAndDownloadPage() {
               </Link>
               <button
                 type="button"
+                disabled={previewModalClip.status !== "completed"}
                 onClick={() => handleTriggerDownload(previewModalClip)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-500 cursor-pointer"
+                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition ${
+                  previewModalClip.status === "completed"
+                    ? "bg-emerald-600 text-white hover:bg-emerald-500 cursor-pointer"
+                    : "border border-slate-700 bg-slate-900 text-slate-500 opacity-60 cursor-not-allowed"
+                }`}
               >
                 <Download className="h-3.5 w-3.5" />
-                Unduh Video MP4
+                {previewModalClip.status === "completed"
+                  ? "Unduh Video MP4"
+                  : "Unduh Terkunci (Selesaikan Render)"}
               </button>
             </div>
           </div>

@@ -279,12 +279,38 @@ export function RenderClipQueueCard({
         </div>
 
         {/* Right: Action Buttons based on clip render status */}
-        <div className="flex flex-wrap lg:flex-col items-stretch justify-end gap-2 shrink-0 lg:w-48">
+        <div className="flex flex-wrap lg:flex-col items-stretch justify-end gap-2 shrink-0 lg:w-52">
+          {/* Primary Download Button: Strictly enabled ONLY when clip.status === 'completed' */}
+          <button
+            type="button"
+            disabled={!isCompleted}
+            onClick={() => {
+              if (isCompleted) onDownloadClip(clip);
+            }}
+            title={
+              isCompleted
+                ? `Unduh ${clip.downloadFileName}`
+                : "Tombol unduh hanya aktif setelah proses render mencapai 100% (Selesai)"
+            }
+            className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+              isCompleted
+                ? "bg-emerald-600 text-white shadow-md shadow-emerald-950/50 hover:bg-emerald-500 cursor-pointer"
+                : "border border-slate-700/80 bg-slate-900/70 text-slate-500 opacity-60 cursor-not-allowed"
+            }`}
+          >
+            <Download className="h-3.5 w-3.5" />
+            {isCompleted
+              ? `Unduh MP4 (${clip.fileSizeMb} MB)`
+              : isRendering
+              ? `Unduh Terkunci (${clip.progress}%)`
+              : "Unduh MP4 (Belum Selesai)"}
+          </button>
+
           {isIdle && (
             <button
               type="button"
               onClick={() => onStartRender(clip.id)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-red-950/50 hover:from-red-500 hover:to-rose-500 transition cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-red-950/50 hover:from-red-500 hover:to-rose-500 transition cursor-pointer"
             >
               <Zap className="h-3.5 w-3.5" />
               Render Cepat Sekarang
@@ -306,7 +332,7 @@ export function RenderClipQueueCard({
             <button
               type="button"
               onClick={() => onRetryRender(clip.id)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-extrabold text-slate-950 hover:bg-amber-400 transition cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-extrabold text-slate-950 hover:bg-amber-400 transition cursor-pointer"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Coba Lagi (Retry)
@@ -314,24 +340,14 @@ export function RenderClipQueueCard({
           )}
 
           {isCompleted && (
-            <>
-              <button
-                type="button"
-                onClick={() => onDownloadClip(clip)}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-950/50 hover:bg-emerald-500 transition cursor-pointer"
-              >
-                <Download className="h-3.5 w-3.5" />
-                Unduh MP4 ({clip.fileSizeMb} MB)
-              </button>
-              <button
-                type="button"
-                onClick={() => onStartRender(clip.id)}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#244854] bg-[#102329] px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white transition cursor-pointer"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Render Ulang
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => onStartRender(clip.id)}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#244854] bg-[#102329] px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white transition cursor-pointer"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Render Ulang
+            </button>
           )}
 
           <button
