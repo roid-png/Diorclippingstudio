@@ -35,13 +35,60 @@ export interface CuratedViralClip {
   words?: WordTimestamp[];
 }
 
+function readKeyFromFile(keyName: string): string {
+  const possiblePaths = [
+    path.resolve(process.cwd(), "../../.env.local"),
+    path.resolve(process.cwd(), ".env.local"),
+    path.resolve(process.cwd(), "../../.env"),
+    path.resolve(process.cwd(), ".env"),
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      try {
+        const text = fs.readFileSync(p, "utf-8");
+        const match = text.match(new RegExp(`${keyName}\\s*=\\s*["']?([^"'\\r\\n]+)["']?`));
+        if (match?.[1]?.trim()) {
+          return match[1].trim();
+        }
+      } catch {}
+    }
+  }
+  return "";
+}
+
+export function getGroqApiKey(): string {
+  let key = process.env.GROQ_API_KEY?.trim() || "";
+  // Auto-correct accidental double prefix (e.g. gsk_gsk_...)
+  if (key.startsWith("gsk_gsk_")) {
+    key = key.replace("gsk_gsk_", "gsk_");
+  }
+  if (!key || !key.startsWith("gsk_") || key.length < 20) {
+    const fileKey = readKeyFromFile("GROQ_API_KEY");
+    if (fileKey && fileKey.startsWith("gsk_")) {
+      key = fileKey.startsWith("gsk_gsk_") ? fileKey.replace("gsk_gsk_", "gsk_") : fileKey;
+    }
+  }
+  return key;
+}
+
+export function getGeminiApiKey(): string {
+  let key = process.env.GEMINI_API_KEY?.trim() || "";
+  if (!key || key.length < 15) {
+    const fileKey = readKeyFromFile("GEMINI_API_KEY");
+    if (fileKey) {
+      key = fileKey;
+    }
+  }
+  return key;
+}
+
 /**
  * Sends real audio downloaded via yt-dlp to Groq Whisper-large-v3 to extract
  * word-level and segment-level timestamps.
  * No mock or dummy fallbacks: throws clear error if API fails.
  */
 export async function transcribeAudioWordLevel(audioFilePath: string): Promise<WordLevelTranscription> {
-  const groqApiKey = process.env.GROQ_API_KEY;
+  const groqApiKey = getGroqApiKey();
 
   if (!groqApiKey || !groqApiKey.startsWith("gsk_")) {
     throw new HttpError(
@@ -145,7 +192,7 @@ export async function curateViralMomentsWithGemini(input: {
   maxClips: number; // 1 to 10
   videoTitle?: string;
 }): Promise<CuratedViralClip[]> {
-  const geminiApiKey = process.env.GEMINI_API_KEY;
+  const geminiApiKey = getGeminiApiKey();
   if (!geminiApiKey) {
     throw new HttpError(
       500,

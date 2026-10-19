@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { getFfmpegPath } from "../utils/ffmpeg-path";
 import { getTempDir } from "./downloader";
 import { savePreset, type VideoPreset } from "./presets.service";
+import { getGeminiApiKey } from "./ai-curator.service";
 import { HttpError } from "../lib/http-error";
 
 const execFileAsync = promisify(execFile);
@@ -70,7 +71,7 @@ export async function cloneStyleFromVideo(input: {
   }
 
   const sampleFrames = await extractSampleFrames(targetVideoPath);
-  const geminiApiKey = process.env.GEMINI_API_KEY;
+  const geminiApiKey = getGeminiApiKey();
 
   let detectedStyle: Partial<VideoPreset> = {
     id: "ai-cloned",

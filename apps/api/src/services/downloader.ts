@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -145,8 +145,23 @@ export async function downloadAudioOnly(
 }
 
 /**
+ * Verifies that the downloaded media file contains an active video stream.
+ */
+export function hasVideoStream(filePath: string): boolean {
+  if (!fs.existsSync(filePath)) return false;
+  try {
+    const ffmpegExe = getFfmpegPath();
+    const res = spawnSync(ffmpegExe, ["-i", filePath], { encoding: "utf-8" });
+    const output = (res.stdout || "") + (res.stderr || "");
+    return output.includes("Video:");
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Downloads ONLY the exact time section (*start_time-end_time) selected by AI
- * to save bandwidth and RAM.
+ * ensuring BOTH video and audio streams are merged into the target MP4 file.
  */
 export async function downloadPrecisionSection(input: {
   youtubeUrl: string;
@@ -168,7 +183,7 @@ export async function downloadPrecisionSection(input: {
     "--download-sections",
     sectionArg,
     "-f",
-    "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+    "bestvideo[format_note!*=Premium]+bestaudio[ext=m4a]/bestvideo[format_note!*=Premium]+bestaudio/bestvideo+bestaudio/best",
     "--merge-output-format",
     "mp4",
     "--force-keyframes-at-cuts",
@@ -183,14 +198,38 @@ export async function downloadPrecisionSection(input: {
   try {
     await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 240000 });
 
-    if (fs.existsSync(input.outputFilePath)) {
+    if (fs.existsSync(input.outputFilePath) && hasVideoStream(input.outputFilePath)) {
       return input.outputFilePath;
     }
   } catch (err: any) {
     console.warn(`[Downloader] Precision section download gagal untuk ${sectionArg}:`, err?.message);
   }
 
-  if (fs.existsSync(input.outputFilePath)) {
+  // If first attempt failed or lacked video, try with any available video codec excluding Premium
+  if (!fs.existsSync(input.outputFilePath) || !hasVideoStream(input.outputFilePath)) {
+    try {
+      const fallbackArgs = [
+        "--js-runtimes",
+        "node",
+        "--download-sections",
+        sectionArg,
+        "-f",
+        "bv*[format_note!*=Premium]+ba/b",
+        "--merge-output-format",
+        "mp4",
+        "--force-keyframes-at-cuts",
+      ];
+      if (ffmpegExe && ffmpegExe !== "ffmpeg") {
+        fallbackArgs.push("--ffmpeg-location", ffmpegExe);
+      }
+      fallbackArgs.push("-o", input.outputFilePath, input.youtubeUrl);
+      await execFileAsync("yt-dlp", fallbackArgs, { timeout: 240000 });
+    } catch (retryErr: any) {
+      console.warn(`[Downloader] Retry precision download gagal:`, retryErr?.message);
+    }
+  }
+
+  if (fs.existsSync(input.outputFilePath) && hasVideoStream(input.outputFilePath)) {
     return input.outputFilePath;
   }
 
