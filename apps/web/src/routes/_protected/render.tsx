@@ -40,6 +40,10 @@ import {
   RenderToastNotificationStack,
   type RenderToastItem,
 } from "@/features/render/components/RenderToastNotificationStack";
+import {
+  RenderNotificationDrawerPanel,
+  type RenderNotificationEntry,
+} from "@/features/render/components/RenderNotificationDrawerPanel";
 
 export const Route = createFileRoute("/_protected/render")({
   head: () => ({ meta: [{ title: `Render Cepat & Unduh | ${siteConfig.name}` }] }),
@@ -105,17 +109,65 @@ function RenderAndDownloadPage() {
     DownloadHistoryEntry[]
   >([]);
   const [toasts, setToasts] = useState<RenderToastItem[]>([]);
+  const [notifications, setNotifications] = useState<RenderNotificationEntry[]>(
+    () => [
+      {
+        id: "notif-init-1",
+        type: "success",
+        title: "Plot Twist Rahasia Algoritma TikTok 2026",
+        message:
+          "Render MP4 9:16 selesai (1080x1920 60FPS • 18.4 MB). Klip #1 siap diunduh!",
+        clipId: "vc-101",
+        fileName:
+          "DIOR-Viral-Rank01_Plot-Twist-Rahasia-Algoritma-TikTok-2026_Score98_1080p_60fps.mp4",
+        createdAt: "Baru saja",
+        isRead: false,
+      },
+      {
+        id: "notif-init-2",
+        type: "info",
+        title: "Sinkronisasi Preset 3 Pilar Aktif",
+        message:
+          "Konfigurasi Gaya Edit Sinematik, Motion HUD, dan Subtitle Otomatis berhasil dimuat ke antrean Render Cepat.",
+        createdAt: "1 mnt lalu",
+        isRead: false,
+      },
+      {
+        id: "notif-init-3",
+        type: "success",
+        title: "Engine THEO 5-FIX NVENC Siap",
+        message:
+          "Akselerasi hardware GPU aktif untuk kompilasi batch maksimal 10 klip viral.",
+        createdAt: "3 mnt lalu",
+        isRead: true,
+      },
+    ]
+  );
   const [previewModalClip, setPreviewModalClip] =
     useState<RenderClipItem | null>(null);
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
 
-  const pushToast = (toast: Omit<RenderToastItem, "id" | "timestamp">) => {
+  const pushToast = (toast: Omit<RenderToastItem, "id" | "createdAt">) => {
     const now = new Date();
-    const timestamp = `${String(now.getHours()).padStart(2, "0")}:${String(
+    const createdAt = `${String(now.getHours()).padStart(2, "0")}:${String(
       now.getMinutes()
     ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    setToasts((prev) => [{ ...toast, id, timestamp }, ...prev.slice(0, 3)]);
+    const newToast: RenderToastItem = { ...toast, id, createdAt };
+    setToasts((prev) => [newToast, ...prev.slice(0, 3)]);
+    setNotifications((prev) => [
+      {
+        id: `notif-${id}`,
+        type: toast.type,
+        title: toast.title,
+        message: toast.message,
+        clipId: toast.clipId,
+        fileName: toast.fileName,
+        createdAt,
+        isRead: false,
+      },
+      ...prev,
+    ]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 6500);
@@ -123,6 +175,20 @@ function RenderAndDownloadPage() {
 
   const handleDismissToast = (toastId: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== toastId));
+  };
+
+  const handleMarkNotificationRead = (notificationId: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
+    );
+  };
+
+  const handleMarkAllNotificationsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  };
+
+  const handleClearNotifications = () => {
+    setNotifications([]);
   };
 
   // Sync structured downloadFileName whenever namingPattern, resolution, or fps changes
@@ -189,7 +255,8 @@ function RenderAndDownloadPage() {
         pushToast({
           type: "success",
           clipId: completedClip.id,
-          clipTitle: completedClip.title,
+          title: completedClip.title,
+          fileName: completedClip.downloadFileName,
           message: `Render MP4 9:16 selesai (${completedClip.resolution} ${completedClip.fps}FPS • ${completedClip.fileSizeMb} MB). Klip siap diunduh!`,
         });
       });
@@ -303,7 +370,7 @@ function RenderAndDownloadPage() {
       pushToast({
         type: "info",
         clipId: target.id,
-        clipTitle: target.title,
+        title: target.title,
         message: "Memulai ulang render dengan alokasi buffer GPU bersih...",
       });
     }
@@ -335,7 +402,7 @@ function RenderAndDownloadPage() {
     pushToast({
       type: "error",
       clipId: target.id,
-      clipTitle: target.title,
+      title: target.title,
       message: errMsg,
     });
   };
@@ -783,6 +850,19 @@ function RenderAndDownloadPage() {
           </div>
         )}
       </div>
+
+      {/* Notification Center Panel with Mark-as-Read */}
+      <RenderNotificationDrawerPanel
+        notifications={notifications}
+        onMarkAsRead={handleMarkNotificationRead}
+        onMarkAllAsRead={handleMarkAllNotificationsRead}
+        onClearAll={handleClearNotifications}
+        onQuickDownload={(clipId) => {
+          const target = clips.find((c) => c.id === clipId);
+          if (target) handleTriggerDownload(target);
+        }}
+        onQuickRetry={(clipId) => handleRetryRender(clipId)}
+      />
 
       {/* Filter & Batch Action Bar */}
       <RenderQueueFilterBar

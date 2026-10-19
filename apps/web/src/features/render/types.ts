@@ -62,3 +62,4 @@ export interface RenderBatchSummary {
   overallProgress: number;
   estimatedTotalSeconds: number;
 }
+
