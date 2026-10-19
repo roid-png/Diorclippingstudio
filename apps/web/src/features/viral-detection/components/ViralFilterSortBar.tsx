@@ -20,6 +20,7 @@ export function ViralFilterSortBar({
 }: ViralFilterSortBarProps) {
   const categories: Array<{ id: HookCategory; label: string; icon: string }> = [
     { id: "all", label: `Semua (${totalClipsCount})`, icon: "⚡" },
+    { id: "favorites", label: `Favorit (${selectedClipsCount}/10)`, icon: "⭐" },
     { id: "top3", label: "Top 3 Rekomendasi", icon: "🔥" },
     { id: "mega", label: "Mega Viral 95+", icon: "✨" },
     { id: "controversy", label: "Kontroversi & Opini", icon: "💥" },

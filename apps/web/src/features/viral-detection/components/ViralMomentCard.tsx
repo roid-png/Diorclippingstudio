@@ -24,6 +24,7 @@ interface ViralMomentCardProps {
   onTogglePlayInline?: (clipId: string) => void;
   onToggleSelectClip: (clipId: string) => void;
   onInspectClip: (clip: ViralClipItem) => void;
+  isMaxFavoritesReached?: boolean;
 }
 
 function renderHighlightSubtitle(text: string) {
@@ -57,6 +58,7 @@ export function ViralMomentCard({
   onTogglePlayInline,
   onToggleSelectClip,
   onInspectClip,
+  isMaxFavoritesReached = false,
 }: ViralMomentCardProps) {
   const [localPlaying, setLocalPlaying] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(true);
@@ -386,26 +388,43 @@ export function ViralMomentCard({
         </div>
       </div>
 
-      {/* Selection Checkbox Toggle */}
+      {/* Selection Favorit Button (Max 10) */}
       <button
         type="button"
         onClick={() => onToggleSelectClip(clip.id)}
         className={`w-full h-7 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition select-none cursor-pointer ${
           clip.isSelected
-            ? "bg-[#154e56] border-[#2cd3c6]/60 text-white"
-            : "bg-[#14282e] border-[#1f3e46] text-[#7d979e] hover:text-white"
+            ? "bg-gradient-to-r from-[#15565f] to-[#1c6c77] border-[#2cd3c6] text-white shadow-[0_0_10px_rgba(44,211,198,0.2)]"
+            : isMaxFavoritesReached
+            ? "bg-[#102024]/70 border-[#193238] text-[#556d73] hover:border-amber-500/40"
+            : "bg-[#14282e] border-[#1f3e46] text-[#7d979e] hover:text-white hover:bg-[#18343c]"
         }`}
+        title={
+          isMaxFavoritesReached && !clip.isSelected
+            ? "Batas maksimal 10 klip telah tercapai"
+            : undefined
+        }
       >
         <span
           className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
             clip.isSelected
               ? "bg-[#2cd3c6] border-[#2cd3c6] text-black"
+              : isMaxFavoritesReached
+              ? "border-[#253f46] text-transparent"
               : "border-[#40626b]"
           }`}
         >
-          {clip.isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+          {clip.isSelected ? (
+            <Star className="w-2.5 h-2.5 fill-black stroke-black" />
+          ) : null}
         </span>
-        <span>{clip.isSelected ? "Klip Dipilih" : "Pilih Klip"}</span>
+        <span>
+          {clip.isSelected
+            ? "⭐ Klip Favorit Dipilih"
+            : isMaxFavoritesReached
+            ? "🔒 Batas 10 Tercapai"
+            : "Pilih Jadi Favorit"}
+        </span>
       </button>
 
       {/* Action Button: Single full-width button (⬇️ Unduh MP4) */}

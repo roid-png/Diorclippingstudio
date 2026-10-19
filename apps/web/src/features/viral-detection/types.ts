@@ -2,6 +2,7 @@ export type HookCategory =
   | "all"
   | "top3"
   | "mega"
+  | "favorites"
   | "controversy"
   | "insight"
   | "story";

@@ -1,7 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { siteConfig } from "@/config/site";
-import { Flame, ArrowLeft, Wand2, Download, CheckCircle2 } from "lucide-react";
+import {
+  Flame,
+  ArrowLeft,
+  Wand2,
+  Download,
+  CheckCircle2,
+  AlertTriangle,
+  Star,
+} from "lucide-react";
 import { initialViralClips } from "@/features/viral-detection/mock-data";
 import type { ViralClipItem, ViralFilterState } from "@/features/viral-detection/types";
 import { ViralStatsOverview } from "@/features/viral-detection/components/ViralStatsOverview";
@@ -14,11 +22,14 @@ export const Route = createFileRoute("/_protected/viral-clips")({
   component: DeteksiMomenViralPage,
 });
 
+const MAX_FAVORITES = 10;
+
 function DeteksiMomenViralPage() {
   const [clips, setClips] = useState<ViralClipItem[]>(initialViralClips);
   const [activePlayingId, setActivePlayingId] = useState<string | null>(null);
   const [inspectedClip, setInspectedClip] = useState<ViralClipItem | null>(null);
   const [downloadBatchNotice, setDownloadBatchNotice] = useState<string | null>(null);
+  const [maxLimitWarning, setMaxLimitWarning] = useState<string | null>(null);
 
   const [filter, setFilter] = useState<ViralFilterState>({
     category: "all",
@@ -26,18 +37,40 @@ function DeteksiMomenViralPage() {
     searchQuery: "",
   });
 
+  const selectedCount = clips.filter((c) => c.isSelected).length;
+  const isMaxFavoritesReached = selectedCount >= MAX_FAVORITES;
+
   const handleTogglePlayInline = (clipId: string) => {
     setActivePlayingId((prev) => (prev === clipId ? null : clipId));
   };
 
   const handleToggleSelectClip = (clipId: string) => {
+    const targetClip = clips.find((c) => c.id === clipId);
+    if (!targetClip) return;
+
+    if (!targetClip.isSelected && isMaxFavoritesReached) {
+      setMaxLimitWarning(
+        `Batas maksimal ${MAX_FAVORITES} klip favorit telah tercapai! Hapus pilihan klip lain untuk memilih klip baru.`
+      );
+      setTimeout(() => setMaxLimitWarning(null), 4000);
+      return;
+    }
+
     setClips((prev) =>
       prev.map((c) => (c.id === clipId ? { ...c, isSelected: !c.isSelected } : c))
     );
   };
 
   const handleSelectAll = () => {
-    setClips((prev) => prev.map((c) => ({ ...c, isSelected: true })));
+    // Select up to MAX_FAVORITES (strictly top 10 by viral score)
+    setClips((prev) => {
+      const sorted = [...prev].sort((a, b) => b.viralScore - a.viralScore);
+      const top10Ids = new Set(sorted.slice(0, MAX_FAVORITES).map((c) => c.id));
+      return prev.map((c) => ({
+        ...c,
+        isSelected: top10Ids.has(c.id),
+      }));
+    });
   };
 
   const handleDeselectAll = () => {
@@ -53,6 +86,8 @@ function DeteksiMomenViralPage() {
       result = result.filter((c) => c.rank <= 3);
     } else if (filter.category === "mega") {
       result = result.filter((c) => c.viralScore >= 95);
+    } else if (filter.category === "favorites") {
+      result = result.filter((c) => c.isSelected);
     } else if (filter.category !== "all") {
       result = result.filter((c) => c.category === filter.category);
     }
@@ -90,13 +125,11 @@ function DeteksiMomenViralPage() {
     return result;
   }, [clips, filter]);
 
-  const selectedCount = clips.filter((c) => c.isSelected).length;
-
   const handleBatchDownload = () => {
     const selected = clips.filter((c) => c.isSelected);
     if (selected.length === 0) return;
 
-    setDownloadBatchNotice(`Memproses unduhan ${selected.length} klip viral...`);
+    setDownloadBatchNotice(`Memproses unduhan ${selected.length} klip favorit...`);
     setTimeout(() => {
       setDownloadBatchNotice(`Berhasil mengunduh ${selected.length} klip pilihan! 📥`);
       setTimeout(() => setDownloadBatchNotice(null), 3000);
@@ -109,7 +142,10 @@ function DeteksiMomenViralPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2 px-1 mb-5">
         <div>
           <div className="flex items-center gap-2 text-sm mb-1">
-            <Link to="/app" className="text-[#6d868c] hover:text-[#2cd3c6] transition flex items-center gap-1 font-medium">
+            <Link
+              to="/app"
+              className="text-[#6d868c] hover:text-[#2cd3c6] transition flex items-center gap-1 font-medium"
+            >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Studio Potong</span>
             </Link>
@@ -123,7 +159,7 @@ function DeteksiMomenViralPage() {
             <Flame className="w-5 h-5 text-amber-400 fill-amber-400 animate-pulse" />
           </h1>
           <p className="text-xs text-[#8ca4aa] mt-0.5">
-            AI menganalisis retensi 3 detik pertama, energi sentimen percakapan, dan peluang viral FYP.
+            Pilih hingga maksimal 10 klip favorit berdasarkan rekomendasi skor viral untuk dirender dan diunduh.
           </p>
         </div>
 
@@ -137,6 +173,23 @@ function DeteksiMomenViralPage() {
           </Link>
         </div>
       </div>
+
+      {/* Warning: Maximum 10 limit reached */}
+      {maxLimitWarning && (
+        <div className="mb-4 p-3 rounded-xl bg-amber-950/80 border border-amber-400/60 text-amber-200 text-xs flex items-center justify-between gap-2 shadow-lg animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>{maxLimitWarning}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMaxLimitWarning(null)}
+            className="text-amber-300 hover:text-white text-xs underline cursor-pointer"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
 
       {/* Batch download notification */}
       {downloadBatchNotice && (
@@ -170,6 +223,7 @@ function DeteksiMomenViralPage() {
               onTogglePlayInline={handleTogglePlayInline}
               onToggleSelectClip={handleToggleSelectClip}
               onInspectClip={(c) => setInspectedClip(c)}
+              isMaxFavoritesReached={isMaxFavoritesReached}
             />
           ))}
         </div>
@@ -178,7 +232,9 @@ function DeteksiMomenViralPage() {
           <p className="text-sm">Tidak ada klip viral yang cocok dengan filter pencarian ini.</p>
           <button
             type="button"
-            onClick={() => setFilter({ category: "all", sortBy: "viral-desc", searchQuery: "" })}
+            onClick={() =>
+              setFilter({ category: "all", sortBy: "viral-desc", searchQuery: "" })
+            }
             className="mt-3 px-3 py-1.5 rounded-lg bg-[#14282e] text-[#2cd3c6] text-xs font-medium cursor-pointer"
           >
             Reset Filter
@@ -193,25 +249,61 @@ function DeteksiMomenViralPage() {
         onToggleSelect={handleToggleSelectClip}
       />
 
-      {/* Floating Sticky Bar when clips are selected */}
+      {/* Floating Sticky Bar when clips are selected (Max 10) */}
       {selectedCount > 0 && (
-        <div className="fixed bottom-4 inset-x-4 max-w-2xl mx-auto z-40 bg-[#0e2125]/95 border border-[#2cd3c6]/60 rounded-2xl p-3 shadow-2xl backdrop-blur-md flex items-center justify-between gap-3 animate-fadeIn">
-          <div className="flex items-center gap-2 pl-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#2cd3c6] animate-ping" />
-            <span className="text-xs font-bold text-white">
-              {selectedCount} dari 10 Klip Dipilih
-            </span>
+        <div className="fixed bottom-4 inset-x-4 max-w-2xl mx-auto z-40 bg-[#0e2125]/95 border border-[#2cd3c6]/60 rounded-2xl p-3 shadow-2xl backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-3 animate-fadeIn">
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+            <div className="flex items-center gap-2 pl-1">
+              <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+              <span className="text-xs font-bold text-white">
+                {selectedCount} dari {MAX_FAVORITES} Klip Dipilih
+              </span>
+            </div>
+
+            {/* 10-Dots Quota Visual Indicator */}
+            <div
+              className="flex items-center gap-1 bg-[#09171a] px-2 py-1 rounded-lg border border-[#1b373e]"
+              title={`${selectedCount} dari ${MAX_FAVORITES} klip dipilih`}
+            >
+              {Array.from({ length: MAX_FAVORITES }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    i < selectedCount
+                      ? "bg-[#2cd3c6] shadow-[0_0_6px_rgba(44,211,198,0.8)] scale-110"
+                      : "bg-[#1f3d44]"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <button
+              type="button"
+              onClick={handleDeselectAll}
+              className="h-8 px-2.5 rounded-xl bg-[#14282e] hover:bg-[#1a373f] text-[#8ca4aa] hover:text-white border border-[#1f3e46] text-xs font-medium cursor-pointer transition"
+              title="Batalkan Semua Pilihan"
+            >
+              Reset
+            </button>
+
             <button
               type="button"
               onClick={handleBatchDownload}
-              className="h-8 px-4 rounded-xl bg-gradient-to-r from-[#17858c] via-[#20a3a7] to-[#2cd3c6] text-white text-xs font-bold flex items-center gap-1.5 hover:brightness-110 shadow-md cursor-pointer transition"
+              className="h-8 px-3.5 rounded-xl bg-gradient-to-r from-[#17858c] via-[#20a3a7] to-[#2cd3c6] text-white text-xs font-bold flex items-center gap-1.5 hover:brightness-110 shadow-md cursor-pointer transition"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Unduh {selectedCount} MP4</span>
             </button>
+
+            <Link
+              to="/app"
+              className="h-8 px-3.5 rounded-xl bg-[#143d46] hover:bg-[#1c5562] text-[#2cd3c6] border border-[#2cd3c6]/40 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+            >
+              <Wand2 className="w-3.5 h-3.5" />
+              <span>Lanjut Edit</span>
+            </Link>
           </div>
         </div>
       )}
