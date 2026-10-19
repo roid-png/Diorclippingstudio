@@ -8,6 +8,7 @@ import { projectsRouter } from "./projects.routes";
 import { clipsRouter } from "./clips.routes";
 import { autoEditRouter } from "./auto-edit.routes";
 import { renderRouter } from "./render.routes";
+import { notificationsRouter } from "./notifications.routes";
 
 // Mounted at /api. Add a router per resource and register it here.
 export const apiRouter = Router();
@@ -21,6 +22,7 @@ apiRouter.use("/projects", projectsRouter);
 apiRouter.use("/clips", clipsRouter);
 apiRouter.use("/auto-edit", autoEditRouter);
 apiRouter.use("/render", renderRouter);
+apiRouter.use("/notifications", notificationsRouter);
 
 
 

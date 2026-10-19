@@ -9,6 +9,7 @@ import {
   startRenderJob,
   updateRenderJobProgress,
 } from "../services/render-jobs.service";
+import { notificationsRouter } from "./notifications.routes";
 
 export const renderRouter = Router();
 
@@ -92,3 +93,6 @@ renderRouter.get("/:clipId/download", (req, res) => {
   const clipId = clipIdSchema.parse(req.params.clipId);
   res.redirect(`/api/clips/${clipId}/download?${new URLSearchParams(req.query as any).toString()}`);
 });
+
+// Notifications sub-router mounted under /render/notifications
+renderRouter.use("/notifications", notificationsRouter);

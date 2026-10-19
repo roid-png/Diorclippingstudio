@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "2a8d49efca4818737ffc7035adad3627b97359ef",
+  "generatedForCommit": "6167fa0318dee40a8137930d90b44789ed277faf",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -268,9 +268,9 @@
     },
     {
       "path": "apps/api/src/db/schema/notifications.ts",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 1407
+      "size": 1408
     },
     {
       "path": "apps/api/src/db/schema/projects.ts",
@@ -402,7 +402,7 @@
       "path": "apps/api/src/routes/clips.routes.ts",
       "reason": "changed",
       "language": "typescript",
-      "size": 12282
+      "size": 14197
     },
     {
       "path": "apps/api/src/routes/health.routes.ts",
@@ -432,7 +432,7 @@
       "path": "apps/api/src/routes/render.routes.ts",
       "reason": "changed",
       "language": "typescript",
-      "size": 3035
+      "size": 3302
     },
     {
       "path": "apps/api/src/routes/youtube.routes.ts",
@@ -486,7 +486,7 @@
       "path": "apps/api/src/services/render-jobs.service.ts",
       "reason": "changed",
       "language": "typescript",
-      "size": 11020
+      "size": 11021
     },
     {
       "path": "apps/api/src/services/subtitle-transcription.service.ts",

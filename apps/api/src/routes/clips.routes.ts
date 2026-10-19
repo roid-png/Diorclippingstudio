@@ -9,7 +9,7 @@ import {
   toggleFavoriteClipSchema,
 } from "@starter/shared/validators/projects";
 import { db } from "../db";
-import { clips, renderJobs, subtitles } from "../db/schema";
+import { clips, subtitles } from "../db/schema";
 import { HttpError } from "../lib/http-error";
 import { jsonBody } from "../middleware/body";
 import {
