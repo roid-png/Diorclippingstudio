@@ -52,6 +52,9 @@ function ProtectedLayout() {
               <Link to="/viral-clips" className={navLink}>
                 Deteksi Momen Viral
               </Link>
+              <Link to="/auto-edit" className={navLink}>
+                Edit Otomatis
+              </Link>
               {canAdmin && (
                 <Link to="/admin" className={navLink}>
                   Admin

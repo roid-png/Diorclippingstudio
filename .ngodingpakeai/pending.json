@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "b270c27792948744885da8373f8cad7056a16967",
+  "generatedForCommit": "6358372507f4e6afb2dc0f135d1b669d7b81975a",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -210,7 +210,7 @@
       "path": "apps/api/src/db/schema/clips.ts",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 1191
+      "size": 1192
     },
     {
       "path": "apps/api/src/db/schema/index.ts",
@@ -228,19 +228,19 @@
       "path": "apps/api/src/db/schema/projects.ts",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 1142
+      "size": 1143
     },
     {
       "path": "apps/api/src/db/schema/quotas.ts",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 944
+      "size": 945
     },
     {
       "path": "apps/api/src/db/schema/render-jobs.ts",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 1316
+      "size": 1317
     },
     {
       "path": "apps/api/src/db/schema/session.ts",
@@ -252,7 +252,7 @@
       "path": "apps/api/src/db/schema/subtitles.ts",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 871
+      "size": 872
     },
     {
       "path": "apps/api/src/db/schema/user.ts",
@@ -346,9 +346,9 @@
     },
     {
       "path": "apps/api/src/routes/clips.routes.ts",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
-      "size": 2961
+      "size": 2962
     },
     {
       "path": "apps/api/src/routes/health.routes.ts",
@@ -358,7 +358,7 @@
     },
     {
       "path": "apps/api/src/routes/index.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 744
     },
@@ -378,7 +378,7 @@
       "path": "apps/api/src/routes/youtube.routes.ts",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 883
+      "size": 884
     },
     {
       "path": "apps/api/src/server.ts",
@@ -402,13 +402,13 @@
       "path": "apps/api/src/services/video-cutter.service.ts",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 8796
+      "size": 8797
     },
     {
       "path": "apps/api/src/services/youtube.service.ts",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 4363
+      "size": 4364
     },
     {
       "path": "apps/api/src/set-role.ts",
@@ -424,9 +424,9 @@
     },
     {
       "path": "apps/api/src/test/clips-stream.test.ts",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
-      "size": 1817
+      "size": 1818
     },
     {
       "path": "apps/api/src/test/env.test.ts",
@@ -462,7 +462,7 @@
       "path": "apps/api/src/test/video-cutter.test.ts",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 1657
+      "size": 1658
     },
     {
       "path": "apps/api/src/test/youtube.test.ts",
@@ -735,6 +735,42 @@
       "size": 3893
     },
     {
+      "path": "apps/web/src/features/viral-detection/components/ViralFilterSortBar.tsx",
+      "reason": "changed",
+      "language": "typescript",
+      "size": 8234
+    },
+    {
+      "path": "apps/web/src/features/viral-detection/components/ViralMomentCard.tsx",
+      "reason": "needs_summary",
+      "language": "typescript",
+      "size": 18170
+    },
+    {
+      "path": "apps/web/src/features/viral-detection/components/ViralMomentDetailModal.tsx",
+      "reason": "needs_summary",
+      "language": "typescript",
+      "size": 15044
+    },
+    {
+      "path": "apps/web/src/features/viral-detection/components/ViralStatsOverview.tsx",
+      "reason": "needs_summary",
+      "language": "typescript",
+      "size": 5585
+    },
+    {
+      "path": "apps/web/src/features/viral-detection/mock-data.ts",
+      "reason": "needs_summary",
+      "language": "typescript",
+      "size": 10105
+    },
+    {
+      "path": "apps/web/src/features/viral-detection/types.ts",
+      "reason": "needs_summary",
+      "language": "typescript",
+      "size": 8309
+    },
+    {
       "path": "apps/web/src/lib/api/client.ts",
       "reason": "needs_summary",
       "language": "typescript",
@@ -834,7 +870,7 @@
       "path": "apps/web/src/routes/_protected/app.tsx",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 13012
+      "size": 13476
     },
     {
       "path": "apps/web/src/routes/_protected/notes.tsx",
@@ -843,10 +879,16 @@
       "size": 4316
     },
     {
+      "path": "apps/web/src/routes/_protected/viral-clips.tsx",
+      "reason": "changed",
+      "language": "typescript",
+      "size": 12352
+    },
+    {
       "path": "apps/web/src/routes/_protected.tsx",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 3259
+      "size": 3376
     },
     {
       "path": "apps/web/src/routes/__root.tsx",
@@ -858,7 +900,7 @@
       "path": "apps/web/src/routeTree.gen.ts",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 6518
+      "size": 7412
     },
     {
       "path": "apps/web/src/start.ts",
@@ -1044,13 +1086,13 @@
       "path": "packages/shared/src/validators/projects.ts",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 798
+      "size": 799
     },
     {
       "path": "packages/shared/src/validators/youtube.ts",
       "reason": "needs_summary",
       "language": "typescript",
-      "size": 1236
+      "size": 1237
     },
     {
       "path": "packages/shared/tsconfig.json",

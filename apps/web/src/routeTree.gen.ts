@@ -16,6 +16,7 @@ import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as ProtectedAdminRouteImport } from './routes/_protected/admin'
 import { Route as ProtectedAppRouteImport } from './routes/_protected/app'
+import { Route as ProtectedAutoEditRouteImport } from './routes/_protected/auto-edit'
 import { Route as ProtectedNotesRouteImport } from './routes/_protected/notes'
 import { Route as ProtectedViralClipsRouteImport } from './routes/_protected/viral-clips'
 
@@ -52,6 +53,11 @@ const ProtectedAppRoute = ProtectedAppRouteImport.update({
   path: '/app',
   getParentRoute: () => ProtectedRoute,
 } as any)
+const ProtectedAutoEditRoute = ProtectedAutoEditRouteImport.update({
+  id: '/auto-edit',
+  path: '/auto-edit',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 const ProtectedNotesRoute = ProtectedNotesRouteImport.update({
   id: '/notes',
   path: '/notes',
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof AuthSignUpRoute
   '/admin': typeof ProtectedAdminRoute
   '/app': typeof ProtectedAppRoute
+  '/auto-edit': typeof ProtectedAutoEditRoute
   '/notes': typeof ProtectedNotesRoute
   '/viral-clips': typeof ProtectedViralClipsRoute
 }
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/sign-up': typeof AuthSignUpRoute
   '/admin': typeof ProtectedAdminRoute
   '/app': typeof ProtectedAppRoute
+  '/auto-edit': typeof ProtectedAutoEditRoute
   '/notes': typeof ProtectedNotesRoute
   '/viral-clips': typeof ProtectedViralClipsRoute
 }
@@ -90,6 +98,7 @@ export interface FileRoutesById {
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/_protected/admin': typeof ProtectedAdminRoute
   '/_protected/app': typeof ProtectedAppRoute
+  '/_protected/auto-edit': typeof ProtectedAutoEditRoute
   '/_protected/notes': typeof ProtectedNotesRoute
   '/_protected/viral-clips': typeof ProtectedViralClipsRoute
 }
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/admin'
     | '/app'
+    | '/auto-edit'
     | '/notes'
     | '/viral-clips'
   fileRoutesByTo: FileRoutesByTo
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/admin'
     | '/app'
+    | '/auto-edit'
     | '/notes'
     | '/viral-clips'
   id:
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/_auth/sign-up'
     | '/_protected/admin'
     | '/_protected/app'
+    | '/_protected/auto-edit'
     | '/_protected/notes'
     | '/_protected/viral-clips'
   fileRoutesById: FileRoutesById
@@ -182,6 +194,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedAppRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/auto-edit': {
+      id: '/_protected/auto-edit'
+      path: '/auto-edit'
+      fullPath: '/auto-edit'
+      preLoaderRoute: typeof ProtectedAutoEditRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/notes': {
       id: '/_protected/notes'
       path: '/notes'
@@ -214,6 +233,7 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 interface ProtectedRouteChildren {
   ProtectedAdminRoute: typeof ProtectedAdminRoute
   ProtectedAppRoute: typeof ProtectedAppRoute
+  ProtectedAutoEditRoute: typeof ProtectedAutoEditRoute
   ProtectedNotesRoute: typeof ProtectedNotesRoute
   ProtectedViralClipsRoute: typeof ProtectedViralClipsRoute
 }
@@ -221,6 +241,7 @@ interface ProtectedRouteChildren {
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedAdminRoute: ProtectedAdminRoute,
   ProtectedAppRoute: ProtectedAppRoute,
+  ProtectedAutoEditRoute: ProtectedAutoEditRoute,
   ProtectedNotesRoute: ProtectedNotesRoute,
   ProtectedViralClipsRoute: ProtectedViralClipsRoute,
 }

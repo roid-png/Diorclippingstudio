@@ -166,11 +166,11 @@ function DeteksiMomenViralPage() {
 
         <div className="flex items-center gap-2">
           <Link
-            to="/app"
+            to="/auto-edit"
             className="px-3 py-1.5 rounded-xl bg-[#13373e] hover:bg-[#194750] border border-[#20b2aa]/40 text-[#2cd3c6] text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
           >
             <Wand2 className="w-3.5 h-3.5" />
-            <span>Studio Auto-Cut</span>
+            <span>Studio Edit Otomatis</span>
           </Link>
         </div>
       </div>
@@ -301,7 +301,7 @@ function DeteksiMomenViralPage() {
             </button>
 
             <Link
-              to="/app"
+              to="/auto-edit"
               className="h-8 px-3.5 rounded-xl bg-[#143d46] hover:bg-[#1c5562] text-[#2cd3c6] border border-[#2cd3c6]/40 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
             >
               <Wand2 className="w-3.5 h-3.5" />
