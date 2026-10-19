@@ -243,3 +243,4 @@ export async function resetClipEditSettingsToDefault(clipId: string) {
     applyToAllProjectClips: false,
   });
 }
+

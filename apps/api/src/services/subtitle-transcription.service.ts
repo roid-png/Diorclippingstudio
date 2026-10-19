@@ -324,3 +324,4 @@ export function formatSubtitlesToSrt(segments: EnrichedSubtitleSegment[]): strin
     )
     .join("\n");
 }
+

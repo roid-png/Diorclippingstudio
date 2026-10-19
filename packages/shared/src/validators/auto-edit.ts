@@ -30,3 +30,16 @@ export const batchApplyEditSettingsSchema = z
 export type BatchApplyEditSettingsInput = z.infer<
   typeof batchApplyEditSettingsSchema
 >;
+
+export const createStylePresetSchema = z
+  .object({
+    name: z.string().trim().min(1, "Nama preset tidak boleh kosong."),
+    referenceFile: z.string().trim().optional(),
+    tagline: z.string().trim().optional(),
+    description: z.string().trim().optional(),
+    accentColor: z.string().trim().optional(),
+  })
+  .strict();
+
+export type CreateStylePresetInput = z.infer<typeof createStylePresetSchema>;
+
