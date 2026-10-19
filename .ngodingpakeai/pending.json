@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "c5665e2c4c6c65190f598088163119a172aeb9b1",
+  "generatedForCommit": "d28eb15ffa3f4aff1f2567b78b5d9d95319a193a",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -723,6 +723,18 @@
       "size": 1180
     },
     {
+      "path": "apps/web/src/features/project-history/mock-data.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 7919
+    },
+    {
+      "path": "apps/web/src/features/project-history/types.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 1169
+    },
+    {
       "path": "apps/web/src/features/render/components/RenderClipQueueCard.tsx",
       "reason": "needs_summary",
       "language": "typescript",
@@ -730,7 +742,7 @@
     },
     {
       "path": "apps/web/src/features/render/components/RenderNotificationDrawerPanel.tsx",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 11133
     },
@@ -1029,8 +1041,14 @@
       "size": 4316
     },
     {
+      "path": "apps/web/src/routes/_protected/project-history.tsx",
+      "reason": "new",
+      "language": "typescript",
+      "size": 24320
+    },
+    {
       "path": "apps/web/src/routes/_protected/render.tsx",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 36845
     },
@@ -1042,9 +1060,9 @@
     },
     {
       "path": "apps/web/src/routes/_protected.tsx",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 3592
+      "size": 3708
     },
     {
       "path": "apps/web/src/routes/__root.tsx",
@@ -1054,9 +1072,9 @@
     },
     {
       "path": "apps/web/src/routeTree.gen.ts",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 8939
+      "size": 9877
     },
     {
       "path": "apps/web/src/start.ts",
