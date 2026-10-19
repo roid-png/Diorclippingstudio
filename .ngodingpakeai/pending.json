@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "a357bfa9c6aeef6ab9ce115119fb4b58bb8306a4",
+  "generatedForCommit": "dcb354cfff9ae8b9db7442a5ae393395639e9b1d",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -400,7 +400,7 @@
     },
     {
       "path": "apps/api/src/routes/clips.routes.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 14185
     },
@@ -412,7 +412,7 @@
     },
     {
       "path": "apps/api/src/routes/index.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 1046
     },
@@ -424,7 +424,7 @@
     },
     {
       "path": "apps/api/src/routes/notifications.routes.ts",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 3200
     },
@@ -436,7 +436,7 @@
     },
     {
       "path": "apps/api/src/routes/render.routes.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 3486
     },
@@ -484,7 +484,7 @@
     },
     {
       "path": "apps/api/src/services/notifications.service.ts",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 6426
     },
@@ -496,9 +496,9 @@
     },
     {
       "path": "apps/api/src/services/render-jobs.service.ts",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 11021
+      "size": 12699
     },
     {
       "path": "apps/api/src/services/subtitle-transcription.service.ts",
@@ -1294,7 +1294,7 @@
     },
     {
       "path": "packages/shared/package.json",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "json",
       "size": 745
     },
@@ -1330,7 +1330,7 @@
     },
     {
       "path": "packages/shared/src/validators/notifications.ts",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 1427
     },
