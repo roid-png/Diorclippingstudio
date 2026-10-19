@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { user, session, quotas, clipUsages } from "../db/schema";
+import { HttpError } from "../lib/http-error";
 import { hashPassword, verifyPassword } from "../utils/password";
 
 export interface UserAccountRecord {
@@ -676,6 +677,55 @@ export async function getUserQuotaWithHistory(userId?: string | null) {
 }
 
 /**
+ * Validates whether the user has enough daily clip quota for `clipCount` clips.
+ * Throws a structured `HttpError` (`QUOTA_EXHAUSTED` or `INSUFFICIENT_QUOTA`) when
+ * the daily 50-clip quota is 0 or less than the requested clip count.
+ */
+export async function validateUserClipQuotaAvailable(
+  userId: string | null | undefined,
+  clipCount: number
+) {
+  const normalizedCount = Math.floor(Number(clipCount));
+  if (!Number.isFinite(normalizedCount) || normalizedCount < 1 || normalizedCount > 10) {
+    throw new HttpError(
+      400,
+      "INVALID_CLIP_COUNT",
+      "Jumlah klip per proses harus antara 1 hingga maksimal 10 klip."
+    );
+  }
+
+  const targetUser = await getUserByIdOrDefault(userId);
+  const currentQuota = await ensureUserDailyQuota(targetUser.id);
+
+  if (currentQuota.remainingQuota <= 0) {
+    const err = new HttpError(
+      403,
+      "QUOTA_EXHAUSTED",
+      "Kuota klip harian Anda telah habis (0/50 klip tersisa). Pembuatan klip ditolak hingga kuota direset otomatis pukul 00:00 WIB."
+    );
+    (err as any).quota = currentQuota;
+    throw err;
+  }
+
+  if (normalizedCount > currentQuota.remainingQuota) {
+    const err = new HttpError(
+      400,
+      "INSUFFICIENT_QUOTA",
+      `Jumlah klip yang dipilih (${normalizedCount} klip) melebihi sisa kuota harian Anda (${currentQuota.remainingQuota}/${currentQuota.totalQuota} klip tersisa). Silakan kurangi jumlah klip menjadi maksimal ${currentQuota.remainingQuota} klip.`
+    );
+    (err as any).quota = currentQuota;
+    throw err;
+  }
+
+  return {
+    allowed: true,
+    requestedClips: normalizedCount,
+    remainingAfter: Math.max(0, currentQuota.remainingQuota - normalizedCount),
+    quota: currentQuota,
+  };
+}
+
+/**
  * Atomically deducts `clipCount` from the user's daily 50-clip quota when clips are created,
  * preventing race conditions or overdrafts, and logs the usage in `clip_usages`.
  */
@@ -686,36 +736,13 @@ export async function consumeUserClipQuotaAtomic(input: {
   sourceTitle?: string | null;
   actionType?: string;
 }) {
-  const clipCount = Math.floor(Number(input.clipCount));
-  if (!Number.isFinite(clipCount) || clipCount < 1 || clipCount > 10) {
-    const err = new Error(
-      "Jumlah klip per proses harus antara 1 hingga maksimal 10 klip."
-    );
-    (err as any).code = "INVALID_CLIP_COUNT";
-    (err as any).status = 400;
-    throw err;
-  }
-
+  const validation = await validateUserClipQuotaAvailable(
+    input.userId,
+    input.clipCount
+  );
+  const clipCount = validation.requestedClips;
+  const currentQuota = validation.quota;
   const targetUser = await getUserByIdOrDefault(input.userId);
-  const currentQuota = await ensureUserDailyQuota(targetUser.id);
-
-  if (currentQuota.remainingQuota <= 0) {
-    const err = new Error(
-      "Kuota klip harian Anda telah habis (0/50 klip tersisa). Kuota akan direset otomatis pukul 00:00 WIB."
-    );
-    (err as any).code = "QUOTA_EXHAUSTED";
-    (err as any).status = 403;
-    throw err;
-  }
-
-  if (clipCount > currentQuota.remainingQuota) {
-    const err = new Error(
-      `Jumlah klip yang dipilih (${clipCount}) melebihi sisa kuota harian Anda (${currentQuota.remainingQuota} klip tersisa).`
-    );
-    (err as any).code = "INSUFFICIENT_QUOTA";
-    (err as any).status = 400;
-    throw err;
-  }
 
   const nextReset = getNextMidnightWIB();
   const now = new Date();
@@ -740,11 +767,12 @@ export async function consumeUserClipQuotaAtomic(input: {
         .returning();
 
       if (updatedRows.length === 0) {
-        const err = new Error(
+        const err = new HttpError(
+          400,
+          "INSUFFICIENT_QUOTA",
           `Kuota klip tidak mencukupi untuk memotong ${clipCount} klip secara bersamaan.`
         );
-        (err as any).code = "INSUFFICIENT_QUOTA";
-        (err as any).status = 400;
+        (err as any).quota = currentQuota;
         throw err;
       }
 

@@ -25,11 +25,20 @@ type ParserError = Error & { type?: string; status?: number };
 export const errorHandler: ErrorRequestHandler = (error, _req, res, next) => {
   if (res.headersSent) return next(error);
 
-  if (error instanceof HttpError)
-    return send(res, error.status, {
+  if (error instanceof HttpError) {
+    const quota = (error as any).quota;
+    return res.status(error.status).json({
+      success: false,
+      error: {
+        code: error.code,
+        message: error.message,
+        ...(quota ? { quota } : {}),
+      },
       code: error.code,
       message: error.message,
+      ...(quota ? { quota } : {}),
     });
+  }
 
   if (error instanceof ZodError)
     return send(res, 422, {

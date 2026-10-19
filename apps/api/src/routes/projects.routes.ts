@@ -60,9 +60,13 @@ projectsRouter.post("/:id/cut", jsonBody, async (req, res) => {
   const rawMaxClips = req.body?.maxClips ?? req.query.maxClips;
   const overrideMaxClips =
     rawMaxClips !== undefined ? maxClipsParamSchema.parse(rawMaxClips) : undefined;
+  const requestedClips = overrideMaxClips ?? project.maxClips ?? 5;
+
+  const { validateUserClipQuotaAvailable } = await import("../services/account.service");
+  await validateUserClipQuotaAvailable(userId, requestedClips);
 
   const generatedClips = await autoCutProjectVideo(id, overrideMaxClips);
-  res.json({ data: { project, clips: generatedClips, maxClips: overrideMaxClips ?? project.maxClips } });
+  res.json({ data: { project, clips: generatedClips, maxClips: requestedClips } });
 });
 
 // Update maxClips (1..10) configuration for a project

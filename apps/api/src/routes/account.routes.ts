@@ -329,3 +329,51 @@ const handleConsumeQuota = async (req: Request, res: Response) => {
 
 accountRouter.post("/quota/consume", handleConsumeQuota);
 accountRouter.post("/consume", handleConsumeQuota);
+
+/**
+ * POST /api/account/quota/validate (and /api/quotas/validate)
+ * Validates whether the user has enough daily clip quota before starting a cut job.
+ * Rejects with 403 QUOTA_EXHAUSTED when remainingQuota === 0, or 400 INSUFFICIENT_QUOTA when clipCount > remainingQuota.
+ */
+const handleValidateQuota = async (req: Request, res: Response) => {
+  const clipCount = Number(req.body?.clipCount ?? req.body?.maxClips ?? req.query?.clipCount ?? 5);
+
+  let targetUserId: string | null = null;
+  const token = extractSessionToken(req);
+  if (token) {
+    const verified = await verifySessionToken(token);
+    if (verified) {
+      targetUserId = verified.user.id;
+    }
+  }
+
+  if (!targetUserId) {
+    targetUserId =
+      (typeof req.headers["x-user-id"] === "string" && req.headers["x-user-id"]) ||
+      (typeof req.body?.userId === "string" && req.body.userId) ||
+      "user-creator-demo";
+  }
+
+  try {
+    const { validateUserClipQuotaAvailable } = await import("../services/account.service");
+    const check = await validateUserClipQuotaAvailable(targetUserId, clipCount);
+    res.status(200).json({
+      success: true,
+      allowed: true,
+      message: `Kuota klip mencukupi (${check.quota.remainingQuota}/${check.quota.totalQuota} klip tersisa).`,
+      data: check,
+    });
+  } catch (err: any) {
+    const status = typeof err?.status === "number" ? err.status : 400;
+    res.status(status).json({
+      success: false,
+      allowed: false,
+      error: err?.code || "INSUFFICIENT_QUOTA",
+      message: err?.message || "Kuota klip harian tidak mencukupi.",
+      quota: err?.quota || null,
+    });
+  }
+};
+
+accountRouter.post("/quota/validate", handleValidateQuota);
+accountRouter.post("/validate", handleValidateQuota);
