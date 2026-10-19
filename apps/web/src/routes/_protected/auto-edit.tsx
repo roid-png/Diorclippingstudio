@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { siteConfig } from "@/config/site";
 import {
   Wand2,
@@ -10,6 +10,9 @@ import {
   Film,
   Layers,
   Type,
+  Save,
+  RotateCcw,
+  Download,
 } from "lucide-react";
 import {
   initialAutoEditClips,
@@ -32,8 +35,24 @@ export const Route = createFileRoute("/_protected/auto-edit")({
   component: EditOtomatisPage,
 });
 
+const STORAGE_KEY = "dior_clipping_auto_edit_state_v1";
+
 function EditOtomatisPage() {
-  const [clips, setClips] = useState<AutoEditClipItem[]>(initialAutoEditClips);
+  const [clips, setClips] = useState<AutoEditClipItem[]>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.clips) && parsed.clips.length > 0) {
+          return parsed.clips;
+        }
+      }
+    } catch {
+      // ignore storage errors
+    }
+    return initialAutoEditClips;
+  });
+
   const [activeClipId, setActiveClipId] = useState<string>(
     initialAutoEditClips[0].id
   );
@@ -49,6 +68,27 @@ function EditOtomatisPage() {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [appliedSuccess, setAppliedSuccess] = useState<boolean>(false);
   const [bannerNotice, setBannerNotice] = useState<string | null>(null);
+  const [lastSavedText, setLastSavedText] = useState<string>("Tersimpan otomatis");
+
+  // Auto-save per-clip edit state whenever clips change
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          clips,
+          updatedAt: new Date().toISOString(),
+        })
+      );
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mm = String(now.getMinutes()).padStart(2, "0");
+      const ss = String(now.getSeconds()).padStart(2, "0");
+      setLastSavedText(`Tersimpan (${hh}:${mm}:${ss})`);
+    } catch {
+      // ignore quota/storage errors
+    }
+  }, [clips]);
 
   const activeClip =
     clips.find((c) => c.id === activeClipId) || clips[0];
@@ -77,6 +117,29 @@ function EditOtomatisPage() {
           : c
       )
     );
+  };
+
+  const handleResetAllState = () => {
+    setClips(initialAutoEditClips);
+    setEditingStyles(defaultEditingStyles);
+    setMotionGraphics(defaultMotionGraphics);
+    setSubtitleStyles(defaultSubtitleStyles);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    setBannerNotice(
+      "Seluruh pilihan edit per klip telah di-reset ke konfigurasi referensi awal (Theo Reference)!"
+    );
+    setTimeout(() => setBannerNotice(null), 3000);
+  };
+
+  const handleManualSaveConfirm = () => {
+    setBannerNotice(
+      `Konfigurasi 3 Pilar untuk seluruh ${clips.length} klip telah disimpan di state aplikasi! ✅`
+    );
+    setTimeout(() => setBannerNotice(null), 2800);
   };
 
   const handleToggleClipSubtitle = (clipId: string, e?: React.MouseEvent) => {
@@ -205,11 +268,32 @@ function EditOtomatisPage() {
             <Wand2 className="w-5 h-5 text-[#2cd3c6]" />
           </h1>
           <p className="text-xs text-[#8ca4aa] mt-0.5">
-            Atur kombinasi terpisah antara Gaya Edit Sinematik, Motion Graphic Infografis, dan Subtitle Otomatis secara langsung.
+            Setiap klip menyimpan konfigurasi Gaya Edit, Motion Graphic, dan Subtitle Otomatisnya secara mandiri di state.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* State Save Indicator & Actions */}
+          <button
+            type="button"
+            onClick={handleManualSaveConfirm}
+            className="px-2.5 py-1.5 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-400/40 text-emerald-300 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer"
+            title="Pilihan edit tersimpan otomatis per klip"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>{lastSavedText}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleResetAllState}
+            className="px-2.5 py-1.5 rounded-xl bg-[#14282e] hover:bg-[#1b363e] border border-[#1f3e46] text-[#9ab4ba] hover:text-white text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer"
+            title="Reset seluruh klip ke setelan awal referensi"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset Default</span>
+          </button>
+
           <Link
             to="/viral-clips"
             className="px-3 py-1.5 rounded-xl bg-[#13373e] hover:bg-[#194750] border border-[#20b2aa]/40 text-[#2cd3c6] text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
@@ -228,12 +312,12 @@ function EditOtomatisPage() {
         </div>
       )}
 
-      {/* Selected Clips Queue Strip (4 Clips) with Per-Clip Subtitle Toggle */}
+      {/* Selected Clips Queue Strip (4 Clips) with Per-Clip Saved State & Subtitle Toggle */}
       <div className="bg-[#0e2125]/90 backdrop-blur-md border border-[#1e3c43] rounded-2xl p-3.5 mb-6 shadow-xl">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <span className="text-xs font-bold text-white flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-[#2cd3c6]" />
-            <span>Antrean Klip Terpilih & Toggle Subtitle Per Klip:</span>
+            <span>Antrean Klip Terpilih (State Pilihan Edit Tersimpan Per Klip):</span>
           </span>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -267,6 +351,12 @@ function EditOtomatisPage() {
             const cEdit =
               editingStyles.find((e) => e.id === c.config.editingStyleId)
                 ?.name || "Theo Podcast";
+            const cMotion =
+              motionGraphics.find((m) => m.id === c.config.motionGraphicId)
+                ?.name || "Infografis";
+            const cSub =
+              subtitleStyles.find((s) => s.id === c.config.subtitleStyleId)
+                ?.name || "Red Pill";
             return (
               <div
                 key={c.id}
@@ -295,8 +385,8 @@ function EditOtomatisPage() {
                         <Flame className="w-2.5 h-2.5 fill-amber-400" />
                         <span>{c.viralScore}</span>
                       </span>
-                      <span className="text-[9px] font-mono text-[#7d9399]">
-                        {c.duration}
+                      <span className="text-[9px] font-mono text-emerald-300 bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-500/30">
+                        {isCurrent ? "Sedang Diedit" : "State Tersimpan"}
                       </span>
                     </div>
                     <h4 className="text-xs font-bold text-white truncate mt-0.5">
@@ -307,6 +397,16 @@ function EditOtomatisPage() {
                       <span className="truncate">{cEdit}</span>
                     </p>
                   </div>
+                </div>
+
+                {/* Saved 3-Pillar Tags per Clip */}
+                <div className="flex flex-wrap items-center gap-1 text-[9px]">
+                  <span className="px-1.5 py-0.2 rounded bg-purple-950/50 text-purple-300 border border-purple-400/25 truncate max-w-[120px]">
+                    ✨ {cMotion}
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded bg-rose-950/50 text-rose-300 border border-rose-400/25 truncate max-w-[120px]">
+                    🔤 {c.config.subtitleEnabled ? cSub : "CC OFF"}
+                  </span>
                 </div>
 
                 {/* Per-Clip Automatic Subtitle Quick Switch Bar */}
@@ -376,6 +476,49 @@ function EditOtomatisPage() {
             onAddNewPreset={handleAddNewPreset}
             onJumpToTime={handleJumpToTime}
           />
+        </div>
+      </div>
+
+      {/* Bottom Summary Footer Bar: Saved State Overview & Batch Render */}
+      <div className="mt-6 bg-[#0e2125]/95 backdrop-blur-md border border-[#2cd3c6]/40 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#14373f] border border-[#2cd3c6]/40 flex items-center justify-center text-[#2cd3c6] shrink-0">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-xs sm:text-sm font-bold text-white">
+              Seluruh {clips.length} Klip Siap Dirender Sesuai Gaya Pilihan Masing-Masing
+            </h4>
+            <p className="text-[11px] text-[#8ca4aa]">
+              State per klip tersimpan otomatis • {enabledSubtitleCount} dari{" "}
+              {clips.length} klip menggunakan Subtitle Otomatis aktif.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+          <button
+            type="button"
+            onClick={handleApplyToAllClips}
+            className="h-9 px-3.5 rounded-xl bg-[#142e35] hover:bg-[#1b3d46] border border-[#2cd3c6]/35 text-[#2cd3c6] text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Samakan Gaya Semua Klip</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setBannerNotice(
+                `Memulai proses render cepat untuk seluruh ${clips.length} klip sesuai state masing-masing... 🚀`
+              );
+              setTimeout(() => setBannerNotice(null), 3500);
+            }}
+            className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#1a858c] via-[#21a6a3] to-[#2cd3c6] text-white text-xs font-bold flex items-center gap-1.5 shadow-[0_0_15px_rgba(44,211,198,0.3)] hover:brightness-110 transition cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Render & Unduh Semua ({clips.length} MP4)</span>
+          </button>
         </div>
       </div>
     </div>

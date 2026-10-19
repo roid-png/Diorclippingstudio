@@ -17,7 +17,7 @@ export const defaultEditingStyles: EditingStylePreset[] = [
     description: "Letterbox sinematik 9:16 dengan gradasi film moody dan color grade premium",
     icon: "🍿",
     badge: "Popular",
-    layout: "center-ambient",
+    layout: "full-crop",
     aspectRatio: "9:16",
   },
   {
@@ -33,7 +33,7 @@ export const defaultEditingStyles: EditingStylePreset[] = [
     name: "TikTok Dynamic Crop",
     description: "Crop dinamis wajah pembicara (Face-Tracking) memenuhi layar 9:16",
     icon: "⚡",
-    layout: "full-crop",
+    layout: "talking-head",
     aspectRatio: "9:16",
   },
 ];
