@@ -86,3 +86,9 @@ renderRouter.post("/:clipId/retry", jsonBody, async (req, res) => {
   });
   res.json({ data: result });
 });
+
+// Download final MP4 video clip via render router
+renderRouter.get("/:clipId/download", (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.clipId);
+  res.redirect(`/api/clips/${clipId}/download?${new URLSearchParams(req.query as any).toString()}`);
+});

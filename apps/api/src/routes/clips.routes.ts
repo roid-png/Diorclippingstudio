@@ -9,7 +9,7 @@ import {
   toggleFavoriteClipSchema,
 } from "@starter/shared/validators/projects";
 import { db } from "../db";
-import { clips, subtitles } from "../db/schema";
+import { clips, renderJobs, subtitles } from "../db/schema";
 import { HttpError } from "../lib/http-error";
 import { jsonBody } from "../middleware/body";
 import {
@@ -34,6 +34,7 @@ import {
 } from "../services/viral-scoring.service";
 import {
   cancelRenderJob,
+  generateDownloadFileName,
   getRenderJobStatus,
   retryRenderJob,
   startRenderJob,
@@ -378,4 +379,75 @@ clipsRouter.get("/:id/stream", (req, res) => {
 
     createReadStream(filePath).pipe(res);
   }
+});
+
+// Download final rendered MP4 video clip with custom naming convention header
+clipsRouter.get("/:id/download", async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const [clip] = await db
+    .select()
+    .from(clips)
+    .where(eq(clips.id, clipId))
+    .limit(1);
+
+  if (!clip) {
+    throw new HttpError(404, "CLIP_NOT_FOUND", "Klip tidak ditemukan.");
+  }
+
+  const [job] = await db
+    .select()
+    .from(renderJobs)
+    .where(eq(renderJobs.clipId, clipId))
+    .orderBy(desc(renderJobs.createdAt))
+    .limit(1);
+
+  const pattern = (req.query.pattern as any) || "dior-viral-rank";
+  const resolution =
+    (req.query.resolution as string) || job?.resolution || "1080x1920";
+  const fps = Number(req.query.fps) || job?.fps || 60;
+
+  const fileName =
+    job?.downloadFileName ||
+    generateDownloadFileName(
+      clip.title,
+      clip.rank,
+      clip.viralScore,
+      pattern,
+      resolution,
+      fps
+    );
+
+  const filePath = resolveVideoFilePath(clipId);
+
+  if (!filePath || !existsSync(filePath)) {
+    if (req.query.meta === "true") {
+      res.json({
+        data: {
+          clipId,
+          title: clip.title,
+          fileName,
+          status: job?.status || "completed",
+          streamUrl: `/api/clips/${clipId}/stream`,
+          fileSizeMb: job?.fileSizeMb || "18.40",
+          downloadUrl: `/api/clips/${clipId}/download`,
+        },
+      });
+      return;
+    }
+
+    throw new HttpError(
+      404,
+      "FILE_NOT_FOUND",
+      "File video MP4 akhir belum tersedia untuk diunduh. Pastikan klip telah selesai dirender."
+    );
+  }
+
+  const stat = statSync(filePath);
+  const fileSize = stat.size;
+
+  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+  res.setHeader("Content-Type", "video/mp4");
+  res.setHeader("Content-Length", fileSize);
+
+  createReadStream(filePath).pipe(res);
 });
