@@ -55,6 +55,9 @@ function ProtectedLayout() {
               <Link to="/auto-edit" className={navLink}>
                 Edit Otomatis
               </Link>
+              <Link to="/render" className={navLink}>
+                Render & Unduh
+              </Link>
               {canAdmin && (
                 <Link to="/admin" className={navLink}>
                   Admin

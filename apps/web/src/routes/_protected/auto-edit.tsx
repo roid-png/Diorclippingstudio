@@ -506,19 +506,13 @@ function EditOtomatisPage() {
             <span>Samakan Gaya Semua Klip</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setBannerNotice(
-                `Memulai proses render cepat untuk seluruh ${clips.length} klip sesuai state masing-masing... 🚀`
-              );
-              setTimeout(() => setBannerNotice(null), 3500);
-            }}
+          <Link
+            to="/render"
             className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#1a858c] via-[#21a6a3] to-[#2cd3c6] text-white text-xs font-bold flex items-center gap-1.5 shadow-[0_0_15px_rgba(44,211,198,0.3)] hover:brightness-110 transition cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Render & Unduh Semua ({clips.length} MP4)</span>
-          </button>
+          </Link>
         </div>
       </div>
     </div>
