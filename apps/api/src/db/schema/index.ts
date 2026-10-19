@@ -9,4 +9,5 @@ export * from "./clips";
 export * from "./render-jobs";
 export * from "./subtitles";
 export * from "./quotas";
+export * from "./clip-edit-settings";
 
