@@ -32,6 +32,7 @@ interface LivePreviewCanvasProps {
   setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>;
   onApplyToAllClips: () => void;
   appliedSuccess: boolean;
+  onToggleSubtitle: () => void;
 }
 
 function renderStyledSubtitleText(
@@ -105,6 +106,7 @@ export function LivePreviewCanvas({
   setIsPlaying,
   onApplyToAllClips,
   appliedSuccess,
+  onToggleSubtitle,
 }: LivePreviewCanvasProps) {
   const [isMuted, setIsMuted] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -230,10 +232,23 @@ export function LivePreviewCanvas({
           <Wand2 className="w-3 h-3" />
           <span>{motionPreset.name}</span>
         </span>
-        <span className="px-2 py-0.5 rounded-md bg-rose-950/50 border border-rose-400/30 text-rose-300 font-semibold flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onToggleSubtitle}
+          title="Klik untuk mengaktifkan / mematikan subtitle otomatis pada klip ini"
+          className={`px-2 py-0.5 rounded-md border font-semibold flex items-center gap-1 transition cursor-pointer ${
+            clip.config.subtitleEnabled
+              ? "bg-rose-950/60 border-rose-400/50 text-rose-200 hover:bg-rose-900/60"
+              : "bg-[#14282e] border-white/15 text-gray-400 hover:text-white"
+          }`}
+        >
           <Type className="w-3 h-3" />
-          <span>{clip.config.subtitleEnabled ? subtitlePreset.name : "Subtitle OFF"}</span>
-        </span>
+          <span>
+            {clip.config.subtitleEnabled
+              ? `${subtitlePreset.name} (ON)`
+              : "Subtitle Otomatis: OFF"}
+          </span>
+        </button>
       </div>
 
       {/* 9:16 Locked Vertical Video Player Canvas */}
@@ -492,6 +507,22 @@ export function LivePreviewCanvas({
               ) : (
                 <Volume2 className="w-4 h-4 text-[#2cd3c6]" />
               )}
+            </button>
+            <button
+              type="button"
+              onClick={onToggleSubtitle}
+              className={`px-1.5 py-0.5 rounded text-[9px] font-black border transition cursor-pointer ${
+                clip.config.subtitleEnabled
+                  ? "bg-rose-600/90 text-white border-rose-400 shadow-sm"
+                  : "bg-white/10 text-gray-400 border-white/15 hover:text-white"
+              }`}
+              title={
+                clip.config.subtitleEnabled
+                  ? "Matikan Subtitle Otomatis Klip Ini"
+                  : "Aktifkan Subtitle Otomatis Klip Ini"
+              }
+            >
+              CC {clip.config.subtitleEnabled ? "ON" : "OFF"}
             </button>
           </div>
 

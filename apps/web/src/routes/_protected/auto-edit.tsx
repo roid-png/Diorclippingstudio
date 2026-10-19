@@ -9,6 +9,7 @@ import {
   Sparkles,
   Film,
   Layers,
+  Type,
 } from "lucide-react";
 import {
   initialAutoEditClips,
@@ -77,6 +78,45 @@ function EditOtomatisPage() {
       )
     );
   };
+
+  const handleToggleClipSubtitle = (clipId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const target = clips.find((c) => c.id === clipId);
+    if (!target) return;
+    const nextState = !target.config.subtitleEnabled;
+    setClips((prev) =>
+      prev.map((c) =>
+        c.id === clipId
+          ? { ...c, config: { ...c.config, subtitleEnabled: nextState } }
+          : c
+      )
+    );
+    setBannerNotice(
+      `Subtitle Otomatis untuk Klip #${target.rank} (${target.title}) telah ${
+        nextState ? "DIAKTIFKAN (ON)" : "DINONAKTIFKAN (OFF)"
+      }!`
+    );
+    setTimeout(() => setBannerNotice(null), 2800);
+  };
+
+  const handleToggleAllSubtitles = (enabled: boolean) => {
+    setClips((prev) =>
+      prev.map((c) => ({
+        ...c,
+        config: { ...c.config, subtitleEnabled: enabled },
+      }))
+    );
+    setBannerNotice(
+      `Subtitle Otomatis berhasil ${
+        enabled ? "DIAKTIFKAN" : "DINONAKTIFKAN"
+      } untuk seluruh ${clips.length} klip!`
+    );
+    setTimeout(() => setBannerNotice(null), 2800);
+  };
+
+  const enabledSubtitleCount = clips.filter(
+    (c) => c.config.subtitleEnabled
+  ).length;
 
   const handleUpdateSubtitleLine = (
     lineId: string,
@@ -188,16 +228,37 @@ function EditOtomatisPage() {
         </div>
       )}
 
-      {/* Selected Clips Queue Strip (4 Clips) */}
+      {/* Selected Clips Queue Strip (4 Clips) with Per-Clip Subtitle Toggle */}
       <div className="bg-[#0e2125]/90 backdrop-blur-md border border-[#1e3c43] rounded-2xl p-3.5 mb-6 shadow-xl">
-        <div className="flex items-center justify-between mb-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <span className="text-xs font-bold text-white flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-[#2cd3c6]" />
-            <span>Antrean Klip Terpilih (Klik Klip untuk Mengedit):</span>
+            <span>Antrean Klip Terpilih & Toggle Subtitle Per Klip:</span>
           </span>
-          <span className="text-[11px] text-[#8ca4aa]">
-            Sedang Mengedit: <strong className="text-[#2cd3c6]">{activeClip.title}</strong>
-          </span>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-2.5 py-1 rounded-lg bg-[#0a181c] border border-[#1d3940] text-[11px] text-[#9ab4ba] flex items-center gap-1.5">
+              <Type className="w-3 h-3 text-rose-400" />
+              <span>
+                Subtitle Aktif:{" "}
+                <strong className="text-emerald-300">
+                  {enabledSubtitleCount}/{clips.length} Klip
+                </strong>
+              </span>
+            </span>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleToggleAllSubtitles(enabledSubtitleCount < clips.length)
+              }
+              className="px-2.5 py-1 rounded-lg bg-[#142e35] hover:bg-[#1a3c45] border border-[#2cd3c6]/30 text-[11px] font-semibold text-[#2cd3c6] transition cursor-pointer"
+            >
+              {enabledSubtitleCount < clips.length
+                ? "Aktifkan CC Semua Klip"
+                : "Matikan CC Semua Klip"}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -207,46 +268,76 @@ function EditOtomatisPage() {
               editingStyles.find((e) => e.id === c.config.editingStyleId)
                 ?.name || "Theo Podcast";
             return (
-              <button
+              <div
                 key={c.id}
-                type="button"
                 onClick={() => handleSelectClip(c.id)}
-                className={`p-2.5 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none ${
+                className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between gap-2 cursor-pointer select-none ${
                   isCurrent
                     ? "bg-[#153a42] border-[#2cd3c6] shadow-[0_0_15px_rgba(44,211,198,0.2)]"
                     : "bg-[#12262b]/80 border-[#1d3940] hover:border-[#2cd3c6]/40"
                 }`}
               >
-                <div className="w-10 h-14 rounded-lg overflow-hidden bg-black shrink-0 border border-white/10 relative">
-                  <img
-                    src={c.imageSrc}
-                    alt={c.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <span className="absolute bottom-0.5 right-0.5 px-1 rounded text-[8px] font-black bg-black/80 text-amber-300">
-                    #{c.rank}
-                  </span>
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-[10px] font-bold text-amber-300 flex items-center gap-0.5">
-                      <Flame className="w-2.5 h-2.5 fill-amber-400" />
-                      <span>{c.viralScore}</span>
-                    </span>
-                    <span className="text-[9px] font-mono text-[#7d9399]">
-                      {c.duration}
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-14 rounded-lg overflow-hidden bg-black shrink-0 border border-white/10 relative">
+                    <img
+                      src={c.imageSrc}
+                      alt={c.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <span className="absolute bottom-0.5 right-0.5 px-1 rounded text-[8px] font-black bg-black/80 text-amber-300">
+                      #{c.rank}
                     </span>
                   </div>
-                  <h4 className="text-xs font-bold text-white truncate mt-0.5">
-                    {c.title}
-                  </h4>
-                  <p className="text-[10px] text-[#2cd3c6] truncate mt-0.5 flex items-center gap-1">
-                    <Film className="w-2.5 h-2.5 shrink-0" />
-                    <span className="truncate">{cEdit}</span>
-                  </p>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-bold text-amber-300 flex items-center gap-0.5">
+                        <Flame className="w-2.5 h-2.5 fill-amber-400" />
+                        <span>{c.viralScore}</span>
+                      </span>
+                      <span className="text-[9px] font-mono text-[#7d9399]">
+                        {c.duration}
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-bold text-white truncate mt-0.5">
+                      {c.title}
+                    </h4>
+                    <p className="text-[10px] text-[#2cd3c6] truncate mt-0.5 flex items-center gap-1">
+                      <Film className="w-2.5 h-2.5 shrink-0" />
+                      <span className="truncate">{cEdit}</span>
+                    </p>
+                  </div>
                 </div>
-              </button>
+
+                {/* Per-Clip Automatic Subtitle Quick Switch Bar */}
+                <div className="pt-1.5 border-t border-white/10 flex items-center justify-between gap-1.5">
+                  <span className="text-[10px] text-[#8ca4aa] flex items-center gap-1">
+                    <Type className="w-2.5 h-2.5 text-rose-400" />
+                    <span>Subtitle Otomatis:</span>
+                  </span>
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={c.config.subtitleEnabled}
+                    onClick={(e) => handleToggleClipSubtitle(c.id, e)}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1.5 transition cursor-pointer ${
+                      c.config.subtitleEnabled
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/50 hover:bg-emerald-500/30"
+                        : "bg-[#0d1c20] text-gray-400 border-white/10 hover:text-white"
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        c.config.subtitleEnabled
+                          ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]"
+                          : "bg-gray-500"
+                      }`}
+                    />
+                    <span>{c.config.subtitleEnabled ? "ON" : "OFF"}</span>
+                  </button>
+                </div>
+              </div>
             );
           })}
         </div>
@@ -267,6 +358,9 @@ function EditOtomatisPage() {
             setIsPlaying={setIsPlaying}
             onApplyToAllClips={handleApplyToAllClips}
             appliedSuccess={appliedSuccess}
+            onToggleSubtitle={() =>
+              handleToggleClipSubtitle(activeClip.id)
+            }
           />
         </div>
 

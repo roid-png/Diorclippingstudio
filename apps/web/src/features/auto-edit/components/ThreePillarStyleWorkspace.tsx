@@ -477,20 +477,33 @@ export function ThreePillarStyleWorkspace({
             {/* Master Toggle Subtitle Otomatis */}
             <button
               type="button"
+              role="switch"
+              aria-checked={clip.config.subtitleEnabled}
               onClick={() =>
                 onUpdateConfig({
                   subtitleEnabled: !clip.config.subtitleEnabled,
                 })
               }
-              className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer flex items-center gap-2 ${
                 clip.config.subtitleEnabled
-                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/50"
+                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/50 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
                   : "bg-[#14282e] text-gray-400 border-white/10"
               }`}
             >
-              <Eye className="w-3.5 h-3.5" />
+              <span
+                className={`w-7 h-4 rounded-full p-0.5 flex items-center transition-colors ${
+                  clip.config.subtitleEnabled ? "bg-emerald-400" : "bg-gray-600"
+                }`}
+              >
+                <span
+                  className={`w-3 h-3 rounded-full bg-black transition-transform ${
+                    clip.config.subtitleEnabled ? "translate-x-3" : "translate-x-0"
+                  }`}
+                />
+              </span>
               <span>
-                Subtitle: {clip.config.subtitleEnabled ? "AKTIF (ON)" : "MATI (OFF)"}
+                Subtitle Klip #{clip.rank}:{" "}
+                {clip.config.subtitleEnabled ? "AKTIF (ON)" : "MATI (OFF)"}
               </span>
             </button>
 
@@ -505,8 +518,61 @@ export function ThreePillarStyleWorkspace({
           </div>
         </div>
 
+        {/* Dedicated Per-Clip Automatic Subtitle Status Banner */}
+        <div
+          className={`mb-3.5 p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-all ${
+            clip.config.subtitleEnabled
+              ? "bg-[#11292f]/90 border-emerald-500/35"
+              : "bg-rose-950/25 border-rose-500/30"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <span
+              className={`px-2 py-0.5 rounded-md text-[10px] font-black tracking-wide uppercase ${
+                clip.config.subtitleEnabled
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40"
+                  : "bg-gray-800 text-gray-400 border border-gray-600"
+              }`}
+            >
+              {clip.config.subtitleEnabled ? "CC AUTO: ON" : "CC AUTO: OFF"}
+            </span>
+            <div>
+              <p className="text-xs font-bold text-white">
+                Status Subtitle Otomatis — Klip #{clip.rank} ({clip.title})
+              </p>
+              <p className="text-[11px] text-[#8ca4aa]">
+                {clip.config.subtitleEnabled
+                  ? `Menampilkan ${clip.subtitles.length} baris transkrip AI sinkron suara dengan label pembicara otomatis di layar 9:16.`
+                  : "Subtitle otomatis dinonaktifkan untuk klip ini. Video akan dirender bersih tanpa teks subtitle."}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              onUpdateConfig({
+                subtitleEnabled: !clip.config.subtitleEnabled,
+              })
+            }
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition cursor-pointer shrink-0 ${
+              clip.config.subtitleEnabled
+                ? "bg-[#17353d] hover:bg-[#1e434d] text-[#9ab4ba] hover:text-white border border-[#254b54]"
+                : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-md"
+            }`}
+          >
+            {clip.config.subtitleEnabled
+              ? "Matikan Subtitle Klip Ini"
+              : "Aktifkan Subtitle Klip Ini"}
+          </button>
+        </div>
+
         {/* Preset Cards Grid for Subtitle Style */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3.5">
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3.5 transition-opacity ${
+            clip.config.subtitleEnabled ? "opacity-100" : "opacity-50"
+          }`}
+        >
           {subtitleStyles.map((sub) => {
             const isSelected = clip.config.subtitleStyleId === sub.id;
             return (
