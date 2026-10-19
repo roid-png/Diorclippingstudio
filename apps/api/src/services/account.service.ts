@@ -455,3 +455,144 @@ export async function loginUserAccount(input: {
     quota,
   };
 }
+
+export async function getUserByIdOrDefault(
+  userId?: string | null
+): Promise<UserAccountRecord> {
+  const targetId = userId?.trim() || "user-creator-demo";
+
+  try {
+    const rows = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, targetId))
+      .limit(1);
+    if (rows.length > 0) {
+      const r = rows[0]!;
+      const rec: UserAccountRecord = {
+        id: r.id,
+        name: r.name,
+        email: r.email,
+        passwordHash: r.passwordHash || DEFAULT_DEMO_PASSWORD_HASH,
+        avatarUrl: r.avatarUrl || r.image || "/images/michael_avatar.png",
+        bio: r.bio || null,
+        badge: r.badge || "Content Creator",
+        role: r.role || "user",
+        emailVerified: r.emailVerified,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+      };
+      inMemoryUsers.set(rec.id, rec);
+      return rec;
+    }
+  } catch {
+    // Fallback to in-memory
+  }
+
+  return (
+    inMemoryUsers.get(targetId) ||
+    inMemoryUsers.get("user-creator-demo")!
+  );
+}
+
+export async function verifySessionToken(token?: string | null) {
+  if (!token || !token.trim()) return null;
+  const cleanToken = token.trim();
+  const now = new Date();
+
+  // 1. Check in-memory session
+  const memSess = inMemorySessions.get(cleanToken);
+  if (memSess) {
+    if (new Date(memSess.expiresAt) <= now) {
+      inMemorySessions.delete(cleanToken);
+      return null;
+    }
+    const foundUser = await getUserByIdOrDefault(memSess.userId);
+    const quota = await ensureUserDailyQuota(foundUser.id);
+    return {
+      session: memSess,
+      user: {
+        id: foundUser.id,
+        name: foundUser.name,
+        email: foundUser.email,
+        avatarUrl: foundUser.avatarUrl,
+        image: foundUser.avatarUrl,
+        bio: foundUser.bio,
+        badge: foundUser.badge,
+        role: foundUser.role,
+        emailVerified: foundUser.emailVerified,
+        createdAt: foundUser.createdAt,
+        updatedAt: foundUser.updatedAt,
+      },
+      quota,
+    };
+  }
+
+  // 2. Check DB session
+  try {
+    const rows = await db
+      .select()
+      .from(session)
+      .where(eq(session.token, cleanToken))
+      .limit(1);
+
+    if (rows.length > 0) {
+      const s = rows[0]!;
+      if (s.expiresAt <= now) {
+        await db.delete(session).where(eq(session.token, cleanToken));
+        return null;
+      }
+
+      const foundUser = await getUserByIdOrDefault(s.userId);
+      const quota = await ensureUserDailyQuota(foundUser.id);
+      const sessRecord: SessionTokenRecord = {
+        id: s.id,
+        token: s.token,
+        userId: s.userId,
+        expiresAt: s.expiresAt.toISOString(),
+        ipAddress: s.ipAddress,
+        userAgent: s.userAgent,
+        createdAt: s.createdAt.toISOString(),
+      };
+      inMemorySessions.set(cleanToken, sessRecord);
+
+      return {
+        session: sessRecord,
+        user: {
+          id: foundUser.id,
+          name: foundUser.name,
+          email: foundUser.email,
+          avatarUrl: foundUser.avatarUrl,
+          image: foundUser.avatarUrl,
+          bio: foundUser.bio,
+          badge: foundUser.badge,
+          role: foundUser.role,
+          emailVerified: foundUser.emailVerified,
+          createdAt: foundUser.createdAt,
+          updatedAt: foundUser.updatedAt,
+        },
+        quota,
+      };
+    }
+  } catch {
+    // Ignore DB failure
+  }
+
+  return null;
+}
+
+export async function logoutSessionToken(token?: string | null) {
+  if (!token || !token.trim()) {
+    return { revoked: true };
+  }
+  const cleanToken = token.trim();
+  inMemorySessions.delete(cleanToken);
+
+  try {
+    await db.delete(session).where(eq(session.token, cleanToken));
+  } catch {
+    // Ignore DB delete error
+  }
+
+  return { revoked: true };
+}
