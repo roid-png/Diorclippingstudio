@@ -524,3 +524,69 @@ const handleUploadAvatar = async (req: Request, res: Response) => {
 
 accountRouter.post("/avatar", handleUploadAvatar);
 accountRouter.post("/profile/avatar", handleUploadAvatar);
+
+const changePasswordSchema = z.object({
+  currentPassword: z
+    .string()
+    .min(1, "Kata sandi lama wajib diisi."),
+  newPassword: z
+    .string()
+    .min(8, "Kata sandi baru minimal harus 8 karakter."),
+  confirmPassword: z.string().optional(),
+});
+
+/**
+ * POST / PATCH / PUT /api/account/password (and POST /api/account/change-password)
+ * Verifies the user's old password (`currentPassword`) and updates to `newPassword`.
+ */
+const handleChangePassword = async (req: Request, res: Response) => {
+  const body = req.body ?? {};
+  const normalizedBody = {
+    currentPassword:
+      body.currentPassword ?? body.oldPassword ?? body.sandiLama ?? "",
+    newPassword: body.newPassword ?? body.sandiBaru ?? "",
+    confirmPassword:
+      body.confirmPassword ?? body.konfirmasiSandi ?? undefined,
+  };
+
+  const parsed = changePasswordSchema.safeParse(normalizedBody);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    res.status(400).json({
+      success: false,
+      error: "VALIDATION_ERROR",
+      message: firstIssue?.message || "Data perubahan kata sandi tidak valid.",
+    });
+    return;
+  }
+
+  const targetUserId = await resolveRequestUserId(req);
+
+  try {
+    const { changeUserPassword } = await import("../services/account.service");
+    const result = await changeUserPassword({
+      userId: targetUserId,
+      currentPassword: parsed.data.currentPassword,
+      newPassword: parsed.data.newPassword,
+      confirmPassword: parsed.data.confirmPassword,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Kata sandi berhasil diperbarui! Gunakan kata sandi baru saat masuk berikutnya.",
+      data: result,
+    });
+  } catch (err: any) {
+    const status = typeof err?.status === "number" ? err.status : 400;
+    res.status(status).json({
+      success: false,
+      error: err?.code || "CHANGE_PASSWORD_FAILED",
+      message: err?.message || "Gagal memperbarui kata sandi.",
+    });
+  }
+};
+
+accountRouter.post("/password", handleChangePassword);
+accountRouter.patch("/password", handleChangePassword);
+accountRouter.put("/password", handleChangePassword);
+accountRouter.post("/change-password", handleChangePassword);
