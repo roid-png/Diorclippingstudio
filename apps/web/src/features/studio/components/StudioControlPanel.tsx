@@ -9,6 +9,8 @@ import {
   Clipboard,
   X,
   Sparkles,
+  Lock,
+  AlertTriangle,
 } from "lucide-react";
 import type { ProcessingStatus, YouTubeVideoMetadata } from "../types";
 import type {
@@ -92,6 +94,11 @@ export function StudioControlPanel({
 }: StudioControlPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pasteNotice, setPasteNotice] = useState<string | null>(null);
+
+  const remainingQuota = Math.max(0, (totalQuota ?? 50) - (usedQuota ?? 0));
+  const isQuotaExhausted = remainingQuota === 0;
+  const isQuotaInsufficient = clippingLimit > remainingQuota;
+  const isBlockedByQuota = isQuotaExhausted || isQuotaInsufficient;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -207,13 +214,27 @@ export function StudioControlPanel({
         <button
           type="button"
           onClick={onGenerate}
-          disabled={isProcessing}
-          className="h-11 px-7 rounded-xl bg-gradient-to-r from-[#17858c] via-[#20a3a7] to-[#2cd3c6] text-white text-xs sm:text-sm font-bold tracking-wider shadow-[0_0_20px_rgba(44,211,198,0.35)] hover:shadow-[0_0_25px_rgba(44,211,198,0.55)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shrink-0 select-none cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
+          disabled={isProcessing || isBlockedByQuota}
+          className={`h-11 px-7 rounded-xl text-xs sm:text-sm font-bold tracking-wider transition-all flex items-center justify-center gap-2 shrink-0 select-none ${
+            isBlockedByQuota
+              ? "bg-[#1f191b] border border-red-500/40 text-red-300 shadow-none cursor-not-allowed opacity-80"
+              : "bg-gradient-to-r from-[#17858c] via-[#20a3a7] to-[#2cd3c6] text-white shadow-[0_0_20px_rgba(44,211,198,0.35)] hover:shadow-[0_0_25px_rgba(44,211,198,0.55)] hover:brightness-110 active:scale-[0.98] cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
+          }`}
         >
           {isProcessing ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>MEMPROSES KLIP...</span>
+            </>
+          ) : isQuotaExhausted ? (
+            <>
+              <Lock className="w-4 h-4 text-red-400" />
+              <span>KUOTA HABIS (0/50)</span>
+            </>
+          ) : isQuotaInsufficient ? (
+            <>
+              <Lock className="w-4 h-4 text-amber-400" />
+              <span>SISA KUOTA TIDAK CUKUP</span>
             </>
           ) : (
             <>
@@ -222,6 +243,26 @@ export function StudioControlPanel({
           )}
         </button>
       </div>
+
+      {/* Quota Exhausted Blocker Alert Banner */}
+      {isQuotaExhausted && (
+        <div className="mb-4 p-3.5 rounded-xl bg-red-950/70 border border-red-500/50 text-red-200 text-xs flex items-center gap-2.5 animate-in fade-in">
+          <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+          <div className="flex-1 leading-relaxed">
+            <strong>Pemotongan video diblokir:</strong> Kuota harian Anda telah habis (0/50 klip). Pemotongan tidak dapat dilanjutkan hingga kuota direset otomatis pada pukul <strong>00:00 WIB</strong> atau lakukan reset kuota demo melalui tombol di atas.
+          </div>
+        </div>
+      )}
+
+      {/* Quota Insufficient Alert Banner */}
+      {!isQuotaExhausted && isQuotaInsufficient && (
+        <div className="mb-4 p-3 rounded-xl bg-amber-950/60 border border-amber-500/50 text-amber-200 text-xs flex items-center gap-2.5 animate-in fade-in">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+          <div className="flex-1 leading-relaxed">
+            <strong>Sisa kuota tidak cukup:</strong> Anda memilih memotong <strong>{clippingLimit} klip</strong>, namun kuota yang tersisa hanya <strong>{remainingQuota} klip</strong>. Silakan kurangi limit klip menjadi maksimal {remainingQuota} pada pilihan di bawah.
+          </div>
+        </div>
+      )}
 
       {/* Paste notification toast */}
       {pasteNotice && (

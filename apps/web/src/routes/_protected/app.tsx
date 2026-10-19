@@ -220,10 +220,18 @@ function StudioPotongVideoPage() {
       return;
     }
 
-    const remainingQuota = userQuota.total - userQuota.used;
+    const remainingQuota = Math.max(0, userQuota.total - userQuota.used);
+    if (remainingQuota <= 0) {
+      setErrorMessage(
+        "Pemotongan video diblokir: Kuota klip harian Anda telah habis (0/50 klip tersisa). Kuota diperbarui otomatis pukul 00:00 WIB atau tekan tombol Reset Kuota untuk simulasi demo."
+      );
+      setStatus("error");
+      return;
+    }
+
     if (clippingLimit > remainingQuota) {
       setErrorMessage(
-        `Jumlah klip yang dipilih (${clippingLimit}) melebihi sisa kuota Anda (${remainingQuota} klip). Silakan kurangi limit klip.`
+        `Pemotongan video diblokir: Jumlah klip yang dipilih (${clippingLimit}) melebihi sisa kuota Anda (${remainingQuota} klip). Silakan kurangi limit klip.`
       );
       setStatus("error");
       return;

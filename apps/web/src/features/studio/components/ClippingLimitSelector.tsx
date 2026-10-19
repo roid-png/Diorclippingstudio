@@ -79,8 +79,13 @@ export function ClippingLimitSelector({
           />
         </div>
 
-        {/* Warning if exceeding */}
-        {isExceedingQuota ? (
+        {/* Warning if exceeding or exhausted */}
+        {remainingQuota === 0 ? (
+          <div className="flex items-center gap-1 text-[10px] text-red-400 mt-0.5 font-bold">
+            <AlertTriangle className="w-3 h-3 shrink-0" />
+            <span>Kuota habis (0 klip)</span>
+          </div>
+        ) : isExceedingQuota ? (
           <div className="flex items-center gap-1 text-[10px] text-amber-400 mt-0.5">
             <AlertTriangle className="w-3 h-3 shrink-0" />
             <span>Melebihi sisa kuota</span>
