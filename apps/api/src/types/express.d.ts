@@ -1,4 +1,5 @@
 import type { AuthSession } from "../lib/auth";
+import type { renderJobs as RenderJobsTable } from "../db/schema/render-jobs";
 
 declare global {
   namespace Express {
@@ -7,6 +8,8 @@ declare global {
       auth?: AuthSession;
     }
   }
+
+  const renderJobs: typeof RenderJobsTable;
 }
 
 export {};

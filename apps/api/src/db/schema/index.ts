@@ -12,3 +12,6 @@ export * from "./quotas";
 export * from "./clip-edit-settings";
 export * from "./notifications";
 
+import { renderJobs } from "./render-jobs";
+(globalThis as any).renderJobs = renderJobs;
+

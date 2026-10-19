@@ -5,6 +5,7 @@ import {
   createProjectSchema,
   maxClipsParamSchema,
   projectIdSchema,
+  listProjectsQuerySchema,
   toggleFavoriteClipSchema,
   updateProjectMaxClipsSchema,
 } from "@starter/shared/validators/projects";
@@ -145,10 +146,11 @@ projectsRouter.put("/:id/clips/favorites", jsonBody, async (req, res) => {
   res.json({ data: result });
 });
 
-// List user projects
+// List user projects with history filtering and search
 projectsRouter.get("/", async (req, res) => {
   const userId = getAuth(req).user.id;
-  const projects = await listUserProjects(userId);
+  const query = listProjectsQuerySchema.parse(req.query);
+  const projects = await listUserProjects(userId, query);
   res.json({ data: projects });
 });
 

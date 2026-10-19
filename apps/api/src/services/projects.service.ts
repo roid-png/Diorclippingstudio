@@ -1,7 +1,10 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { projects, quotas, clips, renderJobs } from "../db/schema";
-import type { CreateProjectInput } from "@starter/shared/validators/projects";
+import type {
+  CreateProjectInput,
+  ListProjectsQueryInput,
+} from "@starter/shared/validators/projects";
 import { HttpError } from "../lib/http-error";
 import { autoCutProjectVideo, getProjectClips } from "./video-cutter.service";
 
@@ -93,12 +96,204 @@ export async function createProjectJob(userId: string, input: CreateProjectInput
   };
 }
 
-export async function listUserProjects(userId: string) {
-  return await db
+function getEditingStyleName(id?: string | null) {
+  switch (id) {
+    case "mrbeast-hyper":
+      return "MrBeast Fast Pacing";
+    case "netflix-doc":
+      return "Netflix Documentary Style";
+    case "ali-abdaal-clean":
+      return "Clean Minimalist Studio";
+    case "theo-podcast":
+    default:
+      return "THEO 5-FIX (Podcast Dark)";
+  }
+}
+
+function getMotionGraphicName(id?: string | null) {
+  switch (id) {
+    case "vox-explainer":
+      return "VOX Split Screen & Kinetic Text";
+    case "tiktok-pop":
+      return "TikTok Pop-in Stickers & Highlights";
+    case "cinematic-lowerthird":
+      return "Cinematic Minimal Lower Third";
+    case "theo-infographics":
+    default:
+      return "THEO Neon Infographics & Counter";
+  }
+}
+
+function getSubtitleStyleName(id?: string | null) {
+  switch (id) {
+    case "hormozi-green":
+      return "Alex Hormozi Impact Green";
+    case "netflix-yellow":
+      return "Netflix Classic Yellow Subtitle";
+    case "clean-white":
+      return "Clean White Minimal Sans";
+    case "theo-red-pill":
+    default:
+      return "THEO Neon Red & Yellow Highlight";
+  }
+}
+
+function formatDurationLabel(seconds?: number | null) {
+  const total = Number(seconds) || 600;
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+export async function listUserProjects(
+  userId: string,
+  options: ListProjectsQueryInput = {
+    source: "all",
+    stage: "all",
+    duration: "all",
+    limit: 50,
+  }
+) {
+  const conditions = [eq(projects.userId, userId)];
+
+  if (options.source && options.source !== "all") {
+    conditions.push(eq(projects.sourceType, options.source));
+  }
+
+  if (options.stage && options.stage !== "all") {
+    conditions.push(eq(projects.stage, options.stage));
+  }
+
+  if (options.duration && options.duration !== "all") {
+    const durNum = Number(options.duration);
+    if (!isNaN(durNum) && durNum > 0) {
+      conditions.push(eq(projects.clipDuration, durNum));
+    }
+  }
+
+  const rawProjects = await db
     .select()
     .from(projects)
-    .where(eq(projects.userId, userId))
-    .orderBy(desc(projects.createdAt));
+    .where(and(...conditions))
+    .orderBy(desc(projects.isPinned), desc(projects.createdAt))
+    .limit(options.limit || 50);
+
+  const projectIds = rawProjects.map((p) => p.id);
+
+  const allClips =
+    projectIds.length > 0
+      ? await db
+          .select()
+          .from(clips)
+          .where(inArray(clips.projectId, projectIds))
+          .orderBy(desc(clips.viralScore))
+      : [];
+
+  const allRenderJobs =
+    allClips.length > 0
+      ? await db
+          .select()
+          .from(renderJobs)
+          .where(inArray(renderJobs.clipId, allClips.map((c) => c.id)))
+      : [];
+
+  const renderJobMap = new Map<string, (typeof allRenderJobs)[0]>();
+  for (const job of allRenderJobs) {
+    renderJobMap.set(job.clipId, job);
+  }
+
+  const clipsByProjectId = new Map<string, typeof allClips>();
+  for (const clip of allClips) {
+    const existing = clipsByProjectId.get(clip.projectId) || [];
+    existing.push(clip);
+    clipsByProjectId.set(clip.projectId, existing);
+  }
+
+  const results = rawProjects.map((proj) => {
+    const projClips = clipsByProjectId.get(proj.id) || [];
+    const completedClips = projClips.filter((c) => {
+      const job = renderJobMap.get(c.id);
+      return job?.status === "completed";
+    });
+
+    const viralScores = projClips.map((c) => Number(c.viralScore) || 0);
+    const topViralScore = viralScores.length > 0 ? Math.max(...viralScores) : 92;
+    const avgViralScore =
+      viralScores.length > 0
+        ? Math.round(
+            viralScores.reduce((acc, score) => acc + score, 0) /
+              viralScores.length
+          )
+        : 88;
+
+    const mappedClips = projClips.map((c) => {
+      const job = renderJobMap.get(c.id);
+      return {
+        id: c.id,
+        rank: c.rank,
+        title: c.title,
+        durationSec: (c.duration === 30 || c.duration === 60
+          ? c.duration
+          : 45) as 30 | 45 | 60,
+        viralScore: Number(c.viralScore) || 90,
+        status: (job?.status || "ready") as
+          | "completed"
+          | "rendering"
+          | "ready"
+          | "failed",
+        editingStyleName: getEditingStyleName(proj.editStyle),
+        motionGraphicName: getMotionGraphicName(proj.motionGraphicStyle),
+        subtitleStyleName: getSubtitleStyleName(proj.subtitleStyle),
+        videoUrl: job?.outputUrl || `/api/clips/${c.id}/stream`,
+        fileSizeMb: Number(job?.fileSizeMb) || 18.4,
+      };
+    });
+
+    return {
+      id: proj.id,
+      title: proj.videoTitle || "Video Sumber YouTube",
+      channelOrCreator: proj.channelOrCreator || "YouTube Creator",
+      sourceType: (proj.sourceType as "youtube" | "upload") || "youtube",
+      sourceUrl: proj.youtubeUrl,
+      sourceFileName: proj.sourceFileName ?? undefined,
+      thumbnailUrl:
+        proj.thumbnailUrl ||
+        `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80`,
+      originalDurationLabel: formatDurationLabel(proj.videoDuration),
+      targetClipDurationSec: (proj.clipDuration === 30 || proj.clipDuration === 60
+        ? proj.clipDuration
+        : 45) as 30 | 45 | 60,
+      requestedClipsCount: proj.maxClips,
+      completedClipsCount: completedClips.length,
+      topViralScore,
+      avgViralScore,
+      stage: (proj.stage as any) || "auto-edit",
+      stageLabel: proj.stageLabel || "Auto-Edit Siap",
+      createdAt: proj.createdAt.toISOString(),
+      updatedAt: proj.updatedAt.toISOString(),
+      isPinned: proj.isPinned,
+      defaultPillarSummary: {
+        editingStyleName: getEditingStyleName(proj.editStyle),
+        motionGraphicName: getMotionGraphicName(proj.motionGraphicStyle),
+        subtitleStyleName: getSubtitleStyleName(proj.subtitleStyle),
+      },
+      clips: mappedClips,
+    };
+  });
+
+  if (options.search && options.search.trim() !== "") {
+    const q = options.search.trim().toLowerCase();
+    return results.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        p.channelOrCreator.toLowerCase().includes(q) ||
+        p.defaultPillarSummary.editingStyleName.toLowerCase().includes(q) ||
+        p.defaultPillarSummary.motionGraphicName.toLowerCase().includes(q) ||
+        p.defaultPillarSummary.subtitleStyleName.toLowerCase().includes(q)
+    );
+  }
+
+  return results;
 }
 
 export async function getProjectById(userId: string, projectId: string) {

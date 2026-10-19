@@ -73,3 +73,24 @@ export const listClipsQuerySchema = z.object({
 
 export type ListClipsQueryInput = z.infer<typeof listClipsQuerySchema>;
 
+export const listProjectsQuerySchema = z.object({
+  search: z.string().trim().optional(),
+  source: z.enum(["all", "youtube", "upload"]).optional().default("all"),
+  stage: z
+    .enum([
+      "all",
+      "completed",
+      "rendering",
+      "auto-edit",
+      "viral-detected",
+      "failed",
+    ])
+    .optional()
+    .default("all"),
+  duration: z.coerce.string().optional().default("all"),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+});
+
+export type ListProjectsQueryInput = z.infer<typeof listProjectsQuerySchema>;
+
+
