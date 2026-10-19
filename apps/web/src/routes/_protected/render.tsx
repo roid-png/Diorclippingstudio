@@ -36,6 +36,10 @@ import {
   type DownloadHistoryEntry,
   type NamingConventionPattern,
 } from "@/features/render/utils/file-naming";
+import {
+  RenderToastNotificationStack,
+  type RenderToastItem,
+} from "@/features/render/components/RenderToastNotificationStack";
 
 export const Route = createFileRoute("/_protected/render")({
   head: () => ({ meta: [{ title: `Render Cepat & Unduh | ${siteConfig.name}` }] }),
@@ -100,9 +104,26 @@ function RenderAndDownloadPage() {
   const [downloadHistory, setDownloadHistory] = useState<
     DownloadHistoryEntry[]
   >([]);
+  const [toasts, setToasts] = useState<RenderToastItem[]>([]);
   const [previewModalClip, setPreviewModalClip] =
     useState<RenderClipItem | null>(null);
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
+
+  const pushToast = (toast: Omit<RenderToastItem, "id" | "timestamp">) => {
+    const now = new Date();
+    const timestamp = `${String(now.getHours()).padStart(2, "0")}:${String(
+      now.getMinutes()
+    ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setToasts((prev) => [{ ...toast, id, timestamp }, ...prev.slice(0, 3)]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 6500);
+  };
+
+  const handleDismissToast = (toastId: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== toastId));
+  };
 
   // Sync structured downloadFileName whenever namingPattern, resolution, or fps changes
   useEffect(() => {
@@ -127,6 +148,7 @@ function RenderAndDownloadPage() {
 
     const intervalMs = speedMode === "turbo-fast" ? 280 : 480;
     const timer = setInterval(() => {
+      const newlyCompleted: RenderClipItem[] = [];
       setClips((prev) =>
         prev.map((clip) => {
           if (clip.status !== "rendering") return clip;
@@ -137,7 +159,7 @@ function RenderAndDownloadPage() {
             RENDER_PIPELINE_STEPS[RENDER_PIPELINE_STEPS.length - 1];
 
           if (nextProgress >= 100) {
-            return {
+            const completedClip: RenderClipItem = {
               ...clip,
               status: "completed",
               progress: 100,
@@ -146,6 +168,8 @@ function RenderAndDownloadPage() {
               etaSeconds: 0,
               completedAt: "Baru saja",
             };
+            newlyCompleted.push(completedClip);
+            return completedClip;
           }
 
           return {
@@ -160,6 +184,15 @@ function RenderAndDownloadPage() {
           };
         })
       );
+
+      newlyCompleted.forEach((completedClip) => {
+        pushToast({
+          type: "success",
+          clipId: completedClip.id,
+          clipTitle: completedClip.title,
+          message: `Render MP4 9:16 selesai (${completedClip.resolution} ${completedClip.fps}FPS • ${completedClip.fileSizeMb} MB). Klip siap diunduh!`,
+        });
+      });
     }, intervalMs);
 
     return () => clearInterval(timer);
@@ -263,14 +296,25 @@ function RenderAndDownloadPage() {
   };
 
   const handleRetryRender = (clipId: string) => {
+    const target = clips.find((c) => c.id === clipId);
     handleStartSingleRender(clipId);
     setStatusBanner("Mengulang proses render dengan pemulihan otomatis...");
+    if (target) {
+      pushToast({
+        type: "info",
+        clipId: target.id,
+        clipTitle: target.title,
+        message: "Memulai ulang render dengan alokasi buffer GPU bersih...",
+      });
+    }
   };
 
   const handleSimulateError = () => {
     const target =
       clips.find((c) => c.status === "idle") || clips[clips.length - 1];
     if (!target) return;
+    const errMsg =
+      "Buffer GPU penuh saat komposit layer Motion HUD. Klik Coba Lagi (Retry) untuk melanjutkan.";
     setClips((prev) =>
       prev.map((c) =>
         c.id === target.id
@@ -280,8 +324,7 @@ function RenderAndDownloadPage() {
               progress: 62,
               activeStepId: "motion-hud",
               activeStepLabel: "Gagal pada tahap komposit layer HUD",
-              errorMessage:
-                "Buffer GPU penuh saat komposit layer Motion HUD. Klik Coba Lagi (Retry) untuk melanjutkan.",
+              errorMessage: errMsg,
             }
           : c
       )
@@ -289,6 +332,12 @@ function RenderAndDownloadPage() {
     setStatusBanner(
       `Simulasi kendala diaktifkan pada "${target.title}". Silakan uji tombol Coba Lagi (Retry).`
     );
+    pushToast({
+      type: "error",
+      clipId: target.id,
+      clipTitle: target.title,
+      message: errMsg,
+    });
   };
 
   const handleStartBatchRenderAll = () => {
@@ -856,6 +905,17 @@ function RenderAndDownloadPage() {
           </div>
         </div>
       )}
+
+      {/* Toast Notification Stack for Completed & Failed Clip Renders */}
+      <RenderToastNotificationStack
+        toasts={toasts}
+        onDismiss={handleDismissToast}
+        onQuickDownload={(clipId) => {
+          const target = clips.find((c) => c.id === clipId);
+          if (target) handleTriggerDownload(target);
+        }}
+        onQuickRetry={(clipId) => handleRetryRender(clipId)}
+      />
     </div>
   );
 }
