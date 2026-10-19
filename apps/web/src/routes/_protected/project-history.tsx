@@ -16,6 +16,8 @@ import {
   Plus,
   RotateCcw,
   Eye,
+  Download,
+  CheckCircle2,
 } from "lucide-react";
 import { initialProjectHistoryItems } from "@/features/project-history/mock-data";
 import { ProjectStatusBadge } from "@/features/project-history/components/ProjectStatusBadge";
@@ -35,6 +37,17 @@ export const Route = createFileRoute("/_protected/project-history")({
   }),
   component: ProjectHistoryPage,
 });
+
+const ACTIVE_PROJECT_STORAGE_KEY = "dior_clipping_active_project_v1";
+
+interface RedownloadLogEntry {
+  id: string;
+  projectTitle: string;
+  clipTitle: string;
+  fileName: string;
+  fileSizeMb: number;
+  downloadedAt: string;
+}
 
 function ProjectHistoryPage() {
   const navigate = useNavigate();
@@ -58,6 +71,7 @@ function ProjectHistoryPage() {
     useState<ProjectHistoryItem | null>(null);
   const [projectToDelete, setProjectToDelete] =
     useState<ProjectHistoryItem | null>(null);
+  const [redownloadLog, setRedownloadLog] = useState<RedownloadLogEntry[]>([]);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
 
   const filteredProjects = projects
@@ -130,7 +144,87 @@ function ProjectHistoryPage() {
     setBannerMessage("Berhasil memuat ulang 5 proyek contoh ke Riwayat Proyek.");
   };
 
+  const handleRedownloadClip = (
+    proj: ProjectHistoryItem,
+    clip: ProjectClipSummary
+  ) => {
+    if (clip.status !== "completed") {
+      setBannerMessage(
+        `Klip "${clip.title}" belum selesai dirender. Klik "Lanjutkan Proyek" untuk merender.`
+      );
+      return;
+    }
+    const slug = clip.title
+      .replace(/[^a-zA-Z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .slice(0, 36);
+    const fileName = `DIOR-Arsip_${proj.id}_Rank0${clip.rank}_${slug}_Score${clip.viralScore}.mp4`;
+
+    const link = document.createElement("a");
+    link.href = clip.videoUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    const now = new Date();
+    const downloadedAt = `${String(now.getHours()).padStart(2, "0")}:${String(
+      now.getMinutes()
+    ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+
+    setRedownloadLog((prev) => [
+      {
+        id: `rdl-${clip.id}-${Date.now()}`,
+        projectTitle: proj.title,
+        clipTitle: clip.title,
+        fileName,
+        fileSizeMb: clip.fileSizeMb,
+        downloadedAt,
+      },
+      ...prev.slice(0, 5),
+    ]);
+
+    setBannerMessage(
+      `Berhasil mengunduh ulang "${fileName}" (${clip.fileSizeMb} MB) dari arsip proyek!`
+    );
+  };
+
+  const handleRedownloadAllProjectClips = (proj: ProjectHistoryItem) => {
+    const completedClips = proj.clips.filter((c) => c.status === "completed");
+    if (completedClips.length === 0) {
+      setBannerMessage(
+        `Proyek "${proj.title}" belum memiliki klip selesai. Klik "Lanjutkan Proyek" untuk mulai merender.`
+      );
+      return;
+    }
+    completedClips.forEach((clip, idx) => {
+      setTimeout(() => {
+        handleRedownloadClip(proj, clip);
+      }, idx * 250);
+    });
+    setBannerMessage(
+      `Mengunduh ulang ${completedClips.length} video MP4 selesai dari proyek "${proj.title}"...`
+    );
+  };
+
   const handleResumeProject = (proj: ProjectHistoryItem) => {
+    try {
+      localStorage.setItem(
+        ACTIVE_PROJECT_STORAGE_KEY,
+        JSON.stringify({
+          projectId: proj.id,
+          title: proj.title,
+          targetClipDurationSec: proj.targetClipDurationSec,
+          requestedClipsCount: proj.requestedClipsCount,
+          defaultPillarSummary: proj.defaultPillarSummary,
+          resumedAt: new Date().toISOString(),
+        })
+      );
+    } catch {
+      // ignore storage errors
+    }
+
     if (
       proj.stage === "completed" ||
       proj.stage === "rendering" ||
@@ -493,6 +587,23 @@ function ProjectHistoryPage() {
                     />
 
                     <div className="flex flex-wrap items-center gap-2">
+                      {proj.clips.some((c) => c.status === "completed") && (
+                        <button
+                          type="button"
+                          onClick={() => handleRedownloadAllProjectClips(proj)}
+                          title="Unduh ulang seluruh video MP4 yang selesai pada proyek ini"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-950/40 px-3 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-900/50 hover:text-white transition cursor-pointer"
+                        >
+                          <Download className="h-3.5 w-3.5 text-emerald-400" />
+                          Unduh Ulang MP4 (
+                          {
+                            proj.clips.filter((c) => c.status === "completed")
+                              .length
+                          }
+                          )
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => setDetailModalProject(proj)}
@@ -539,7 +650,7 @@ function ProjectHistoryPage() {
                       >
                         <Rocket className="h-3.5 w-3.5" />
                         {proj.stage === "completed"
-                          ? "Buka & Unduh MP4"
+                          ? "Buka di Studio Render"
                           : "Lanjutkan Proyek"}
                         <ExternalLink className="h-3 w-3" />
                       </button>
@@ -577,7 +688,7 @@ function ProjectHistoryPage() {
                       {proj.clips.map((clip) => (
                         <div
                           key={clip.id}
-                          className="rounded-xl border border-[#1d3c46] bg-[#0e2127] p-3 flex flex-col justify-between gap-2"
+                          className="rounded-xl border border-[#1d3c46] bg-[#0e2127] p-3 flex flex-col justify-between gap-2.5"
                         >
                           <div>
                             <div className="flex items-center justify-between text-[11px]">
@@ -593,18 +704,29 @@ function ProjectHistoryPage() {
                             </h4>
                           </div>
 
-                          <div className="flex items-center justify-between border-t border-[#163139] pt-2 text-[10px] text-slate-400">
+                          <div className="flex items-center justify-between border-t border-[#163139] pt-2 text-[10px] text-slate-400 gap-2">
                             <span className="truncate">
                               {clip.editingStyleName}
                             </span>
-                            <Link
-                              to="/render"
-                              className="font-bold text-emerald-300 hover:text-emerald-200 shrink-0"
-                            >
-                              {clip.status === "completed"
-                                ? "Unduh MP4 →"
-                                : "Render →"}
-                            </Link>
+                            {clip.status === "completed" ? (
+                              <button
+                                type="button"
+                                onClick={() => handleRedownloadClip(proj, clip)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600/90 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-emerald-500 transition shrink-0 cursor-pointer"
+                              >
+                                <Download className="h-3 w-3" />
+                                Unduh Ulang MP4
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleResumeProject(proj)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-red-600/80 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-red-500 transition shrink-0 cursor-pointer"
+                              >
+                                <Rocket className="h-3 w-3" />
+                                Lanjutkan Render →
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -617,21 +739,46 @@ function ProjectHistoryPage() {
         </div>
       )}
 
+      {/* Re-Download Activity Strip */}
+      {redownloadLog.length > 0 && (
+        <div className="rounded-2xl border border-emerald-500/30 bg-[#091d20]/95 p-4 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4" />
+              Riwayat Unduh Ulang MP4 dari Arsip ({redownloadLog.length})
+            </span>
+            <button
+              type="button"
+              onClick={() => setRedownloadLog([])}
+              className="text-xs text-slate-400 hover:text-white cursor-pointer"
+            >
+              Bersihkan
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {redownloadLog.map((entry) => (
+              <div
+                key={entry.id}
+                className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-3 py-1.5 text-xs text-emerald-100"
+              >
+                <Download className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <code className="font-mono text-[11px] text-white">
+                  {entry.fileName}
+                </code>
+                <span className="text-[10px] text-emerald-300">
+                  ({entry.fileSizeMb} MB • {entry.downloadedAt})
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Archived Project Detail Modal */}
       <ProjectHistoryDetailModal
         project={detailModalProject}
         onClose={() => setDetailModalProject(null)}
-        onDownloadClip={(proj: ProjectHistoryItem, clip: ProjectClipSummary) => {
-          const link = document.createElement("a");
-          link.href = clip.videoUrl;
-          link.download = `DIOR-Arsip_${proj.id}_Rank0${clip.rank}_Score${clip.viralScore}.mp4`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setBannerMessage(
-            `Mengunduh klip arsip "${clip.title}" (${clip.fileSizeMb} MB)...`
-          );
-        }}
+        onDownloadClip={handleRedownloadClip}
         onResumeProject={(proj: ProjectHistoryItem) => {
           setDetailModalProject(null);
           handleResumeProject(proj);
