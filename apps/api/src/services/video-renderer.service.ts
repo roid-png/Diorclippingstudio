@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { getFfmpegPath } from "../utils/ffmpeg-path";
 import { getOutputsDir, getTempDir } from "./downloader";
 import type { VideoPreset } from "./presets.service";
+import { HttpError } from "../lib/http-error";
 
 const execFileAsync = promisify(execFile);
 
@@ -76,19 +77,19 @@ export async function renderVerticalClip(params: RenderClipParams): Promise<Rend
       filterParts.push(`ass='${escapedAss}'`);
     }
 
-    const vf = filterParts.join(",");
+    const filterComplex = `[0:v]${filterParts.join(",")}[v_out]`;
 
     try {
       await execFileAsync(ffmpegPath, [
         "-y",
-        "-ss",
-        "0",
-        "-t",
-        String(duration),
         "-i",
         params.sourceVideoPath!,
-        "-vf",
-        vf,
+        "-filter_complex",
+        filterComplex,
+        "-map",
+        "[v_out]",
+        "-map",
+        "0:a?",
         "-c:v",
         "libx264",
         "-preset",
@@ -98,27 +99,37 @@ export async function renderVerticalClip(params: RenderClipParams): Promise<Rend
         "-c:a",
         "aac",
         "-b:a",
-        "128k",
+        "192k",
         "-pix_fmt",
         "yuv420p",
         "-movflags",
         "+faststart",
+        "-t",
+        String(duration),
         outputFilePath,
       ], { timeout: 180000 });
     } catch (err: any) {
-      console.warn("[Renderer] FFmpeg rendering from source failed, generating synthetic vertical clip:", err?.message);
+      console.error("[Renderer] FFmpeg rendering from source failed:", err?.message);
+      throw new HttpError(
+        500,
+        "RENDER_FAILED",
+        `FFmpeg gagal merender klip video vertikal: ${err?.message}`
+      );
     }
+  } else {
+    throw new HttpError(
+      400,
+      "SOURCE_VIDEO_NOT_FOUND",
+      "File video sumber segmen tidak ditemukan. Gagal melanjutkan proses rendering."
+    );
   }
 
-  // If output file is still not generated (e.g. source video missing or network error),
-  // generate a gorgeous 1080x1920 vertical video with testsrc/gradient, progress bar & subtitles
   if (!fs.existsSync(outputFilePath)) {
-    await renderSyntheticVerticalClip({
-      ...params,
-      outputFilePath,
-      duration,
-      hasMotion,
-    });
+    throw new HttpError(
+      500,
+      "RENDER_OUTPUT_NOT_FOUND",
+      "File hasil render video vertikal tidak ditemukan di direktori output."
+    );
   }
 
   const stat = fs.statSync(outputFilePath);
@@ -128,76 +139,10 @@ export async function renderVerticalClip(params: RenderClipParams): Promise<Rend
     clipId: params.clipId,
     outputFilePath,
     fileName: outputFileName,
-    fileSizeMb: Math.max(1.2, fileSizeMb),
+    fileSizeMb: Math.max(0.5, fileSizeMb),
     durationSec: duration,
     resolution: "1080x1920 (9:16)",
     publicUrl: `/api/download/${outputFileName}`,
   };
-}
-
-/**
- * Robust fallback generator that outputs a real 1080x1920 vertical MP4 video using FFmpeg.
- */
-async function renderSyntheticVerticalClip(params: {
-  outputFilePath: string;
-  duration: number;
-  hasMotion: boolean;
-  preset: VideoPreset;
-  assSubtitlePath?: string;
-}) {
-  const ffmpegPath = getFfmpegPath();
-  const dur = String(params.duration);
-
-  const filters: string[] = [
-    "color=c=0x0D1B1E:s=1080x1920:d=" + dur,
-  ];
-
-  if (params.preset.colorGrading) {
-    filters.push(params.preset.colorGrading);
-  }
-
-  if (params.hasMotion) {
-    filters.push(`drawbox=x=0:y=ih-18:w='iw*(t/${dur})':h=18:color=0x00E5FFFF:t=fill`);
-  }
-
-  if (params.assSubtitlePath && fs.existsSync(params.assSubtitlePath)) {
-    const escapedAss = escapeFilterPath(params.assSubtitlePath);
-    filters.push(`ass='${escapedAss}'`);
-  }
-
-  const filterComplex = filters.join(",");
-
-  try {
-    await execFileAsync(ffmpegPath, [
-      "-y",
-      "-f",
-      "lavfi",
-      "-i",
-      filterComplex,
-      "-f",
-      "lavfi",
-      "-i",
-      `sine=frequency=440:duration=${dur}:sample_rate=44100`,
-      "-c:v",
-      "libx264",
-      "-preset",
-      "ultrafast",
-      "-crf",
-      "23",
-      "-c:a",
-      "aac",
-      "-b:a",
-      "128k",
-      "-pix_fmt",
-      "yuv420p",
-      "-t",
-      dur,
-      params.outputFilePath,
-    ], { timeout: 60000 });
-  } catch (err: any) {
-    console.error("[Renderer] Fallback synthetic render failed:", err?.message);
-    // Write minimal dummy file if all fails
-    fs.writeFileSync(params.outputFilePath, Buffer.alloc(1024));
-  }
 }
 

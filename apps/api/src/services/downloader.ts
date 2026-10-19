@@ -105,7 +105,7 @@ export async function downloadAudioOnly(
     "-f",
     "ba[ext=m4a]/ba/b",
     "--download-sections",
-    "*00:00-15:00", // Fast download: first 15 mins (perfect for Groq 25MB limit)
+    "*00:00-01:30", // Fast download: first 90s (~300 words, optimal for Groq Whisper and quick viral curation)
     "--extract-audio",
     "--audio-format",
     "mp3",
@@ -121,7 +121,7 @@ export async function downloadAudioOnly(
   ytdlpArgs.push("-o", outputPath, youtubeUrl);
 
   try {
-    await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 90000 });
+    await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 240000 });
 
     if (fs.existsSync(outputPath)) {
       return outputPath;
@@ -168,7 +168,9 @@ export async function downloadPrecisionSection(input: {
     "--download-sections",
     sectionArg,
     "-f",
-    "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b",
+    "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+    "--merge-output-format",
+    "mp4",
     "--force-keyframes-at-cuts",
   ];
 
@@ -179,7 +181,7 @@ export async function downloadPrecisionSection(input: {
   ytdlpArgs.push("-o", input.outputFilePath, input.youtubeUrl);
 
   try {
-    await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 120000 });
+    await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 240000 });
 
     if (fs.existsSync(input.outputFilePath)) {
       return input.outputFilePath;

@@ -97,19 +97,21 @@ export async function executeRealPipeline(input: PipelineGenerateInput): Promise
 
   // 3. Download audio
   console.log(`[Pipeline] 2/5: Mengunduh stream audio untuk transkripsi...`);
-  let audioPath: string | null = null;
-  try {
-    audioPath = await downloadAudioOnly(youtubeUrl, `audio_${projectId}`);
-  } catch (err: any) {
-    console.warn("[Pipeline] Audio download warning, proceeding with resilient speech parser:", err?.message);
-  }
+  const audioPath = await downloadAudioOnly(youtubeUrl, `audio_${projectId}`);
 
   // 4. Word-Level Transcription (Groq Whisper)
   console.log(`[Pipeline] 3/5: Mengirim audio ke Groq Whisper-large-v3 untuk word-level timing...`);
-  const transcription = await transcribeAudioWordLevel(audioPath || "");
+  const transcription = await transcribeAudioWordLevel(audioPath);
 
-  // 5. Viral Curation (Google Gemini 2.5 Flash)
-  console.log(`[Pipeline] 4/5: Mengkurasi ${maxClips} momen terbaik dengan Gemini 2.5 Flash...`);
+  // Clean up temporary audio file after transcription
+  try {
+    if (fs.existsSync(audioPath)) {
+      fs.unlinkSync(audioPath);
+    }
+  } catch {}
+
+  // 5. Viral Curation (Google Gemini)
+  console.log(`[Pipeline] 4/5: Mengkurasi ${maxClips} momen terbaik dengan Gemini...`);
   const curatedMoments = await curateViralMomentsWithGemini({
     transcription,
     targetDurationSec: clipDuration,
@@ -125,7 +127,18 @@ export async function executeRealPipeline(input: PipelineGenerateInput): Promise
     const moment = curatedMoments[i]!;
     const clipId = randomUUID();
 
-    // Generate .ass subtitle
+    // 1. Precision section download via yt-dlp (video + audio merged into mp4)
+    const tempSectionDir = getTempDir("temp/sections");
+    const sectionPath = path.join(tempSectionDir, `section_${clipId}.mp4`);
+
+    const downloadedPath = await downloadPrecisionSection({
+      youtubeUrl,
+      startTimeSec: moment.start_time,
+      endTimeSec: moment.end_time,
+      outputFilePath: sectionPath,
+    });
+
+    // 2. Generate .ass subtitle with normalized offset (starts at 0.00s)
     const assPath = generateAssSubtitleFile({
       clipId,
       clipStartTimeSec: moment.start_time,
@@ -134,23 +147,7 @@ export async function executeRealPipeline(input: PipelineGenerateInput): Promise
       preset,
     });
 
-    // Precision section download via yt-dlp
-    const tempSectionDir = getTempDir("temp/sections");
-    const sectionPath = path.join(tempSectionDir, `section_${clipId}.mp4`);
-    let downloadedPath: string | undefined = undefined;
-
-    try {
-      downloadedPath = await downloadPrecisionSection({
-        youtubeUrl,
-        startTimeSec: moment.start_time,
-        endTimeSec: moment.end_time,
-        outputFilePath: sectionPath,
-      });
-    } catch {
-      // Fallback to high-quality synthetic 9:16 background
-    }
-
-    // Render with FFmpeg (crop 9:16, color grading, progress bar, burn-in subtitle)
+    // 3. Render with FFmpeg (crop 9:16, preserve audio -map 0:a? -c:a aac -b:a 192k, burn-in subtitle)
     const renderRes: RenderResult = await renderVerticalClip({
       clipId,
       sourceVideoPath: downloadedPath,

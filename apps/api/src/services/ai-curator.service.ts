@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import { HttpError } from "../lib/http-error";
 
 export interface WordTimestamp {
@@ -35,119 +36,108 @@ export interface CuratedViralClip {
 }
 
 /**
- * Sends audio to Groq Whisper-large-v3 to extract word-level and segment-level timestamps.
+ * Sends real audio downloaded via yt-dlp to Groq Whisper-large-v3 to extract
+ * word-level and segment-level timestamps.
+ * No mock or dummy fallbacks: throws clear error if API fails.
  */
 export async function transcribeAudioWordLevel(audioFilePath: string): Promise<WordLevelTranscription> {
   const groqApiKey = process.env.GROQ_API_KEY;
 
-  if (groqApiKey && fs.existsSync(audioFilePath)) {
-    try {
-      const stats = fs.statSync(audioFilePath);
-      const audioBuffer = fs.readFileSync(audioFilePath);
-      const blob = new Blob([audioBuffer], { type: "audio/mp3" });
-
-      const formData = new FormData();
-      formData.append("file", blob, "audio.mp3");
-      formData.append("model", "whisper-large-v3");
-      formData.append("response_format", "verbose_json");
-      formData.append("timestamp_granularities[]", "word");
-      formData.append("timestamp_granularities[]", "segment");
-
-      const response = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${groqApiKey}`,
-        },
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = (await response.json()) as any;
-        const rawWords: any[] = data.words || [];
-        const rawSegments: any[] = data.segments || [];
-
-        const words: WordTimestamp[] = rawWords.map((w) => ({
-          word: String(w.word || "").trim(),
-          start: Number(w.start) || 0,
-          end: Number(w.end) || (Number(w.start) || 0) + 0.3,
-        }));
-
-        const segments: TranscriptionSegment[] = rawSegments.map((s, idx) => ({
-          id: s.id ?? idx,
-          start: Number(s.start) || 0,
-          end: Number(s.end) || 0,
-          text: String(s.text || "").trim(),
-        }));
-
-        const totalDuration = Number(data.duration) || (words.length > 0 ? words[words.length - 1]!.end : 300);
-
-        return {
-          text: data.text || "",
-          duration: totalDuration,
-          words,
-          segments,
-        };
-      } else {
-        const errText = await response.text();
-        console.warn("[AI Curator] Groq API response error:", response.status, errText);
-      }
-    } catch (err: any) {
-      console.warn("[AI Curator] Groq Whisper request failed, fallback:", err?.message);
-    }
+  if (!groqApiKey || !groqApiKey.startsWith("gsk_")) {
+    throw new HttpError(
+      500,
+      "GROQ_API_KEY_INVALID",
+      "GROQ_API_KEY belum disetel atau tidak valid di .env.local. Masukkan Groq API Key yang aktif untuk transkripsi audio asli."
+    );
   }
 
-  // Resilient fallback speech timestamps
-  return generateFallbackWordTimestamps(audioFilePath);
-}
+  if (!audioFilePath || !fs.existsSync(audioFilePath)) {
+    throw new HttpError(
+      404,
+      "AUDIO_FILE_NOT_FOUND",
+      `File audio hasil unduhan yt-dlp tidak ditemukan di "${audioFilePath}".`
+    );
+  }
 
-function generateFallbackWordTimestamps(audioFilePath: string): WordLevelTranscription {
-  const sampleSentences = [
-    "Rahasia sukses membuat video viral adalah hook 3 detik pertama.",
-    "Banyak kreator pemula bingung kenapa video mereka sepi penonton padahal visualnya bagus.",
-    "Kuncinya ada pada retensi emosional dan dinamika teks subtitle.",
-    "Ketika kamu menyajikan informasi dengan cepat dan to the point, algoritma akan merekomendasikan klip ini.",
-    "Perhatikan cara potongan ini dibuat otomatis ala Netflix dengan rasio 9 banding 16.",
-    "Subtitle animasi bounce dan highlight warna kuning membuat mata penonton tetap terpaku.",
-    "Jangan lupa simpan dan bagikan video ini jika bermanfaat untuk kamu semua.",
-  ];
+  const stat = fs.statSync(audioFilePath);
+  if (stat.size === 0) {
+    throw new HttpError(
+      400,
+      "AUDIO_FILE_EMPTY",
+      "File audio kosong (0 bytes). Pastikan link YouTube memiliki track audio yang dapat diunduh."
+    );
+  }
 
-  const fullText = sampleSentences.join(" ");
-  const words: WordTimestamp[] = [];
-  const segments: TranscriptionSegment[] = [];
+  const audioBuffer = fs.readFileSync(audioFilePath);
+  const blob = new Blob([audioBuffer], { type: "audio/mpeg" });
 
-  let currentTime = 1.0;
-  sampleSentences.forEach((sentence, segIdx) => {
-    const segStart = currentTime;
-    const tokens = sentence.split(" ");
-    tokens.forEach((token) => {
-      const dur = 0.35 + (token.length > 6 ? 0.2 : 0);
-      words.push({
-        word: token,
-        start: Math.round(currentTime * 100) / 100,
-        end: Math.round((currentTime + dur) * 100) / 100,
-      });
-      currentTime += dur + 0.08;
-    });
-    const segEnd = currentTime;
-    segments.push({
-      id: segIdx,
-      start: segStart,
-      end: segEnd,
-      text: sentence,
-    });
-    currentTime += 0.5; // pause between sentences
+  const formData = new FormData();
+  formData.append("file", blob, path.basename(audioFilePath) || "audio.mp3");
+  formData.append("model", "whisper-large-v3");
+  formData.append("response_format", "verbose_json");
+  formData.append("timestamp_granularities[]", "word");
+  formData.append("timestamp_granularities[]", "segment");
+
+  console.log(`[AI Curator] Mengirim file audio (${Math.round(stat.size / 1024)} KB) ke Groq Whisper-large-v3...`);
+
+  const response = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${groqApiKey}`,
+    },
+    body: formData,
   });
 
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error("[AI Curator] Groq API response error:", response.status, errText);
+    throw new HttpError(
+      502,
+      "GROQ_TRANSCRIPTION_FAILED",
+      `Gagal mentranskripsi audio melalui Groq Cloud (${response.status}): ${errText}`
+    );
+  }
+
+  const data = (await response.json()) as any;
+  const rawWords: any[] = data.words || [];
+  const rawSegments: any[] = data.segments || [];
+
+  if (!rawWords || rawWords.length === 0) {
+    throw new HttpError(
+      422,
+      "NO_SPEECH_WORDS_FOUND",
+      "Tidak ada kata/ucapan yang berhasil terdeteksi dari file audio YouTube ini."
+    );
+  }
+
+  const words: WordTimestamp[] = rawWords.map((w) => ({
+    word: String(w.word || "").trim(),
+    start: Number(w.start) || 0,
+    end: Number(w.end) || (Number(w.start) || 0) + 0.25,
+  }));
+
+  const segments: TranscriptionSegment[] = rawSegments.map((s, idx) => ({
+    id: s.id ?? idx,
+    start: Number(s.start) || 0,
+    end: Number(s.end) || 0,
+    text: String(s.text || "").trim(),
+  }));
+
+  const totalDuration = Number(data.duration) || (words.length > 0 ? words[words.length - 1]!.end : 300);
+
+  console.log(`[AI Curator] Berhasil mentranskripsi ${words.length} kata dan ${segments.length} segmen dari Groq Whisper!`);
+
   return {
-    text: fullText,
-    duration: Math.max(60, Math.ceil(currentTime)),
+    text: data.text || "",
+    duration: totalDuration,
     words,
     segments,
   };
 }
 
 /**
- * Uses Google Gemini 2.5 Flash to curate top viral moments from word-level transcript.
+ * Uses Google Gemini (gemini-3.5-flash-lite) to curate top viral moments from real word-level transcript.
+ * Throws clear error if Gemini fails. No mock fallbacks.
  */
 export async function curateViralMomentsWithGemini(input: {
   transcription: WordLevelTranscription;
@@ -156,14 +146,20 @@ export async function curateViralMomentsWithGemini(input: {
   videoTitle?: string;
 }): Promise<CuratedViralClip[]> {
   const geminiApiKey = process.env.GEMINI_API_KEY;
+  if (!geminiApiKey) {
+    throw new HttpError(
+      500,
+      "GEMINI_API_KEY_MISSING",
+      "GEMINI_API_KEY belum disetel di .env.local untuk kurasi viral AI."
+    );
+  }
+
   const targetDuration = [30, 45, 60].includes(input.targetDurationSec)
     ? input.targetDurationSec
     : 45;
   const clipLimit = Math.min(Math.max(1, input.maxClips || 5), 10);
 
-  if (geminiApiKey) {
-    try {
-      const promptText = `
+  const promptText = `
 You are an elite short-form video curator for TikTok, Reels, and YouTube Shorts.
 Analyze this video transcription with word-level segments and find the TOP ${clipLimit} most engaging and viral moments.
 
@@ -200,117 +196,84 @@ Schema:
 ]
 `;
 
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiApiKey}`;
-      const response = await fetch(geminiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }],
-          generationConfig: {
-            temperature: 0.3,
-            responseMimeType: "application/json",
-          },
-        }),
-      });
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiApiKey}`;
+  const response = await fetch(geminiUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: promptText }] }],
+      generationConfig: {
+        temperature: 0.3,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
 
-      if (response.ok) {
-        const jsonRes = (await response.json()) as any;
-        const candidateText =
-          jsonRes.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-        let cleanJson = candidateText.trim();
-        if (cleanJson.startsWith("```json")) {
-          cleanJson = cleanJson.replace(/^```json/, "").replace(/```$/, "").trim();
-        } else if (cleanJson.startsWith("```")) {
-          cleanJson = cleanJson.replace(/^```/, "").replace(/```$/, "").trim();
-        }
-
-        const parsed = JSON.parse(cleanJson);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const curated: CuratedViralClip[] = parsed.slice(0, clipLimit).map((item, index) => {
-            const start = Math.max(0, Number(item.start_time) || 0);
-            const end = Math.min(
-              input.transcription.duration || 600,
-              Math.max(start + 15, Number(item.end_time) || start + targetDuration)
-            );
-            const actualDur = Math.round(end - start);
-
-            // Filter matching word timestamps for this clip
-            const clipWords = input.transcription.words.filter(
-              (w) => w.start >= start && w.end <= end
-            );
-
-            return {
-              rank: index + 1,
-              title: item.title || `Momen Viral #${index + 1}`,
-              start_time: start,
-              end_time: end,
-              duration: actualDur,
-              viral_score: Math.min(99, Math.max(70, Number(item.viral_score) || (95 - index * 2))),
-              viral_reason: item.viral_reason || "Hook kuat dengan eskalasi narasi yang mempertahankan retensi.",
-              hook_description: item.hook_description || "Pernyataan pembuka yang mengejutkan penonton dalam 3 detik pertama.",
-              words: clipWords,
-            };
-          });
-
-          return curated;
-        }
-      } else {
-        const errText = await response.text();
-        console.warn("[AI Curator] Gemini API error:", response.status, errText);
-      }
-    } catch (err: any) {
-      console.warn("[AI Curator] Gemini curation failed, fallback to heuristic segments:", err?.message);
-    }
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error("[AI Curator] Gemini API error:", response.status, errText);
+    throw new HttpError(
+      502,
+      "GEMINI_CURATION_FAILED",
+      `Gagal mengkurasi momen viral melalui Gemini API (${response.status}): ${errText}`
+    );
   }
 
-  // Heuristic segmentation fallback based on word counts and duration
-  return generateHeuristicViralClips(input.transcription, targetDuration, clipLimit);
-}
+  const jsonRes = (await response.json()) as any;
+  const candidateText = jsonRes.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-function generateHeuristicViralClips(
-  transcription: WordLevelTranscription,
-  targetDuration: number,
-  clipLimit: number
-): CuratedViralClip[] {
-  const clips: CuratedViralClip[] = [];
-  const maxPossible = Math.max(targetDuration, transcription.duration);
-  const step = Math.max(15, Math.floor((maxPossible - targetDuration) / Math.max(1, clipLimit)));
+  let cleanJson = candidateText.trim();
+  if (cleanJson.startsWith("```json")) {
+    cleanJson = cleanJson.replace(/^```json/, "").replace(/```$/, "").trim();
+  } else if (cleanJson.startsWith("```")) {
+    cleanJson = cleanJson.replace(/^```/, "").replace(/```$/, "").trim();
+  }
 
-  const viralTitles = [
-    "Rahasia Hook 3 Detik yang Menghipnotis Penonton",
-    "Kenapa Video Ini Bisa Langsung Tembus Jutaan Views",
-    "Satu Kesalahan Fatal yang Bikin Konten Kamu Sepi",
-    "Strategi Retensi Ala Netflix yang Wajib Dicoba",
-    "Rumus Cepat Ubah Video Biasa Jadi Mesin Traffic",
-    "Fakta Mengejutkan Tentang Algoritma Video Pendek",
-    "Trik Subtitle Warna yang Bikin Penonton Nonton Sampai Habis",
-    "Cara Praktis Naikkan Engagement Tanpa Iklan",
-    "Tips Psikologi Visual untuk FYP dan Reels",
-    "Langkah Terakhir yang Sering Dilewatkan Kreator",
-  ];
+  let parsed: any[];
+  try {
+    parsed = JSON.parse(cleanJson);
+  } catch (err: any) {
+    console.error("[AI Curator] Gagal mem-parse output JSON Gemini:", cleanJson);
+    throw new HttpError(
+      502,
+      "GEMINI_PARSE_ERROR",
+      `Output Gemini tidak berformat JSON valid: ${err?.message}`
+    );
+  }
 
-  for (let i = 0; i < clipLimit; i++) {
-    const startTime = Math.min(i * step, Math.max(0, transcription.duration - targetDuration));
-    const endTime = Math.min(transcription.duration, startTime + targetDuration);
-    const clipWords = transcription.words.filter(
-      (w) => w.start >= startTime && w.end <= endTime
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new HttpError(
+      502,
+      "GEMINI_EMPTY_RESPONSE",
+      "Gemini tidak mengembalikan daftar momen viral."
+    );
+  }
+
+  const curated: CuratedViralClip[] = parsed.slice(0, clipLimit).map((item, index) => {
+    const start = Math.max(0, Number(item.start_time) || 0);
+    const end = Math.min(
+      input.transcription.duration || 600,
+      Math.max(start + 15, Number(item.end_time) || start + targetDuration)
+    );
+    const actualDur = Math.round(end - start);
+
+    // Filter matching word timestamps for this clip
+    const clipWords = input.transcription.words.filter(
+      (w) => w.start >= start && w.end <= end
     );
 
-    clips.push({
-      rank: i + 1,
-      title: viralTitles[i % viralTitles.length]!,
-      start_time: startTime,
-      end_time: endTime,
-      duration: Math.round(endTime - startTime),
-      viral_score: Math.max(78, 97 - i * 2),
-      viral_reason:
-        "Pernyataan pembuka kontroversial diikuti jawaban tak terduga dengan retensi tinggi di 5 detik pertama.",
-      hook_description: "Hook visual dan audio langsung mengunci fokus tanpa jeda.",
+    return {
+      rank: index + 1,
+      title: item.title || `Momen Viral #${index + 1}`,
+      start_time: start,
+      end_time: end,
+      duration: actualDur,
+      viral_score: Math.min(99, Math.max(70, Number(item.viral_score) || (95 - index * 2))),
+      viral_reason: item.viral_reason || "Hook kuat dengan eskalasi narasi yang mempertahankan retensi.",
+      hook_description: item.hook_description || "Pernyataan pembuka yang mengejutkan penonton dalam 3 detik pertama.",
       words: clipWords,
-    });
-  }
+    };
+  });
 
-  return clips;
+  return curated;
 }
-
