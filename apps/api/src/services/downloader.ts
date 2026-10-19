@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import { getFfmpegPath } from "../utils/ffmpeg-path";
+import { getFfmpegDir, getFfmpegPath } from "../utils/ffmpeg-path";
 import { HttpError } from "../lib/http-error";
 
 const execFileAsync = promisify(execFile);
@@ -41,43 +41,50 @@ export async function getYoutubeMetadata(youtubeUrl: string): Promise<YoutubeVid
     throw new HttpError(400, "INVALID_URL", "URL harus merupakan tautan YouTube yang valid.");
   }
 
+  // Parse video ID from URL as initial baseline
+  let videoId = "youtube-video";
+  const match = trimmed.match(/(?:v=|\/embed\/|youtu\.be\/|\/v\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+  if (match?.[1]) {
+    videoId = match[1];
+  }
+
   try {
     const { stdout } = await execFileAsync("yt-dlp", [
-      "--dump-json",
+      "--print",
+      "%(id)s___DIOR___%(duration)s___DIOR___%(uploader)s___DIOR___%(thumbnail)s___DIOR___%(title)s",
       "--no-playlist",
       "--skip-download",
       trimmed,
-    ], { timeout: 30000 });
+    ], { timeout: 30000, maxBuffer: 10 * 1024 * 1024 });
 
-    const data = JSON.parse(stdout);
-    return {
-      id: data.id || "youtube-video",
-      title: data.title || "Video Sumber YouTube",
-      duration: Math.round(Number(data.duration) || 600),
-      thumbnail:
-        data.thumbnail ||
-        (data.thumbnails && data.thumbnails[0]?.url) ||
-        `https://img.youtube.com/vi/${data.id}/hqdefault.jpg`,
-      channel: data.uploader || data.channel || "YouTube Creator",
-      url: trimmed,
-    };
-  } catch (err: any) {
-    console.warn("[Downloader] Gagal dump-json yt-dlp, fallback ke metadata sintetis:", err?.message);
-    // Parse video ID from URL if possible
-    let videoId = "video-source";
-    const match = trimmed.match(/(?:v=|\/embed\/|youtu\.be\/|\/v\/|shorts\/)([a-zA-Z0-9_-]{11})/);
-    if (match?.[1]) {
-      videoId = match[1];
+    // Look for the line containing ___DIOR___ (yt-dlp may print warning lines first)
+    const lines = stdout.split(/\r?\n/).filter((l) => l.includes("___DIOR___"));
+    const dataLine = lines[0] || stdout.trim();
+    const parts = dataLine.split("___DIOR___");
+
+    if (parts.length >= 5) {
+      const parsedId = parts[0]?.trim() || videoId;
+      return {
+        id: parsedId,
+        duration: Math.round(Number(parts[1]) || 600),
+        channel: parts[2]?.trim() || "YouTube Creator",
+        thumbnail: parts[3]?.trim() || `https://img.youtube.com/vi/${parsedId}/hqdefault.jpg`,
+        title: parts.slice(4).join(" ").trim() || "Video Sumber YouTube",
+        url: trimmed,
+      };
     }
-    return {
-      id: videoId,
-      title: "Video Sumber YouTube (Auto Cut)",
-      duration: 600,
-      thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
-      channel: "YouTube Creator",
-      url: trimmed,
-    };
+  } catch (err: any) {
+    console.warn("[Downloader] Gagal --print yt-dlp, fallback ke metadata sintetis:", err?.message);
   }
+
+  return {
+    id: videoId,
+    title: "Video Sumber YouTube (Auto Cut)",
+    duration: 600,
+    thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+    channel: "YouTube Creator",
+    url: trimmed,
+  };
 }
 
 /**
@@ -91,24 +98,30 @@ export async function downloadAudioOnly(
   const fileName = targetFileName || `audio_${Date.now()}`;
   const outputPath = path.join(audioDir, `${fileName}.mp3`);
 
-  const ffmpegLocation = path.dirname(getFfmpegPath());
+  const ffmpegExe = getFfmpegPath();
+  const ytdlpArgs = [
+    "--js-runtimes",
+    "node",
+    "-f",
+    "ba[ext=m4a]/ba/b",
+    "--download-sections",
+    "*00:00-15:00", // Fast download: first 15 mins (perfect for Groq 25MB limit)
+    "--extract-audio",
+    "--audio-format",
+    "mp3",
+    "--audio-quality",
+    "5",
+    "--no-playlist",
+  ];
+
+  if (ffmpegExe && ffmpegExe !== "ffmpeg") {
+    ytdlpArgs.push("--ffmpeg-location", ffmpegExe);
+  }
+
+  ytdlpArgs.push("-o", outputPath, youtubeUrl);
 
   try {
-    await execFileAsync("yt-dlp", [
-      "-f",
-      "ba[ext=m4a]/ba/b",
-      "--extract-audio",
-      "--audio-format",
-      "mp3",
-      "--audio-quality",
-      "5", // lightweight format for speech recognition
-      "--no-playlist",
-      "--ffmpeg-location",
-      ffmpegLocation,
-      "-o",
-      outputPath,
-      youtubeUrl,
-    ], { timeout: 90000 });
+    await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 90000 });
 
     if (fs.existsSync(outputPath)) {
       return outputPath;
@@ -119,7 +132,7 @@ export async function downloadAudioOnly(
 
   // If specific .mp3 is missing, check if yt-dlp created an m4a/opus/mp3 file with prefix
   const files = fs.readdirSync(audioDir);
-  const match = files.find((f) => f.startsWith(fileName));
+  const match = files.find((f) => f.startsWith(fileName) && !f.endsWith(".part"));
   if (match) {
     return path.join(audioDir, match);
   }
@@ -141,7 +154,7 @@ export async function downloadPrecisionSection(input: {
   endTimeSec: number;
   outputFilePath: string;
 }): Promise<string> {
-  const ffmpegLocation = path.dirname(getFfmpegPath());
+  const ffmpegExe = getFfmpegPath();
   const sectionArg = `*${Math.floor(input.startTimeSec)}-${Math.ceil(input.endTimeSec)}`;
 
   const tempClipDir = path.dirname(input.outputFilePath);
@@ -149,19 +162,24 @@ export async function downloadPrecisionSection(input: {
     fs.mkdirSync(tempClipDir, { recursive: true });
   }
 
+  const ytdlpArgs = [
+    "--js-runtimes",
+    "node",
+    "--download-sections",
+    sectionArg,
+    "-f",
+    "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b",
+    "--force-keyframes-at-cuts",
+  ];
+
+  if (ffmpegExe && ffmpegExe !== "ffmpeg") {
+    ytdlpArgs.push("--ffmpeg-location", ffmpegExe);
+  }
+
+  ytdlpArgs.push("-o", input.outputFilePath, input.youtubeUrl);
+
   try {
-    await execFileAsync("yt-dlp", [
-      "--download-sections",
-      sectionArg,
-      "-f",
-      "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b",
-      "--force-keyframes-at-cuts",
-      "--ffmpeg-location",
-      ffmpegLocation,
-      "-o",
-      input.outputFilePath,
-      input.youtubeUrl,
-    ], { timeout: 120000 });
+    await execFileAsync("yt-dlp", ytdlpArgs, { timeout: 120000 });
 
     if (fs.existsSync(input.outputFilePath)) {
       return input.outputFilePath;
@@ -180,4 +198,3 @@ export async function downloadPrecisionSection(input: {
     `Gagal mengunduh segmen video pada detik ${input.startTimeSec}s - ${input.endTimeSec}s.`
   );
 }
-

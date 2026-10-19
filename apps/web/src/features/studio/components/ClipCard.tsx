@@ -9,7 +9,17 @@ import {
   Maximize2,
   Sparkles,
 } from "lucide-react";
+import { API_URL } from "@/lib/env";
 import type { ClipItem } from "../types";
+
+function resolveMediaUrl(rawUrl?: string): string | undefined {
+  if (!rawUrl) return undefined;
+  if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://") || rawUrl.startsWith("blob:")) {
+    return rawUrl;
+  }
+  const cleanPath = rawUrl.startsWith("/") ? rawUrl : `/${rawUrl}`;
+  return `${API_URL}${cleanPath}`;
+}
 
 interface ClipCardProps {
   clip: ClipItem;
@@ -63,10 +73,11 @@ export function ClipCard({
     }
 
     // Direct download link from backend if available
-    const downloadTarget =
+    const rawTarget =
       clip.downloadUrl ||
       clip.videoUrl ||
       `/api/download/dior_${clip.id}.mp4?download=true`;
+    const downloadTarget = resolveMediaUrl(rawTarget) || rawTarget;
 
     const a = document.createElement("a");
     a.href = downloadTarget;
@@ -86,6 +97,8 @@ export function ClipCard({
     }, 1000);
   };
 
+  const resolvedVideoSrc = resolveMediaUrl(clip.videoUrl || clip.videoSrc);
+
   return (
     <div className="bg-[#0e2125]/85 backdrop-blur-md border border-[#1e3c43] rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl hover:border-[#2cd3c6]/40 transition-all duration-200 group text-slate-100">
       {/* 9:16 Video Player Container */}
@@ -94,10 +107,10 @@ export function ClipCard({
         className="relative w-full aspect-[9/16] rounded-xl overflow-hidden shadow-inner group-hover:scale-[1.01] transition-transform duration-200 bg-[#071316] flex items-center justify-center cursor-pointer select-none"
       >
         {/* Real HTML5 Video if videoUrl is available */}
-        {clip.videoUrl || clip.videoSrc ? (
+        {resolvedVideoSrc ? (
           <video
             ref={videoRef}
-            src={clip.videoUrl || clip.videoSrc}
+            src={resolvedVideoSrc}
             poster={clip.imageSrc}
             muted={isMuted}
             loop

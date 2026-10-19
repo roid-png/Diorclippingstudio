@@ -17,18 +17,43 @@ export function getFfmpegPath(): string {
     }
   } catch {}
 
-  // 2. Check local node_modules
-  const candidate = path.resolve(
+  // 2. Check monorepo root and current working directory
+  const searchRoots = [
     process.cwd(),
-    "node_modules/@ffmpeg-installer/win32-x64/ffmpeg.exe"
-  );
-  if (fs.existsSync(candidate)) {
-    cachedFfmpegPath = candidate;
-    return candidate;
+    path.resolve(process.cwd(), ".."),
+    path.resolve(process.cwd(), "../.."),
+  ];
+
+  for (const root of searchRoots) {
+    const directCandidate = path.join(
+      root,
+      "node_modules/@ffmpeg-installer/win32-x64/ffmpeg.exe"
+    );
+    if (fs.existsSync(directCandidate)) {
+      cachedFfmpegPath = directCandidate;
+      return directCandidate;
+    }
+
+    // Check pnpm virtual store
+    const pnpmCandidate = path.join(
+      root,
+      "node_modules/.pnpm/@ffmpeg-installer+win32-x64@4.1.0/node_modules/@ffmpeg-installer/win32-x64/ffmpeg.exe"
+    );
+    if (fs.existsSync(pnpmCandidate)) {
+      cachedFfmpegPath = pnpmCandidate;
+      return pnpmCandidate;
+    }
   }
 
-  // 3. Fallback to system "ffmpeg"
+  // 3. Fallback to system ffmpeg
   cachedFfmpegPath = "ffmpeg";
   return "ffmpeg";
 }
 
+export function getFfmpegDir(): string {
+  const exePath = getFfmpegPath();
+  if (exePath === "ffmpeg") {
+    return "";
+  }
+  return path.dirname(exePath);
+}

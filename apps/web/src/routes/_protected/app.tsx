@@ -8,6 +8,7 @@ import { VideoModal } from "@/features/studio/components/VideoModal";
 import { ProcessingProgressBar } from "@/features/studio/components/ProcessingProgressBar";
 import { EmptyClipsState } from "@/features/studio/components/EmptyClipsState";
 import { Sparkles, Download, Layers } from "lucide-react";
+import { API_URL } from "@/lib/env";
 
 export const Route = createFileRoute("/_protected/app")({
   head: () => ({ meta: [{ title: `Studio Potong Video | ${siteConfig.name}` }] }),
@@ -49,7 +50,7 @@ function StudioPotongVideoPage() {
 
   // Fetch dynamic presets from /api/presets
   useEffect(() => {
-    fetch("/api/presets")
+    fetch(`${API_URL}/api/presets`)
       .then((res) => res.json())
       .then((res) => {
         if (res.success && Array.isArray(res.data) && res.data.length > 0) {
@@ -86,7 +87,7 @@ function StudioPotongVideoPage() {
     setSelectedClip(null);
 
     try {
-      await fetch("/api/reset", { method: "POST" });
+      await fetch(`${API_URL}/api/reset`, { method: "POST" });
     } catch {}
 
     setNoticeMessage("Tampilan dan antrean berhasil dikosongkan (Empty State Bersih).");
@@ -104,7 +105,7 @@ function StudioPotongVideoPage() {
       reader.onload = async () => {
         const base64Data = reader.result as string;
         try {
-          const res = await fetch("/api/clone-style", {
+          const res = await fetch(`${API_URL}/api/clone-style`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -161,7 +162,7 @@ function StudioPotongVideoPage() {
     }, 1200);
 
     try {
-      const response = await fetch("/api/pipeline/generate", {
+      const response = await fetch(`${API_URL}/api/pipeline/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -178,7 +179,17 @@ function StudioPotongVideoPage() {
         progressTimerRef.current = null;
       }
 
-      const result = await response.json();
+      let result: any = null;
+      try {
+        result = await response.json();
+      } catch {
+        const text = await response.text().catch(() => "");
+        throw new Error(
+          response.status === 404
+            ? "Layanan API tidak ditemukan pada port 4000."
+            : `Gagal membaca respons server (Status ${response.status}): ${text.slice(0, 100)}`
+        );
+      }
 
       if (!response.ok || !result.success) {
         setStatus("error");

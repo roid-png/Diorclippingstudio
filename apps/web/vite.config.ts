@@ -23,7 +23,16 @@ export default defineConfig(({ command, mode }) => {
   return {
     envDir,
     resolve: { tsconfigPaths: true },
-    server: { port, strictPort: true },
+    server: {
+      port,
+      strictPort: true,
+      proxy: {
+        "/api": {
+          target: "http://localhost:4000",
+          changeOrigin: true,
+        },
+      },
+    },
     // node-server emits .output/server/index.mjs, a portable Node server that
     // honors PORT and HOST. The Dockerfile ships only that folder.
     nitro: {
