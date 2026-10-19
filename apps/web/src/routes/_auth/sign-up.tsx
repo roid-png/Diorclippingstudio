@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AuthForm } from "@/components/auth-form";
+import { AuthFormCard } from "@/features/auth/components/AuthFormCard";
 import { siteConfig } from "@/config/site";
 
 export const Route = createFileRoute("/_auth/sign-up")({
-  head: () => ({ meta: [{ title: `Create account | ${siteConfig.name}` }] }),
-  component: () => <AuthForm mode="sign-up" />,
+  head: () => ({ meta: [{ title: `Daftar Akun Baru (50 Kuota) | ${siteConfig.name}` }] }),
+  component: () => <AuthFormCard mode="sign-up" />,
 });

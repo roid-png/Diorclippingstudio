@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AuthForm } from "@/components/auth-form";
+import { AuthFormCard } from "@/features/auth/components/AuthFormCard";
 import { siteConfig } from "@/config/site";
 
 export const Route = createFileRoute("/_auth/sign-in")({
-  head: () => ({ meta: [{ title: `Sign in | ${siteConfig.name}` }] }),
-  component: () => <AuthForm mode="sign-in" />,
+  head: () => ({ meta: [{ title: `Masuk ke Studio | ${siteConfig.name}` }] }),
+  component: () => <AuthFormCard mode="sign-in" />,
 });
