@@ -15,6 +15,7 @@ import { jsonBody } from "../middleware/body";
 import { requireTrustedOrigin } from "../middleware/origin";
 import {
   createProjectJob,
+  deleteProject,
   getProjectById,
   getProjectStatusAndClips,
   getUserQuota,
@@ -171,6 +172,14 @@ projectsRouter.patch("/:id/pin", jsonBody, async (req, res) => {
   const isPinned =
     typeof req.body?.isPinned === "boolean" ? req.body.isPinned : undefined;
   const result = await toggleProjectPin(userId, id, isPinned);
+  res.json({ data: result });
+});
+
+// Delete project from user's history
+projectsRouter.delete("/:id", async (req, res) => {
+  const userId = getAuth(req).user.id;
+  const id = projectIdSchema.parse(req.params.id);
+  const result = await deleteProject(userId, id);
   res.json({ data: result });
 });
 

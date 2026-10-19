@@ -532,3 +532,27 @@ export async function toggleProjectPin(
   return updated;
 }
 
+export async function deleteProject(userId: string, projectId: string) {
+  const [project] = await db
+    .select({ id: projects.id, title: projects.videoTitle })
+    .from(projects)
+    .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
+    .limit(1);
+
+  if (!project) {
+    throw new HttpError(404, "NOT_FOUND", "Proyek tidak ditemukan.");
+  }
+
+  const [deleted] = await db
+    .delete(projects)
+    .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
+    .returning();
+
+  return {
+    success: true,
+    deletedId: deleted.id,
+    deletedTitle: deleted.videoTitle,
+  };
+}
+
+
