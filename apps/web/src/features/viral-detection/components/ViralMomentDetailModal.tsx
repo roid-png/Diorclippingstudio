@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { X, Flame, Sparkles, Download, Check, Clock, TrendingUp } from "lucide-react";
+import { X, Flame, Sparkles, Check, Clock, TrendingUp, Layers, HelpCircle } from "lucide-react";
 import type { ViralClipItem } from "../types";
+import { getCategoryMeta, getViralScoreMeta } from "../types";
 
 interface ViralMomentDetailModalProps {
   clip: ViralClipItem | null;
@@ -17,8 +18,13 @@ export function ViralMomentDetailModal({
 
   if (!clip) return null;
 
+  const catMeta = getCategoryMeta(clip.category);
+  const scoreMeta = getViralScoreMeta(clip.viralScore);
+
   const handleCopyTranscript = () => {
-    const text = clip.subtitles.map((s) => `[${s.speaker || "VOICE"}] ${s.text.replace(/<\/?hl>/g, "")}`).join("\n");
+    const text = clip.subtitles
+      .map((s) => `[${s.speaker || "VOICE"}] ${s.text.replace(/<\/?hl>/g, "")}`)
+      .join("\n");
     navigator.clipboard?.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -33,13 +39,27 @@ export function ViralMomentDetailModal({
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-2xl bg-[#0e2125] border border-[#2cd3c6]/40 rounded-2xl p-5 sm:p-6 shadow-2xl text-slate-100 flex flex-col max-h-[90vh] overflow-y-auto"
       >
-        {/* Top Header */}
+        {/* Top Header: Skor Viral + Label Kategori + Rank */}
         <div className="flex items-start justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40 flex items-center gap-1">
-              <Flame className="w-3.5 h-3.5 fill-current" />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Viral Score Badge with Flame & Tier */}
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md flex items-center gap-1.5 ${scoreMeta.badgeClass}`}
+            >
+              <Flame className={`w-3.5 h-3.5 ${scoreMeta.flameColor}`} />
               <span>Skor {clip.viralScoreFormatted}</span>
+              <span className="opacity-90">• {scoreMeta.shortLabel}</span>
             </span>
+
+            {/* Category Label Badge */}
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${catMeta.badgeClass}`}
+            >
+              <span>{catMeta.icon}</span>
+              <span>{catMeta.label}</span>
+            </span>
+
+            {/* Rank & Duration */}
             <span className="text-xs px-2.5 py-1 rounded-full bg-[#136f7c]/40 text-[#2cd3c6] border border-[#2cd3c6]/30 font-medium">
               Rank #{clip.rank} • {clip.duration}
             </span>
@@ -86,23 +106,34 @@ export function ViralMomentDetailModal({
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Analisis AI: Kenapa Momen Ini Viral?</span>
               </h4>
-              <p className="text-xs text-gray-200 leading-relaxed">
+              <p className="text-xs text-gray-200 leading-relaxed mb-2">
                 {clip.whyViral}
               </p>
+              <div className="pt-2 border-t border-[#1e444e] text-[11px] text-[#8ca4aa] flex items-start gap-1.5">
+                <HelpCircle className="w-3.5 h-3.5 text-[#2cd3c6] shrink-0 mt-0.5" />
+                <span>{catMeta.algorithmReason}</span>
+              </div>
             </div>
 
             {/* AI Retention Metrics Bars */}
             <div className="bg-[#142a30] border border-[#234c56] rounded-xl p-3 flex flex-col gap-2.5">
-              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Metrik Potensi Viral</span>
-              </h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Metrik Potensi Viral</span>
+                </h4>
+                <span className="text-[10px] font-mono text-[#2cd3c6]">
+                  {scoreMeta.reachPrediction}
+                </span>
+              </div>
 
               {/* Metric 1 */}
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
                   <span className="text-[#8ca4aa]">Retensi Hook 3 Detik</span>
-                  <span className="font-bold text-emerald-400">{clip.metrics.hookRetention}%</span>
+                  <span className="font-bold text-emerald-400">
+                    {clip.metrics.hookRetention}%
+                  </span>
                 </div>
                 <div className="w-full h-1.5 bg-[#102428] rounded-full overflow-hidden">
                   <div
@@ -116,7 +147,9 @@ export function ViralMomentDetailModal({
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
                   <span className="text-[#8ca4aa]">Energi & Sentimen Percakapan</span>
-                  <span className="font-bold text-cyan-400">{clip.metrics.sentimentEnergy}%</span>
+                  <span className="font-bold text-cyan-400">
+                    {clip.metrics.sentimentEnergy}%
+                  </span>
                 </div>
                 <div className="w-full h-1.5 bg-[#102428] rounded-full overflow-hidden">
                   <div
@@ -130,7 +163,9 @@ export function ViralMomentDetailModal({
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
                   <span className="text-[#8ca4aa]">Kekuatan Punchline / Solusi</span>
-                  <span className="font-bold text-amber-400">{clip.metrics.punchlineScore}%</span>
+                  <span className="font-bold text-amber-400">
+                    {clip.metrics.punchlineScore}%
+                  </span>
                 </div>
                 <div className="w-full h-1.5 bg-[#102428] rounded-full overflow-hidden">
                   <div
@@ -144,7 +179,10 @@ export function ViralMomentDetailModal({
             {/* Time range info */}
             <div className="flex items-center gap-2 text-xs text-[#8ca4aa]">
               <Clock className="w-3.5 h-3.5 text-[#2cd3c6]" />
-              <span>Timestamp: <strong className="text-white">{clip.timeRange}</strong> ({clip.duration})</span>
+              <span>
+                Timestamp: <strong className="text-white">{clip.timeRange}</strong> (
+                {clip.duration})
+              </span>
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
-import { Flame, Sparkles, Clock, Target } from "lucide-react";
+import { Flame, Sparkles, Layers, Target } from "lucide-react";
 import type { ViralClipItem } from "../types";
+import { getViralScoreMeta } from "../types";
 
 interface ViralStatsOverviewProps {
   clips: ViralClipItem[];
@@ -12,6 +13,13 @@ export function ViralStatsOverview({ clips }: ViralStatsOverviewProps) {
       ? (clips.reduce((acc, c) => acc + c.viralScore, 0) / clips.length).toFixed(1)
       : "95.5";
   const selectedCount = clips.filter((c) => c.isSelected).length;
+
+  // Category counts
+  const controversyCount = clips.filter((c) => c.category === "controversy").length;
+  const insightCount = clips.filter((c) => c.category === "insight").length;
+  const storyCount = clips.filter((c) => c.category === "story").length;
+
+  const topScoreMeta = topClip ? getViralScoreMeta(topClip.viralScore) : null;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
@@ -27,10 +35,12 @@ export function ViralStatsOverview({ clips }: ViralStatsOverviewProps) {
           <span className="text-xl sm:text-2xl font-black text-amber-300 tracking-tight">
             {topClip?.viralScoreFormatted || "99/100"}
           </span>
-          <span className="text-[10px] text-emerald-400 font-medium">Rank #1</span>
+          <span className="text-[10px] text-amber-400 font-bold px-1.5 py-0.2 rounded bg-amber-500/20 border border-amber-500/30">
+            {topScoreMeta?.shortLabel || "Mega Viral"}
+          </span>
         </div>
         <p className="text-[11px] text-[#789399] mt-1 truncate">
-          {topClip?.title || "White Collar Jobs Terancam AI"}
+          Rank #1: {topClip?.title || "White Collar Jobs Terancam AI"}
         </p>
       </div>
 
@@ -65,29 +75,36 @@ export function ViralStatsOverview({ clips }: ViralStatsOverviewProps) {
           <span className="text-xl sm:text-2xl font-black text-cyan-200 tracking-tight">
             {avgScore}/100
           </span>
-          <span className="text-[10px] text-[#2cd3c6] font-medium">Tinggi 🔥</span>
+          <span className="text-[10px] text-[#2cd3c6] font-bold px-1.5 py-0.2 rounded bg-cyan-500/20 border border-cyan-500/30">
+            Potensi FYP 🚀
+          </span>
         </div>
         <p className="text-[11px] text-[#789399] mt-1">
-          Dihitung dari retensi hook 3 detik
+          Dihitung dari retensi 3s & sentiment audio
         </p>
       </div>
 
-      {/* Stat 4: Durasi Sweetspot */}
+      {/* Stat 4: Distribusi Kategori Klip */}
       <div className="bg-[#0e2125]/90 backdrop-blur-md border border-[#1e3c43] hover:border-[#2cd3c6]/40 rounded-2xl p-3.5 sm:p-4 transition-all shadow-xl">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-[#8ca4aa] font-medium">Durasi Sweetspot</span>
+          <span className="text-xs text-[#8ca4aa] font-medium">Distribusi Kategori</span>
           <div className="w-7 h-7 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
-            <Clock className="w-4 h-4" />
+            <Layers className="w-4 h-4" />
           </div>
         </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            30s & 45s
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="text-[11px] font-semibold text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded border border-rose-500/30">
+            💥 {controversyCount}
           </span>
-          <span className="text-[10px] text-teal-300 font-medium">Optimal</span>
+          <span className="text-[11px] font-semibold text-[#2cd3c6] bg-teal-500/20 px-1.5 py-0.5 rounded border border-[#2cd3c6]/30">
+            💡 {insightCount}
+          </span>
+          <span className="text-[11px] font-semibold text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">
+            🏆 {storyCount}
+          </span>
         </div>
-        <p className="text-[11px] text-[#789399] mt-1">
-          Format 9:16 vertikal TikTok / Shorts
+        <p className="text-[10px] text-[#789399] mt-2">
+          Kategori: Kontroversi • Wawasan • Cerita
         </p>
       </div>
     </div>

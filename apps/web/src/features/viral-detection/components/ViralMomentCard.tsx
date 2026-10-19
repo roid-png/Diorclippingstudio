@@ -11,8 +11,10 @@ import {
   Check,
   Flame,
   Info,
+  Tag,
 } from "lucide-react";
 import type { ViralClipItem } from "../types";
+import { getCategoryMeta, getViralScoreMeta } from "../types";
 
 interface ViralMomentCardProps {
   clip: ViralClipItem;
@@ -66,6 +68,9 @@ export function ViralMomentCard({
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const catMeta = getCategoryMeta(clip.category);
+  const scoreMeta = getViralScoreMeta(clip.viralScore);
+
   useEffect(() => {
     if (isPlaying) {
       timerRef.current = setInterval(() => {
@@ -107,7 +112,7 @@ export function ViralMomentCard({
 
       const blob = new Blob(
         [
-          `Klip Viral Otomatis - ${clip.title}\nSkor Viral: ${clip.viralScoreFormatted}\nDurasi: ${clip.duration}\nSorotan: ${clip.highlightMoment}\nAlasan Viral: ${clip.whyViral}`,
+          `Dior Clipping - Klip Viral Otomatis\nJudul: ${clip.title}\nKategori: ${catMeta.label}\nSkor Viral: ${clip.viralScoreFormatted} (${scoreMeta.label})\nDurasi: ${clip.duration} [${clip.timeRange}]\nSorotan: ${clip.highlightMoment}\nAlasan Viral: ${clip.whyViral}`,
         ],
         { type: "video/mp4" }
       );
@@ -166,26 +171,31 @@ export function ViralMomentCard({
           }`}
         />
 
-        {/* Top Badges Overlay */}
-        <div className="absolute top-2 left-2 right-2 flex items-center justify-between z-20 pointer-events-none">
-          {/* Viral Score Badge with Flame */}
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-black/70 backdrop-blur-xs text-amber-300 border border-amber-400/40 flex items-center gap-1 shadow-sm">
-            <Flame className="w-3 h-3 text-amber-400 fill-amber-400" />
+        {/* Top Badges Overlay: Skor Viral + Label Kategori + Rank */}
+        <div className="absolute top-2 left-2 right-2 flex items-center justify-between z-20 pointer-events-none gap-1">
+          {/* Viral Score Badge with Flame & Tier */}
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-md flex items-center gap-1 border ${scoreMeta.badgeClass}`}
+          >
+            <Flame className={`w-3 h-3 ${scoreMeta.flameColor}`} />
             <span>{clip.viralScoreFormatted}</span>
+            <span className="text-[9px] font-semibold opacity-90 hidden xs:inline">
+              • {scoreMeta.shortLabel}
+            </span>
           </span>
 
-          {/* Rank Badge */}
-          <span
-            className={`px-2 py-0.5 rounded-md text-[9px] font-bold tracking-wider uppercase border shadow-xs ${
-              clip.rank === 1
-                ? "bg-amber-500/90 text-black border-amber-300"
-                : clip.rank <= 3
-                ? "bg-[#20b2aa]/90 text-white border-[#2cd3c6]"
-                : "bg-black/60 text-gray-200 border-white/20"
-            }`}
-          >
-            {clip.hookBadge}
-          </span>
+          {/* Label Kategori & Rank Badge */}
+          <div className="flex items-center gap-1">
+            <span
+              className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-tight border backdrop-blur-md flex items-center gap-0.5 ${catMeta.badgeClass}`}
+            >
+              <span>{catMeta.icon}</span>
+              <span>{catMeta.shortLabel}</span>
+            </span>
+            <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-black/80 text-amber-300 border border-amber-400/40 shadow-xs">
+              #{clip.rank}
+            </span>
+          </div>
         </div>
 
         {/* Dynamic Subtitle Overlay when Playing Inline */}
@@ -282,7 +292,20 @@ export function ViralMomentCard({
         </span>
       </div>
 
-      {/* Sorotan Momen Penting (PRD Section 4 & 5 Requirement) */}
+      {/* Label Kategori & Skor Viral Tier Info Row */}
+      <div className="flex items-center justify-between gap-1 text-[10px]">
+        <span
+          className={`px-2 py-0.5 rounded-lg border font-semibold flex items-center gap-1 shrink-0 ${catMeta.badgeClass}`}
+        >
+          <span>{catMeta.icon}</span>
+          <span className="truncate">{catMeta.label}</span>
+        </span>
+        <span className="text-[9px] font-mono text-[#7d9399] shrink-0 bg-[#08181b] px-1.5 py-0.5 rounded border border-[#1b373e]">
+          {scoreMeta.reachPrediction}
+        </span>
+      </div>
+
+      {/* Sorotan Momen Penting */}
       <div className="bg-[#13282f]/80 border border-[#1d3d46] rounded-xl p-2 flex flex-col gap-1 text-[11px]">
         <div className="flex items-center gap-1 text-[#2cd3c6] font-semibold text-[10px]">
           <Sparkles className="w-3 h-3" />

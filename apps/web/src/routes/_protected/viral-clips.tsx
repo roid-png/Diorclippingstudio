@@ -51,6 +51,8 @@ function DeteksiMomenViralPage() {
     // Category filter
     if (filter.category === "top3") {
       result = result.filter((c) => c.rank <= 3);
+    } else if (filter.category === "mega") {
+      result = result.filter((c) => c.viralScore >= 95);
     } else if (filter.category !== "all") {
       result = result.filter((c) => c.category === filter.category);
     }
@@ -69,6 +71,8 @@ function DeteksiMomenViralPage() {
     // Sort
     if (filter.sortBy === "viral-desc") {
       result.sort((a, b) => b.viralScore - a.viralScore);
+    } else if (filter.sortBy === "viral-asc") {
+      result.sort((a, b) => a.viralScore - b.viralScore);
     } else if (filter.sortBy === "timeline-asc") {
       result.sort((a, b) => {
         const aStart = parseInt(a.timeRange.split(":")[0], 10);
