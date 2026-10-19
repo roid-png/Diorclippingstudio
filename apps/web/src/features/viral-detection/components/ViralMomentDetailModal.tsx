@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { X, Flame, Sparkles, Check, Clock, TrendingUp, HelpCircle, Crown, Star } from "lucide-react";
+import { X, Flame, Sparkles, Check, Clock, TrendingUp, HelpCircle, Crown, Star, Zap } from "lucide-react";
 import type { ViralClipItem } from "../types";
-import { getCategoryMeta, getViralScoreMeta } from "../types";
+import { getCategoryMeta, getViralScoreMeta, resolveHighlightMoment } from "../types";
 
 interface ViralMomentDetailModalProps {
   clip: ViralClipItem | null;
@@ -20,6 +20,7 @@ export function ViralMomentDetailModal({
 
   const catMeta = getCategoryMeta(clip.category);
   const scoreMeta = getViralScoreMeta(clip.viralScore);
+  const highlight = resolveHighlightMoment(clip);
 
   const handleCopyTranscript = () => {
     const text = clip.subtitles
@@ -133,13 +134,45 @@ export function ViralMomentDetailModal({
               alt={clip.title}
               className="relative z-10 w-full h-full object-contain"
             />
-            <div className="absolute bottom-3 inset-x-3 z-20 bg-black/85 backdrop-blur-md rounded-xl p-2 text-center text-xs font-bold text-white">
-              "{clip.highlightMoment}"
+            <div className="absolute bottom-3 inset-x-3 z-20 bg-black/85 backdrop-blur-md rounded-xl p-2.5 text-center text-xs text-white border border-white/10 shadow-lg">
+              <span className="text-[10px] text-[#2cd3c6] font-semibold block mb-0.5">
+                {highlight.tag} ({highlight.triggerSecondLabel})
+              </span>
+              <p className="font-bold leading-snug">"{highlight.quote}"</p>
             </div>
           </div>
 
           {/* Right Column: AI Analysis & Metrics */}
           <div className="flex flex-col justify-between gap-3">
+            {/* Sorotan Momen Pemicu Box */}
+            <div className="bg-[#142a30] border border-[#234c56] rounded-xl p-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <h4 className="text-xs font-bold text-[#2cd3c6] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Sorotan Momen Pemicu</span>
+                </h4>
+                <span
+                  className={`text-[9px] px-2 py-0.5 rounded-full border font-mono ${
+                    highlight.isFallback
+                      ? "text-[#8ca4aa] bg-black/40 border-white/10"
+                      : "text-amber-300 bg-amber-500/10 border-amber-400/30 font-bold"
+                  }`}
+                >
+                  {highlight.tag}
+                </span>
+              </div>
+              <p className="text-xs text-white font-medium italic border-l-2 border-[#2cd3c6] pl-2.5 py-0.5 bg-[#0e2125]/60 rounded-r-lg">
+                "{highlight.quote}"
+              </p>
+              <div className="mt-2 text-[11px] text-[#8ca4aa] flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Zap className="w-3 h-3 text-amber-400" />
+                  <span>Titik Pemicu: <strong className="text-white">{highlight.triggerSecondLabel}</strong></span>
+                </span>
+                <span>Retensi: <strong className="text-emerald-400">{clip.metrics.hookRetention}%</strong></span>
+              </div>
+            </div>
+
             {/* Why Viral Box */}
             <div className="bg-[#142a30] border border-[#234c56] rounded-xl p-3">
               <h4 className="text-xs font-bold text-[#2cd3c6] flex items-center gap-1.5 mb-1.5">

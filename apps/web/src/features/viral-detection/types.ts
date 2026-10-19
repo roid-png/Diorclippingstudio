@@ -183,3 +183,76 @@ export function getViralScoreMeta(score: number): ViralTierMeta {
     description: "Klip pelengkap yang tetap solid untuk membangun katalog konten.",
   };
 }
+
+export interface HighlightMomentResult {
+  quote: string;
+  tag: string;
+  triggerType: "hook" | "climax" | "insight" | "debate" | "summary";
+  triggerSecondLabel: string;
+  isFallback: boolean;
+}
+
+export function resolveHighlightMoment(clip: ViralClipItem): HighlightMomentResult {
+  // Check if clip has a valid, non-empty highlightMoment
+  if (clip.highlightMoment && clip.highlightMoment.trim().length > 0) {
+    let tag = "Momen Pemicu Utama";
+    let triggerType: HighlightMomentResult["triggerType"] = "hook";
+
+    if (clip.category === "controversy") {
+      tag = "Hook Kontroversial";
+      triggerType = "debate";
+    } else if (clip.category === "insight") {
+      tag = "Wawasan Kunci";
+      triggerType = "insight";
+    } else if (clip.category === "story") {
+      tag = "Klimaks Narasi";
+      triggerType = "climax";
+    }
+
+    return {
+      quote: clip.highlightMoment.trim(),
+      tag,
+      triggerType,
+      triggerSecondLabel: "00:00 - 00:05",
+      isFallback: false,
+    };
+  }
+
+  // Fallback 1: Extract from first subtitle cue containing <hl> or first subtitle text
+  if (clip.subtitles && clip.subtitles.length > 0) {
+    const highlightedCue = clip.subtitles.find((s) => s.text && s.text.includes("<hl>"));
+    const primaryCue = highlightedCue || clip.subtitles[0];
+
+    if (primaryCue && primaryCue.text && primaryCue.text.trim()) {
+      const cleanText = primaryCue.text.replace(/<\/?hl>/g, "").trim();
+      return {
+        quote: cleanText,
+        tag: "Transkrip Pemicu (Fallback AI)",
+        triggerType: "hook",
+        triggerSecondLabel: `+${primaryCue.time}s`,
+        isFallback: true,
+      };
+    }
+  }
+
+  // Fallback 2: Generate from title and reason
+  if (clip.whyViral && clip.whyViral.trim().length > 0) {
+    return {
+      quote: `${clip.title} — ${clip.whyViral}`,
+      tag: "Ringkasan Momen (Fallback AI)",
+      triggerType: "summary",
+      triggerSecondLabel: clip.timeRange,
+      isFallback: true,
+    };
+  }
+
+  // Fallback 3: Ultimate default
+  return {
+    quote: `Puncak percakapan menarik pada segmen ${clip.timeRange} dengan potensi viral ${clip.viralScoreFormatted}.`,
+    tag: "Sorotan Segmen (Auto Fallback)",
+    triggerType: "summary",
+    triggerSecondLabel: clip.timeRange,
+    isFallback: true,
+  };
+}
+

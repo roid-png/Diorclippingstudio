@@ -13,9 +13,10 @@ import {
   Info,
   Crown,
   Star,
+  Zap,
 } from "lucide-react";
 import type { ViralClipItem } from "../types";
-import { getCategoryMeta, getViralScoreMeta } from "../types";
+import { getCategoryMeta, getViralScoreMeta, resolveHighlightMoment } from "../types";
 
 interface ViralMomentCardProps {
   clip: ViralClipItem;
@@ -71,6 +72,7 @@ export function ViralMomentCard({
 
   const catMeta = getCategoryMeta(clip.category);
   const scoreMeta = getViralScoreMeta(clip.viralScore);
+  const highlight = resolveHighlightMoment(clip);
 
   useEffect(() => {
     if (isPlaying) {
@@ -113,7 +115,7 @@ export function ViralMomentCard({
 
       const blob = new Blob(
         [
-          `Dior Clipping - Klip Viral Otomatis\nJudul: ${clip.title}\nRank: #${clip.rank} ${clip.rank === 1 ? "(REKOMENDASI UTAMA)" : ""}\nKategori: ${catMeta.label}\nSkor Viral: ${clip.viralScoreFormatted} (${scoreMeta.label})\nDurasi: ${clip.duration} [${clip.timeRange}]\nSorotan: ${clip.highlightMoment}\nAlasan Viral: ${clip.whyViral}`,
+          `Dior Clipping - Klip Viral Otomatis\nJudul: ${clip.title}\nRank: #${clip.rank} ${clip.rank === 1 ? "(REKOMENDASI UTAMA)" : ""}\nKategori: ${catMeta.label}\nSkor Viral: ${clip.viralScoreFormatted} (${scoreMeta.label})\nDurasi: ${clip.duration} [${clip.timeRange}]\nSorotan Momen: ${highlight.quote} [${highlight.tag}]\nPemicu Viral: ${highlight.triggerSecondLabel}\nAlasan Viral: ${clip.whyViral}`,
         ],
         { type: "video/mp4" }
       );
@@ -345,19 +347,34 @@ export function ViralMomentCard({
         </span>
       </div>
 
-      {/* Sorotan Momen Penting */}
-      <div className="bg-[#13282f]/80 border border-[#1d3d46] rounded-xl p-2 flex flex-col gap-1 text-[11px]">
-        <div className="flex items-center gap-1 text-[#2cd3c6] font-semibold text-[10px]">
-          <Sparkles className="w-3 h-3" />
-          <span>Sorotan Momen:</span>
+      {/* Sorotan Momen Penting dengan Fallback Cerdas */}
+      <div className="bg-[#13282f]/80 border border-[#1d3d46] hover:border-[#2cd3c6]/40 rounded-xl p-2.5 flex flex-col gap-1 text-[11px] transition-all">
+        <div className="flex items-center justify-between gap-1 text-[10px]">
+          <div className="flex items-center gap-1 text-[#2cd3c6] font-semibold">
+            <Sparkles className="w-3 h-3 text-[#2cd3c6]" />
+            <span>Sorotan Momen:</span>
+          </div>
+          <span
+            className={`text-[9px] px-1.5 py-0.2 rounded border font-mono ${
+              highlight.isFallback
+                ? "text-[#8ca4aa] bg-black/40 border-white/10"
+                : "text-amber-300 bg-amber-500/10 border-amber-400/30"
+            }`}
+          >
+            {highlight.tag}
+          </span>
         </div>
-        <p className="text-[#a5bcc2] line-clamp-2 leading-tight italic">
-          "{clip.highlightMoment}"
+
+        <p className="text-[#a5bcc2] line-clamp-2 leading-tight italic pl-2 border-l-2 border-[#20b2aa]/50 my-0.5">
+          "{highlight.quote}"
         </p>
 
-        {/* Why Viral insight */}
-        <div className="mt-1 pt-1 border-t border-[#1b373e] flex items-center justify-between text-[10px] text-[#7d979e]">
-          <span className="truncate">Hook: {clip.metrics.hookRetention}% Retensi</span>
+        {/* Why Viral insight & Trigger info */}
+        <div className="mt-1 pt-1.5 border-t border-[#1b373e] flex items-center justify-between text-[10px] text-[#7d979e]">
+          <span className="truncate flex items-center gap-1 font-mono text-[9px]">
+            <Zap className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+            <span>Pemicu: {highlight.triggerSecondLabel}</span>
+          </span>
           <button
             type="button"
             onClick={() => onInspectClip(clip)}
