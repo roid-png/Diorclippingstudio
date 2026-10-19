@@ -2,6 +2,7 @@ import { Router } from "express";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { asc, desc, eq } from "drizzle-orm";
+import { clipEditSettingsInputSchema } from "@starter/shared/validators/auto-edit";
 import {
   clipIdSchema,
   maxClipsParamSchema,
@@ -11,6 +12,12 @@ import { db } from "../db";
 import { clips, subtitles } from "../db/schema";
 import { HttpError } from "../lib/http-error";
 import { jsonBody } from "../middleware/body";
+import {
+  getClipEditSettings,
+  getDefaultEditSettings,
+  resetClipEditSettingsToDefault,
+  updateClipEditSettings,
+} from "../services/clip-edit-settings.service";
 import {
   getClipSubtitlesWithWordTimings,
   toggleClipAutoSubtitles,
@@ -45,6 +52,11 @@ function resolveVideoFilePath(clipId?: string): string | null {
 
   return null;
 }
+
+// Get default auto-edit settings for clips
+clipsRouter.get("/edit-settings/defaults", (_req, res) => {
+  res.json({ data: getDefaultEditSettings() });
+});
 
 // Get sorted list of viral clips (with optional projectId, sortBy, category, and maxClips/limit 1..10)
 clipsRouter.get("/", async (req, res) => {
@@ -134,6 +146,31 @@ const handleToggleFavorite = async (req: any, res: any) => {
 
 clipsRouter.patch("/:id/favorite", jsonBody, handleToggleFavorite);
 clipsRouter.post("/:id/favorite", jsonBody, handleToggleFavorite);
+
+// Get per-clip edit settings
+clipsRouter.get("/:id/edit-settings", async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const settings = await getClipEditSettings(clipId);
+  res.json({ data: settings });
+});
+
+// Update per-clip edit settings (and optionally apply to all clips in project)
+const handleUpdateClipEditSettings = async (req: any, res: any) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const input = clipEditSettingsInputSchema.parse(req.body ?? {});
+  const result = await updateClipEditSettings(clipId, input);
+  res.json({ data: result });
+};
+
+clipsRouter.put("/:id/edit-settings", jsonBody, handleUpdateClipEditSettings);
+clipsRouter.patch("/:id/edit-settings", jsonBody, handleUpdateClipEditSettings);
+
+// Reset per-clip edit settings to default
+clipsRouter.post("/:id/edit-settings/reset", async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const result = await resetClipEditSettingsToDefault(clipId);
+  res.json({ data: result });
+});
 
 // Get enriched word-by-word automatic subtitles for a clip
 clipsRouter.get("/:id/subtitles", async (req, res) => {

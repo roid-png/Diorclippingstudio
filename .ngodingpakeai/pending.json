@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "8e3e19c084dfac855e258c1c6414de6c09c52946",
+  "generatedForCommit": "f07fa28fe6cce15a6aac7a16506ca7d93384b20b",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -154,7 +154,7 @@
     },
     {
       "path": "apps/api/drizzle/0003_powerful_nuke.sql",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "sql",
       "size": 2092
     },
@@ -178,13 +178,13 @@
     },
     {
       "path": "apps/api/drizzle/meta/0003_snapshot.json",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "json",
       "size": 38180
     },
     {
       "path": "apps/api/drizzle/meta/_journal.json",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "json",
       "size": 625
     },
@@ -232,9 +232,9 @@
     },
     {
       "path": "apps/api/src/db/schema/clip-edit-settings.ts",
-      "reason": "new",
+      "reason": "changed",
       "language": "typescript",
-      "size": 3106
+      "size": 3107
     },
     {
       "path": "apps/api/src/db/schema/clips.ts",
@@ -244,7 +244,7 @@
     },
     {
       "path": "apps/api/src/db/schema/index.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 408
     },
@@ -376,9 +376,9 @@
     },
     {
       "path": "apps/api/src/routes/clips.routes.ts",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 6267
+      "size": 7693
     },
     {
       "path": "apps/api/src/routes/health.routes.ts",
@@ -427,6 +427,12 @@
       "reason": "needs_summary",
       "language": "typescript",
       "size": 6248
+    },
+    {
+      "path": "apps/api/src/services/subtitle-transcription.service.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 8512
     },
     {
       "path": "apps/api/src/services/video-cutter.service.ts",

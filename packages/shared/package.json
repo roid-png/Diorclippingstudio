@@ -9,6 +9,7 @@
     "./validators/notes": "./src/validators/notes.ts",
     "./validators/youtube": "./src/validators/youtube.ts",
     "./validators/projects": "./src/validators/projects.ts",
+    "./validators/auto-edit": "./src/validators/auto-edit.ts",
     "./types": "./src/types/api.ts",
     "./site": "./src/site.ts"
   },
