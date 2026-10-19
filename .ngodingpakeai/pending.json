@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "eba7d576a2372733ee6eca759454cfa5626f704c",
+  "generatedForCommit": "d9f04e05cfcce7f982afb72ac03aa86e7158ab47",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -376,13 +376,13 @@
     },
     {
       "path": "apps/api/src/routes/auto-edit.routes.ts",
-      "reason": "new",
+      "reason": "changed",
       "language": "typescript",
-      "size": 1674
+      "size": 2744
     },
     {
       "path": "apps/api/src/routes/clips.routes.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 9119
     },
@@ -394,7 +394,7 @@
     },
     {
       "path": "apps/api/src/routes/index.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 842
     },
@@ -424,9 +424,15 @@
     },
     {
       "path": "apps/api/src/services/clip-edit-settings.service.ts",
+      "reason": "changed",
+      "language": "typescript",
+      "size": 7948
+    },
+    {
+      "path": "apps/api/src/services/motion-graphic-presets.service.ts",
       "reason": "new",
       "language": "typescript",
-      "size": 7947
+      "size": 9765
     },
     {
       "path": "apps/api/src/services/notes.service.ts",
@@ -442,9 +448,9 @@
     },
     {
       "path": "apps/api/src/services/subtitle-transcription.service.ts",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 8512
+      "size": 8513
     },
     {
       "path": "apps/api/src/services/video-cutter.service.ts",
@@ -1138,7 +1144,7 @@
     },
     {
       "path": "packages/shared/package.json",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "json",
       "size": 674
     },
@@ -1162,9 +1168,9 @@
     },
     {
       "path": "packages/shared/src/validators/auto-edit.ts",
-      "reason": "new",
+      "reason": "changed",
       "language": "typescript",
-      "size": 1188
+      "size": 1597
     },
     {
       "path": "packages/shared/src/validators/notes.ts",

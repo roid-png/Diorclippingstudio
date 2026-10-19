@@ -2,28 +2,9 @@ import { Router } from "express";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { asc, desc, eq } from "drizzle-orm";
-import { clipEditSettingsInputSchema } from "@starter/shared/validators/auto-edit";
-import {
-  clipIdSchema,
-  maxClipsParamSchema,
-  toggleFavoriteClipSchema,
-} from "@starter/shared/validators/projects";
 import { db } from "../db";
 import { clips, subtitles } from "../db/schema";
 import { HttpError } from "../lib/http-error";
-import { jsonBody } from "../middleware/body";
-import {
-  getClipEditSettings,
-  getDefaultEditSettings,
-  resetClipEditSettingsToDefault,
-  updateClipEditSettings,
-} from "../services/clip-edit-settings.service";
-import {
-  getClipSubtitlesWithWordTimings,
-  toggleClipAutoSubtitles,
-  transcribeClipSubtitles,
-} from "../services/subtitle-transcription.service";
-import { toggleClipFavorite } from "../services/video-cutter.service";
 import {
   getViralScoreCategory,
   resolveHighlightMomentWithFallback,
@@ -53,12 +34,7 @@ function resolveVideoFilePath(clipId?: string): string | null {
   return null;
 }
 
-// Get default auto-edit settings for clips
-clipsRouter.get("/edit-settings/defaults", (_req, res) => {
-  res.json({ data: getDefaultEditSettings() });
-});
-
-// Get sorted list of viral clips (with optional projectId, sortBy, category, and maxClips/limit 1..10)
+// Get sorted list of viral clips (with optional projectId, sortBy, category, and limit 1..10)
 clipsRouter.get("/", async (req, res) => {
   const projectId =
     typeof req.query.projectId === "string" ? req.query.projectId : undefined;
@@ -66,9 +42,11 @@ clipsRouter.get("/", async (req, res) => {
     typeof req.query.sortBy === "string" ? req.query.sortBy : "viral-desc";
   const category =
     typeof req.query.category === "string" ? req.query.category : "all";
-  const rawMaxParam = req.query.maxClips ?? req.query.limit;
-  const limit =
-    rawMaxParam !== undefined ? maxClipsParamSchema.parse(rawMaxParam) : 10;
+  const rawLimit =
+    typeof req.query.limit === "string" ? Number(req.query.limit) : 10;
+  const limit = Number.isNaN(rawLimit)
+    ? 10
+    : Math.min(Math.max(1, rawLimit), 10);
 
   const orderByClause =
     sortByRaw === "viral-asc"
@@ -131,80 +109,6 @@ clipsRouter.get("/", async (req, res) => {
       category,
     },
   });
-});
-
-// Toggle or set favorite status for a clip (max 10 per project)
-const handleToggleFavorite = async (req: any, res: any) => {
-  const clipId = clipIdSchema.parse(req.params.id);
-  const parsedBody =
-    req.body && typeof req.body === "object"
-      ? toggleFavoriteClipSchema.parse(req.body)
-      : {};
-  const result = await toggleClipFavorite(clipId, parsedBody.isSelected);
-  res.json({ data: result });
-};
-
-clipsRouter.patch("/:id/favorite", jsonBody, handleToggleFavorite);
-clipsRouter.post("/:id/favorite", jsonBody, handleToggleFavorite);
-
-// Get per-clip edit settings
-clipsRouter.get("/:id/edit-settings", async (req, res) => {
-  const clipId = clipIdSchema.parse(req.params.id);
-  const settings = await getClipEditSettings(clipId);
-  res.json({ data: settings });
-});
-
-// Update per-clip edit settings (and optionally apply to all clips in project)
-const handleUpdateClipEditSettings = async (req: any, res: any) => {
-  const clipId = clipIdSchema.parse(req.params.id);
-  const input = clipEditSettingsInputSchema.parse(req.body ?? {});
-  const result = await updateClipEditSettings(clipId, input);
-  res.json({ data: result });
-};
-
-clipsRouter.put("/:id/edit-settings", jsonBody, handleUpdateClipEditSettings);
-clipsRouter.patch("/:id/edit-settings", jsonBody, handleUpdateClipEditSettings);
-
-// Reset per-clip edit settings to default
-clipsRouter.post("/:id/edit-settings/reset", async (req, res) => {
-  const clipId = clipIdSchema.parse(req.params.id);
-  const result = await resetClipEditSettingsToDefault(clipId);
-  res.json({ data: result });
-});
-
-// Get enriched word-by-word automatic subtitles for a clip
-clipsRouter.get("/:id/subtitles", async (req, res) => {
-  const clipId = clipIdSchema.parse(req.params.id);
-  const result = await getClipSubtitlesWithWordTimings(clipId);
-  res.json({ data: result });
-});
-
-// Trigger or regenerate automatic subtitle transcription for a clip
-clipsRouter.post("/:id/subtitles/transcribe", jsonBody, async (req, res) => {
-  const clipId = clipIdSchema.parse(req.params.id);
-  const customLines = Array.isArray(req.body?.lines) ? req.body.lines : undefined;
-  await transcribeClipSubtitles(clipId, customLines);
-  const result = await getClipSubtitlesWithWordTimings(clipId);
-  res.json({ data: result });
-});
-
-// Toggle automatic subtitles on/off for a clip
-clipsRouter.patch("/:id/subtitles/toggle", jsonBody, async (req, res) => {
-  const clipId = clipIdSchema.parse(req.params.id);
-  const subtitleEnabled =
-    typeof req.body?.subtitleEnabled === "boolean"
-      ? req.body.subtitleEnabled
-      : undefined;
-  const subtitleStyleId =
-    typeof req.body?.subtitleStyleId === "string"
-      ? req.body.subtitleStyleId
-      : undefined;
-  const result = await toggleClipAutoSubtitles(
-    clipId,
-    subtitleEnabled,
-    subtitleStyleId
-  );
-  res.json({ data: result });
 });
 
 // Get clip metadata and subtitles

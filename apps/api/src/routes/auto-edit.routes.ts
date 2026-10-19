@@ -12,6 +12,13 @@ import {
   updateClipEditSettings,
 } from "../services/clip-edit-settings.service";
 import {
+  createCustomEditingStylePreset,
+  getEditingStylePresetById,
+  getSubtitleStylePresetById,
+  listEditingStylePresets,
+  listSubtitleStylePresets,
+} from "../services/editing-style-presets.service";
+import {
   createCustomMotionGraphicPreset,
   getMotionGraphicPresetById,
   listMotionGraphicPresets,
@@ -22,6 +29,66 @@ export const autoEditRouter = Router();
 // Get default auto-edit configuration & 3-pillar quick combo presets
 autoEditRouter.get("/defaults", (_req, res) => {
   res.json({ data: getDefaultEditSettings() });
+});
+
+// Get all 3 preset pillars in a single request
+autoEditRouter.get("/presets", async (_req, res) => {
+  const [editingStyles, motionGraphics, subtitleStyles] = await Promise.all([
+    listEditingStylePresets(),
+    listMotionGraphicPresets(),
+    listSubtitleStylePresets(),
+  ]);
+  res.json({
+    data: {
+      editingStyles,
+      motionGraphics,
+      subtitleStyles,
+      defaults: getDefaultEditSettings(),
+    },
+  });
+});
+
+// List all cinematic editing styles (built-in + custom AI-learned presets)
+autoEditRouter.get("/editing-styles", async (_req, res) => {
+  const presets = await listEditingStylePresets();
+  res.json({
+    data: presets,
+    meta: {
+      total: presets.length,
+      defaultId: "theo-podcast",
+    },
+  });
+});
+
+// Get detail and cinematic grading/zoom parameters for a specific editing style
+autoEditRouter.get("/editing-styles/:id", async (req, res) => {
+  const preset = await getEditingStylePresetById(req.params.id);
+  res.json({ data: preset });
+});
+
+// Create a custom cinematic editing style preset from a reference video/folder
+autoEditRouter.post("/editing-styles", jsonBody, async (req, res) => {
+  const input = createStylePresetSchema.parse(req.body ?? {});
+  const created = await createCustomEditingStylePreset(input);
+  res.status(201).json({ data: created });
+});
+
+// List all subtitle styles
+autoEditRouter.get("/subtitle-styles", async (_req, res) => {
+  const presets = await listSubtitleStylePresets();
+  res.json({
+    data: presets,
+    meta: {
+      total: presets.length,
+      defaultId: "theo-red-pill",
+    },
+  });
+});
+
+// Get detail for a specific subtitle style
+autoEditRouter.get("/subtitle-styles/:id", async (req, res) => {
+  const preset = await getSubtitleStylePresetById(req.params.id);
+  res.json({ data: preset });
 });
 
 // List all motion graphic styles (built-in + custom AI-learned presets)
