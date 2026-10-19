@@ -12,6 +12,10 @@ import {
   updateClipEditSettings,
 } from "../services/clip-edit-settings.service";
 import {
+  applyEditSettingsToRenderPipeline,
+  buildClipRenderPipelineSpec,
+} from "../services/clip-render-pipeline.service";
+import {
   createCustomEditingStylePreset,
   getEditingStylePresetById,
   getSubtitleStylePresetById,
@@ -140,5 +144,27 @@ autoEditRouter.post("/clips/:id/settings/reset", async (req, res) => {
   const result = await resetClipEditSettingsToDefault(clipId);
   res.json({ data: result });
 });
+
+// Get compiled 3-pillar render pipeline spec & live preview layers for a clip
+autoEditRouter.get("/clips/:id/preview-pipeline", async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const spec = await buildClipRenderPipelineSpec(clipId);
+  res.json({ data: spec });
+});
+
+// Apply per-clip edit settings into the clip render pipeline and create/update render_jobs
+autoEditRouter.post("/clips/:id/apply-to-render", jsonBody, async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const overrideSettings =
+    req.body && Object.keys(req.body).length > 0
+      ? clipEditSettingsInputSchema.parse(req.body)
+      : undefined;
+  const result = await applyEditSettingsToRenderPipeline(
+    clipId,
+    overrideSettings
+  );
+  res.json({ data: result });
+});
+
 
 
