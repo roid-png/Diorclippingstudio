@@ -26,6 +26,7 @@ import {
   defaultSubtitleStyles,
 } from "@/features/auto-edit/mock-data";
 import { RenderClipQueueCard } from "@/features/render/components/RenderClipQueueCard";
+import { RenderProgressTelemetryPanel } from "@/features/render/components/RenderProgressTelemetryPanel";
 import {
   RenderQueueFilterBar,
   type RenderFilterTab,
@@ -71,7 +72,7 @@ function RenderAndDownloadPage() {
                 subtitleStyleName: subStyle.name,
                 subtitleEnabled: Boolean(matched.config.subtitleEnabled),
                 highlightColor:
-                  matched.config.highlightColor || subStyle.accentColor,
+                  matched.config.highlightColor || rc.pillarConfig.highlightColor,
               },
             };
           });
@@ -568,6 +569,14 @@ function RenderAndDownloadPage() {
           </div>
         </div>
       </div>
+
+      {/* Real-Time Progress & ETA Telemetry Panel */}
+      <RenderProgressTelemetryPanel
+        clips={clips}
+        speedMode={speedMode}
+        resolution={resolution}
+        fps={fps}
+      />
 
       {/* Filter & Batch Action Bar */}
       <RenderQueueFilterBar

@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "9802d9be1964b32c0513b01297af1de9bd1f4676",
+  "generatedForCommit": "5c8c685c5a883f7f133c18ecbe672d1794ca591c",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -468,7 +468,7 @@
       "path": "apps/api/src/services/video-cutter.service.ts",
       "reason": "changed",
       "language": "typescript",
-      "size": 11774
+      "size": 15642
     },
     {
       "path": "apps/api/src/services/viral-scoring.service.ts",
@@ -723,14 +723,26 @@
       "size": 1180
     },
     {
-      "path": "apps/web/src/features/render/mock-data.ts",
+      "path": "apps/web/src/features/render/components/RenderClipQueueCard.tsx",
       "reason": "new",
+      "language": "typescript",
+      "size": 14077
+    },
+    {
+      "path": "apps/web/src/features/render/components/RenderQueueFilterBar.tsx",
+      "reason": "new",
+      "language": "typescript",
+      "size": 4845
+    },
+    {
+      "path": "apps/web/src/features/render/mock-data.ts",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 6191
     },
     {
       "path": "apps/web/src/features/render/types.ts",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 1443
     },
@@ -982,7 +994,7 @@
     },
     {
       "path": "apps/web/src/routes/_protected/auto-edit.tsx",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 20390
     },
@@ -994,9 +1006,9 @@
     },
     {
       "path": "apps/web/src/routes/_protected/render.tsx",
-      "reason": "new",
+      "reason": "changed",
       "language": "typescript",
-      "size": 30132
+      "size": 25479
     },
     {
       "path": "apps/web/src/routes/_protected/viral-clips.tsx",
@@ -1006,7 +1018,7 @@
     },
     {
       "path": "apps/web/src/routes/_protected.tsx",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 3592
     },
@@ -1018,7 +1030,7 @@
     },
     {
       "path": "apps/web/src/routeTree.gen.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 8939
     },

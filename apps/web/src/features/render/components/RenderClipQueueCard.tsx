@@ -187,6 +187,7 @@ export function RenderClipQueueCard({
 
             {/* 5-Stage Render Pipeline Progress Indicator */}
             <div className="pt-1.5 space-y-1.5">
+              {/* Progress Bar & Explicit Percentage + Frame Counter */}
               <div className="flex items-center justify-between text-xs">
                 <span
                   className={
@@ -204,22 +205,34 @@ export function RenderClipQueueCard({
                       "Terjadi kendala saat kompilasi container MP4. Klik Coba Lagi."
                     : clip.activeStepLabel}
                 </span>
-                <span className="font-bold text-slate-200">
-                  {isCompleted
-                    ? `100% • ${clip.completedAt || "Selesai"}`
-                    : isRendering
-                    ? `${clip.progress}% (ETA ~${clip.etaSeconds} dtk)`
-                    : isQueued
-                    ? "Menunggu Giliran..."
-                    : isFailed
-                    ? "Terhenti"
-                    : "0% (Siap)"}
-                </span>
+
+                <div className="flex items-center gap-2">
+                  <span className="hidden sm:inline text-[11px] font-mono text-slate-400">
+                    {Math.round(
+                      ((isCompleted ? 100 : clip.progress) / 100) *
+                        (clip.durationSeconds * clip.fps)
+                    )}
+                    /{clip.durationSeconds * clip.fps} frames
+                  </span>
+                  <span
+                    className={`rounded-md px-2 py-0.5 text-xs font-black ${
+                      isCompleted
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                        : isRendering
+                        ? "bg-red-500/25 text-red-200 border border-red-500/50"
+                        : isFailed
+                        ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                        : "bg-slate-800 text-slate-300 border border-slate-700"
+                    }`}
+                  >
+                    {isCompleted ? "100%" : `${clip.progress}%`}
+                  </span>
+                </div>
               </div>
 
-              <div className="h-2 w-full rounded-full bg-[#132a31] overflow-hidden">
+              <div className="h-2.5 w-full rounded-full bg-[#132a31] overflow-hidden p-0.5">
                 <div
-                  className={`h-full transition-all duration-300 ${
+                  className={`h-full rounded-full transition-all duration-300 ${
                     isCompleted
                       ? "bg-emerald-500"
                       : isRendering
