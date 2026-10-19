@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "68abe26e78b07eed457d1b21895c160478469233",
+  "generatedForCommit": "00d45b67f8be3084f0ebc6a32874e4e5d6304a18",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -442,7 +442,7 @@
     },
     {
       "path": "apps/api/src/routes/projects.routes.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 7377
     },
@@ -502,7 +502,7 @@
     },
     {
       "path": "apps/api/src/services/projects.service.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 19566
     },
@@ -721,6 +721,18 @@
       "reason": "needs_summary",
       "language": "typescript",
       "size": 530
+    },
+    {
+      "path": "apps/web/src/features/auth/components/AuthFormCard.tsx",
+      "reason": "new",
+      "language": "typescript",
+      "size": 14785
+    },
+    {
+      "path": "apps/web/src/features/auth/mock-users.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 1638
     },
     {
       "path": "apps/web/src/features/auto-edit/components/LivePreviewCanvas.tsx",
@@ -1078,21 +1090,21 @@
     },
     {
       "path": "apps/web/src/routes/_auth/sign-in.tsx",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 334
+      "size": 367
     },
     {
       "path": "apps/web/src/routes/_auth/sign-up.tsx",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 341
+      "size": 379
     },
     {
       "path": "apps/web/src/routes/_auth.tsx",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 787
+      "size": 2815
     },
     {
       "path": "apps/web/src/routes/_protected/admin.tsx",

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import {
+  AlertCircle,
   ArrowRight,
   CheckCircle2,
   Eye,
@@ -31,6 +32,52 @@ interface AuthFormCardProps {
   mode: "sign-in" | "sign-up";
 }
 
+interface FieldErrors {
+  name?: string;
+  email?: string;
+  password?: string;
+}
+
+function translateAuthError(
+  error: { code?: string; message?: string },
+  isSignUp: boolean
+): string {
+  const code = (error.code || "").toUpperCase();
+  const msg = (error.message || "").toLowerCase();
+
+  if (
+    code === "USER_ALREADY_EXISTS" ||
+    msg.includes("already exists") ||
+    msg.includes("email in use") ||
+    msg.includes("duplicate")
+  ) {
+    return "Alamat email ini sudah terdaftar. Silakan beralih ke tab 'Masuk ke Studio' atau gunakan Akun Tiruan di bawah.";
+  }
+  if (code === "INVALID_EMAIL" || msg.includes("invalid email")) {
+    return "Format alamat email tidak valid. Pastikan penulisan sesuai (contoh: nama@domain.com).";
+  }
+  if (
+    code === "INVALID_PASSWORD" ||
+    msg.includes("invalid password") ||
+    msg.includes("credentials") ||
+    msg.includes("wrong password")
+  ) {
+    return "Kata sandi yang Anda masukkan tidak cocok. Periksa kembali atau pilih salah satu Akun Tiruan di bawah.";
+  }
+  if (code === "USER_NOT_FOUND" || msg.includes("user not found")) {
+    return "Pengguna dengan email ini tidak ditemukan. Silakan buat akun baru di tab 'Daftar Akun Baru' atau pilih Akun Tiruan.";
+  }
+  if (code === "PASSWORD_TOO_SHORT" || msg.includes("short")) {
+    return "Kata sandi terlalu pendek. Masukkan minimal 8 karakter.";
+  }
+  if (code === "TOO_MANY_REQUESTS" || msg.includes("too many")) {
+    return "Terlalu banyak percobaan masuk. Demi keamanan, mohon tunggu beberapa menit sebelum mencoba kembali.";
+  }
+  return isSignUp
+    ? "Gagal membuat akun baru. Pastikan semua kolom telah diisi dengan benar."
+    : "Gagal masuk ke akun. Periksa kembali email dan kata sandi Anda atau gunakan Akun Tiruan.";
+}
+
 export function AuthFormCard({ mode }: AuthFormCardProps) {
   const signingUp = mode === "sign-up";
   const router = useRouter();
@@ -42,6 +89,7 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [selectedDemoUser, setSelectedDemoUser] = useState<string | null>(null);
 
   function handleSelectMockUser(user: MockUserAccount) {
@@ -50,11 +98,44 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
     setEmail(user.email);
     setPassword(DEFAULT_MOCK_PASSWORD);
     setError("");
+    setFieldErrors({});
+  }
+
+  function validateForm(): boolean {
+    const errors: FieldErrors = {};
+
+    if (signingUp) {
+      if (!name.trim()) {
+        errors.name = "Nama lengkap wajib diisi.";
+      } else if (name.trim().length < 2) {
+        errors.name = "Nama lengkap minimal 2 karakter.";
+      }
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim()) {
+      errors.email = "Alamat email wajib diisi.";
+    } else if (!emailRegex.test(email.trim())) {
+      errors.email = "Format email tidak valid (contoh: nama@domain.com).";
+    }
+
+    if (!password) {
+      errors.password = "Kata sandi wajib diisi.";
+    } else if (password.length < 8) {
+      errors.password = "Kata sandi minimal 8 karakter.";
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
+
+    if (!validateForm()) {
+      return;
+    }
 
     setPending(true);
     setError("");
@@ -92,12 +173,7 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
           }
         }
 
-        setError(
-          result.error.message ||
-            (signingUp
-              ? "Gagal membuat akun baru. Silakan periksa data Anda."
-              : "Email atau kata sandi tidak sesuai. Anda dapat menggunakan tombol Akun Tiruan di bawah.")
-        );
+        setError(translateAuthError(result.error, signingUp));
         return;
       }
 
@@ -238,9 +314,10 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
           </div>
         </div>
 
-        {/* Form Inputs */}
+        {/* Form Inputs with Indonesian Real-Time Validation */}
         <form
           onSubmit={handleSubmit}
+          noValidate
           className="space-y-4"
           aria-busy={pending}
           aria-describedby={error ? "auth-error" : undefined}
@@ -262,13 +339,25 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
                     name="name"
                     type="text"
                     autoComplete="name"
-                    placeholder="Nama lengkap atau channel"
+                    placeholder="Nama lengkap atau nama channel YouTube"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    className="pl-9 bg-[#061215] border-[#1e3c45] text-white text-xs sm:text-sm focus-visible:ring-cyan-500"
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      if (fieldErrors.name) {
+                        setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                      }
+                    }}
+                    className={`pl-9 bg-[#061215] text-white text-xs sm:text-sm focus-visible:ring-cyan-500 ${
+                      fieldErrors.name ? "border-rose-500 ring-1 ring-rose-500/50" : "border-[#1e3c45]"
+                    }`}
                   />
                 </div>
+                {fieldErrors.name && (
+                  <p className="flex items-center gap-1 text-[11px] text-rose-400 font-medium">
+                    <AlertCircle className="h-3 w-3 shrink-0" />
+                    <span>{fieldErrors.name}</span>
+                  </p>
+                )}
               </div>
             )}
 
@@ -285,11 +374,23 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
                   autoComplete="email"
                   placeholder="contoh@diorclipping.id"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="pl-9 bg-[#061215] border-[#1e3c45] text-white text-xs sm:text-sm focus-visible:ring-cyan-500"
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (fieldErrors.email) {
+                      setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                    }
+                  }}
+                  className={`pl-9 bg-[#061215] text-white text-xs sm:text-sm focus-visible:ring-cyan-500 ${
+                    fieldErrors.email ? "border-rose-500 ring-1 ring-rose-500/50" : "border-[#1e3c45]"
+                  }`}
                 />
               </div>
+              {fieldErrors.email && (
+                <p className="flex items-center gap-1 text-[11px] text-rose-400 font-medium">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  <span>{fieldErrors.email}</span>
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -313,10 +414,15 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
                   autoComplete={signingUp ? "new-password" : "current-password"}
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  className="pl-9 pr-10 bg-[#061215] border-[#1e3c45] text-white text-xs sm:text-sm focus-visible:ring-cyan-500"
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (fieldErrors.password) {
+                      setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                    }
+                  }}
+                  className={`pl-9 pr-10 bg-[#061215] text-white text-xs sm:text-sm focus-visible:ring-cyan-500 ${
+                    fieldErrors.password ? "border-rose-500 ring-1 ring-rose-500/50" : "border-[#1e3c45]"
+                  }`}
                 />
                 <button
                   type="button"
@@ -331,15 +437,22 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
                   )}
                 </button>
               </div>
+              {fieldErrors.password && (
+                <p className="flex items-center gap-1 text-[11px] text-rose-400 font-medium">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  <span>{fieldErrors.password}</span>
+                </p>
+              )}
             </div>
 
             {error && (
               <div
                 id="auth-error"
                 role="alert"
-                className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-3 text-xs leading-relaxed text-rose-300"
+                className="flex items-start gap-2 rounded-xl border border-rose-500/40 bg-rose-950/30 p-3 text-xs leading-relaxed text-rose-300"
               >
-                {error}
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+                <span>{error}</span>
               </div>
             )}
 
@@ -385,4 +498,3 @@ export function AuthFormCard({ mode }: AuthFormCardProps) {
     </div>
   );
 }
-
