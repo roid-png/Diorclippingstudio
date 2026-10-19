@@ -15,6 +15,13 @@
       "when": 1792344805522,
       "tag": "0001_early_sentry",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792380722481,
+      "tag": "0002_fearless_hobgoblin",
+      "breakpoints": true
     }
   ]
 }
