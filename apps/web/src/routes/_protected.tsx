@@ -58,6 +58,9 @@ function ProtectedLayout() {
               <Link to="/render" className={navLink}>
                 Render & Unduh
               </Link>
+              <Link to="/project-history" className={navLink}>
+                Riwayat Proyek
+              </Link>
               {canAdmin && (
                 <Link to="/admin" className={navLink}>
                   Admin

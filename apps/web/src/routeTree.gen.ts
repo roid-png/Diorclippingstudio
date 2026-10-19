@@ -18,6 +18,7 @@ import { Route as ProtectedAdminRouteImport } from './routes/_protected/admin'
 import { Route as ProtectedAppRouteImport } from './routes/_protected/app'
 import { Route as ProtectedAutoEditRouteImport } from './routes/_protected/auto-edit'
 import { Route as ProtectedNotesRouteImport } from './routes/_protected/notes'
+import { Route as ProtectedProjectHistoryRouteImport } from './routes/_protected/project-history'
 import { Route as ProtectedRenderRouteImport } from './routes/_protected/render'
 import { Route as ProtectedViralClipsRouteImport } from './routes/_protected/viral-clips'
 
@@ -64,6 +65,11 @@ const ProtectedNotesRoute = ProtectedNotesRouteImport.update({
   path: '/notes',
   getParentRoute: () => ProtectedRoute,
 } as any)
+const ProtectedProjectHistoryRoute = ProtectedProjectHistoryRouteImport.update({
+  id: '/project-history',
+  path: '/project-history',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 const ProtectedRenderRoute = ProtectedRenderRouteImport.update({
   id: '/render',
   path: '/render',
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof ProtectedAppRoute
   '/auto-edit': typeof ProtectedAutoEditRoute
   '/notes': typeof ProtectedNotesRoute
+  '/project-history': typeof ProtectedProjectHistoryRoute
   '/render': typeof ProtectedRenderRoute
   '/viral-clips': typeof ProtectedViralClipsRoute
 }
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/app': typeof ProtectedAppRoute
   '/auto-edit': typeof ProtectedAutoEditRoute
   '/notes': typeof ProtectedNotesRoute
+  '/project-history': typeof ProtectedProjectHistoryRoute
   '/render': typeof ProtectedRenderRoute
   '/viral-clips': typeof ProtectedViralClipsRoute
 }
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/_protected/app': typeof ProtectedAppRoute
   '/_protected/auto-edit': typeof ProtectedAutoEditRoute
   '/_protected/notes': typeof ProtectedNotesRoute
+  '/_protected/project-history': typeof ProtectedProjectHistoryRoute
   '/_protected/render': typeof ProtectedRenderRoute
   '/_protected/viral-clips': typeof ProtectedViralClipsRoute
 }
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/auto-edit'
     | '/notes'
+    | '/project-history'
     | '/render'
     | '/viral-clips'
   fileRoutesByTo: FileRoutesByTo
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/auto-edit'
     | '/notes'
+    | '/project-history'
     | '/render'
     | '/viral-clips'
   id:
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/_protected/app'
     | '/_protected/auto-edit'
     | '/_protected/notes'
+    | '/_protected/project-history'
     | '/_protected/render'
     | '/_protected/viral-clips'
   fileRoutesById: FileRoutesById
@@ -220,6 +232,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedNotesRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/project-history': {
+      id: '/_protected/project-history'
+      path: '/project-history'
+      fullPath: '/project-history'
+      preLoaderRoute: typeof ProtectedProjectHistoryRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/render': {
       id: '/_protected/render'
       path: '/render'
@@ -254,6 +273,7 @@ interface ProtectedRouteChildren {
   ProtectedAppRoute: typeof ProtectedAppRoute
   ProtectedAutoEditRoute: typeof ProtectedAutoEditRoute
   ProtectedNotesRoute: typeof ProtectedNotesRoute
+  ProtectedProjectHistoryRoute: typeof ProtectedProjectHistoryRoute
   ProtectedRenderRoute: typeof ProtectedRenderRoute
   ProtectedViralClipsRoute: typeof ProtectedViralClipsRoute
 }
@@ -263,6 +283,7 @@ const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedAppRoute: ProtectedAppRoute,
   ProtectedAutoEditRoute: ProtectedAutoEditRoute,
   ProtectedNotesRoute: ProtectedNotesRoute,
+  ProtectedProjectHistoryRoute: ProtectedProjectHistoryRoute,
   ProtectedRenderRoute: ProtectedRenderRoute,
   ProtectedViralClipsRoute: ProtectedViralClipsRoute,
 }
