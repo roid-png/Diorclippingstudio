@@ -22,6 +22,12 @@ import {
   type MotionGraphicPreset,
   type SubtitleStylePreset,
 } from "@/features/studio/presets";
+import { StudioQuotaBanner } from "@/features/studio/components/StudioQuotaBanner";
+import {
+  getPersistentSession,
+  updatePersistentUserQuota,
+  resetPersistentUserQuota,
+} from "@/features/auth/session-storage";
 
 export const Route = createFileRoute("/_protected/app")({
   head: () => ({ meta: [{ title: `Studio Potong Video | ${siteConfig.name}` }] }),
@@ -87,12 +93,44 @@ function StudioPotongVideoPage() {
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Initial sync with persistent session
+    const syncQuota = () => {
+      const session = getPersistentSession();
+      if (session) {
+        setUserQuota({
+          total: session.dailyQuota || 50,
+          used: session.usedQuota || 0,
+        });
+      }
+    };
+    syncQuota();
+
+    // Listen to changes across tabs or other components
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", syncQuota);
+      return () => {
+        window.removeEventListener("storage", syncQuota);
+        if (progressTimerRef.current) {
+          clearInterval(progressTimerRef.current);
+        }
+      };
+    }
+
     return () => {
       if (progressTimerRef.current) {
         clearInterval(progressTimerRef.current);
       }
     };
   }, []);
+
+  const handleResetQuota = () => {
+    const reset = resetPersistentUserQuota();
+    setUserQuota({
+      total: reset.dailyQuota,
+      used: 0,
+    });
+    setErrorMessage(null);
+  };
 
   const handleTogglePlayInline = (clipId: string) => {
     setActivePlayingClipId((prev) => (prev === clipId ? null : clipId));
@@ -224,7 +262,8 @@ function StudioPotongVideoPage() {
             `Selesai! Berhasil memotong ${clippingLimit} klip (${duration}s) dengan Gaya Editing "${activeEditingName}" & Subtitle "${activeSubtitleName}". Kuota terpakai: ${clippingLimit}.`
           );
 
-          // Deduct user quota
+          // Deduct user quota and sync persistent storage
+          updatePersistentUserQuota(clippingLimit);
           setUserQuota((prev) => ({
             ...prev,
             used: Math.min(prev.total, prev.used + clippingLimit),
@@ -265,6 +304,13 @@ function StudioPotongVideoPage() {
           </span>
         </div>
       </div>
+
+      {/* Prominent Daily Clip Quota Display */}
+      <StudioQuotaBanner
+        totalQuota={userQuota.total}
+        usedQuota={userQuota.used}
+        onResetQuota={handleResetQuota}
+      />
 
       {/* Main Control Panel with YouTube Validation & Title Confirmation */}
       <StudioControlPanel

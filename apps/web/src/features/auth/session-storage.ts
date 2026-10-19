@@ -72,3 +72,39 @@ export function clearPersistentSession(): void {
   }
 }
 
+/**
+ * Updates persistent quota in localStorage and dispatches a storage event for multi-tab/component sync.
+ */
+export function updatePersistentUserQuota(
+  amount: number,
+  isAbsolute: boolean = false
+): StoredSessionUser {
+  const current = getPersistentSession() || DEFAULT_DEMO_USER;
+  const newUsed = isAbsolute
+    ? Math.max(0, Math.min(current.dailyQuota, amount))
+    : Math.max(0, Math.min(current.dailyQuota, current.usedQuota + amount));
+
+  const updated: StoredSessionUser = {
+    ...current,
+    usedQuota: newUsed,
+  };
+
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(MOCK_SESSION_STORAGE_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("storage"));
+    } catch {
+      // ignore
+    }
+  }
+
+  return updated;
+}
+
+/**
+ * Resets quota to 0 used (simulating 00:00 WIB daily reset).
+ */
+export function resetPersistentUserQuota(): StoredSessionUser {
+  return updatePersistentUserQuota(0, true);
+}
+
