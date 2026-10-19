@@ -94,6 +94,9 @@ function ProtectedLayout() {
               <Link to="/project-history" className={navLink}>
                 Riwayat Proyek
               </Link>
+              <Link to="/profile" className={navLink}>
+                Profil
+              </Link>
               {canAdmin && (
                 <Link to="/admin" className={navLink}>
                   Admin
@@ -103,13 +106,21 @@ function ProtectedLayout() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-xs font-bold text-cyan-300">
+            <Link
+              to="/profile"
+              title="Kelola Kuota & Profil"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/30 text-xs font-bold text-cyan-300 transition"
+            >
               <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
               <span>50 Kuota Harian</span>
-            </div>
+            </Link>
 
-            <div className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-xl bg-[#0f2125] border border-[#1b373e]">
-              <div className="w-6 h-6 rounded-full overflow-hidden border border-[#234b55] relative shrink-0 bg-[#162f35]">
+            <Link
+              to="/profile"
+              title="Pengaturan Profil Pengguna"
+              className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-xl bg-[#0f2125] hover:bg-[#142e34] border border-[#1b373e] hover:border-[#2cd3c6]/40 transition group"
+            >
+              <div className="w-6 h-6 rounded-full overflow-hidden border border-[#234b55] group-hover:border-[#2cd3c6] relative shrink-0 bg-[#162f35] transition">
                 <img
                   src={user.image || "/images/michael_avatar.png"}
                   alt={user.name}
@@ -117,14 +128,14 @@ function ProtectedLayout() {
                 />
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-xs font-bold text-gray-200 leading-tight">
+                <span className="text-xs font-bold text-gray-200 group-hover:text-white leading-tight transition">
                   {user.name}
                 </span>
                 <span className="text-[10px] text-slate-400 leading-none">
                   {user.role === "admin" ? "Pro Editor" : "Content Creator"}
                 </span>
               </div>
-            </div>
+            </Link>
             <SignOutButton />
           </div>
         </div>
