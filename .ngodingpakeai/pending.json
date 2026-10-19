@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "6167fa0318dee40a8137930d90b44789ed277faf",
+  "generatedForCommit": "a357bfa9c6aeef6ab9ce115119fb4b58bb8306a4",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -268,7 +268,7 @@
     },
     {
       "path": "apps/api/src/db/schema/notifications.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 1408
     },
@@ -402,7 +402,7 @@
       "path": "apps/api/src/routes/clips.routes.ts",
       "reason": "changed",
       "language": "typescript",
-      "size": 14197
+      "size": 14185
     },
     {
       "path": "apps/api/src/routes/health.routes.ts",
@@ -412,15 +412,21 @@
     },
     {
       "path": "apps/api/src/routes/index.ts",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 930
+      "size": 1046
     },
     {
       "path": "apps/api/src/routes/notes.routes.ts",
       "reason": "needs_summary",
       "language": "typescript",
       "size": 1960
+    },
+    {
+      "path": "apps/api/src/routes/notifications.routes.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 3200
     },
     {
       "path": "apps/api/src/routes/projects.routes.ts",
@@ -432,7 +438,7 @@
       "path": "apps/api/src/routes/render.routes.ts",
       "reason": "changed",
       "language": "typescript",
-      "size": 3302
+      "size": 3486
     },
     {
       "path": "apps/api/src/routes/youtube.routes.ts",
@@ -477,6 +483,12 @@
       "size": 2811
     },
     {
+      "path": "apps/api/src/services/notifications.service.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 6426
+    },
+    {
       "path": "apps/api/src/services/projects.service.ts",
       "reason": "needs_summary",
       "language": "typescript",
@@ -484,7 +496,7 @@
     },
     {
       "path": "apps/api/src/services/render-jobs.service.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 11021
     },
@@ -1282,9 +1294,9 @@
     },
     {
       "path": "packages/shared/package.json",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "json",
-      "size": 674
+      "size": 745
     },
     {
       "path": "packages/shared/src/permissions.ts",
@@ -1315,6 +1327,12 @@
       "reason": "needs_summary",
       "language": "typescript",
       "size": 897
+    },
+    {
+      "path": "packages/shared/src/validators/notifications.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 1427
     },
     {
       "path": "packages/shared/src/validators/projects.ts",

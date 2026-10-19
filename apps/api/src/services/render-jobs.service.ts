@@ -3,6 +3,7 @@ import { db } from "../db";
 import { clips, notifications, projects, renderJobs } from "../db/schema";
 import { HttpError } from "../lib/http-error";
 import { buildClipRenderPipelineSpec } from "./clip-render-pipeline.service";
+import { getClipEditSettings } from "./clip-edit-settings.service";
 
 export interface StartRenderJobOptions {
   speedMode?: "turbo-fast" | "cinema-hq";
@@ -400,12 +401,57 @@ export async function cancelRenderJob(clipId: string) {
 }
 
 /**
- * Retries a failed render job.
+ * Retries a failed or cancelled render job without losing custom edit settings (subtitles, motion graphics, edit style).
  */
 export async function retryRenderJob(
   clipId: string,
   options: StartRenderJobOptions = {}
 ) {
-  return startRenderJob(clipId, options);
+  const [existingJob] = await db
+    .select()
+    .from(renderJobs)
+    .where(eq(renderJobs.clipId, clipId))
+    .orderBy(desc(renderJobs.createdAt))
+    .limit(1);
+
+  // Preserve custom 3-pillar settings configured by the user
+  const preservedEditSettings = await getClipEditSettings(clipId);
+
+  // Preserve existing configuration options if not explicitly overridden
+  const mergedOptions: StartRenderJobOptions = {
+    speedMode:
+      options.speedMode ||
+      (existingJob?.speedMode as "turbo-fast" | "cinema-hq") ||
+      "turbo-fast",
+    resolution:
+      options.resolution ||
+      (existingJob?.resolution as "1080x1920" | "720x1280") ||
+      "1080x1920",
+    fps: options.fps || (existingJob?.fps as 60 | 30) || 60,
+    namingPattern: options.namingPattern || "dior-viral-rank",
+    userId: options.userId,
+  };
+
+  const result = await startRenderJob(clipId, mergedOptions);
+
+  // Send informational notification about retry preserving settings
+  if (result.job && mergedOptions.userId) {
+    await db.insert(notifications).values({
+      userId: mergedOptions.userId,
+      clipId,
+      renderJobId: result.job.id,
+      type: "info",
+      title: "Mencoba Lagi Render",
+      message: `Render diulang untuk klip ini dengan pengaturan 3 pilar tetap dipertahankan (${preservedEditSettings.editingStyleId} • ${preservedEditSettings.motionGraphicId} • ${preservedEditSettings.subtitleStyleId}).`,
+      fileName: result.fileName,
+      isRead: false,
+    });
+  }
+
+  return {
+    ...result,
+    isRetry: true,
+    preservedEditSettings,
+  };
 }
 
