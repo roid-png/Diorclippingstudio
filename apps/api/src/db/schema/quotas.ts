@@ -27,11 +27,32 @@ export const quotas = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
+  (table) => [index("quotas_user_idx").on(table.userId)],
+);
+
+export const clipUsages = pgTable(
+  "clip_usages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id"),
+    clipsUsed: integer("clips_used").notNull(),
+    remainingAfter: integer("remaining_after").notNull(),
+    sourceTitle: text("source_title"),
+    actionType: text("action_type").default("auto_cut").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
   (table) => [
-    index("quotas_user_idx").on(table.userId),
+    index("clip_usages_user_idx").on(table.userId),
+    index("clip_usages_created_idx").on(table.createdAt),
   ],
 );
 
 export type Quota = typeof quotas.$inferSelect;
 export type NewQuota = typeof quotas.$inferInsert;
-
+export type ClipUsage = typeof clipUsages.$inferSelect;
+export type NewClipUsage = typeof clipUsages.$inferInsert;

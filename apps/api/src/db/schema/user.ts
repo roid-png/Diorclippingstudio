@@ -1,4 +1,4 @@
-import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -10,6 +10,9 @@ export const user = pgTable("user", {
   avatarUrl: text("avatar_url").default("/images/michael_avatar.png"),
   bio: text("bio"),
   badge: text("badge").default("Content Creator"),
+  dailyQuota: integer("daily_quota").default(50).notNull(),
+  usedQuota: integer("used_quota").default(0).notNull(),
+  quotaResetAt: timestamp("quota_reset_at", { withTimezone: true }),
   // Better Auth admin plugin. `role` holds one name, or several separated by
   // commas. Signup cannot set it; see packages/shared/src/permissions.ts.
   role: text("role").default("user"),

@@ -50,6 +50,13 @@
       "when": 1792395112606,
       "tag": "0006_huge_bruce_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792395983174,
+      "tag": "0007_fast_doctor_strange",
+      "breakpoints": true
     }
   ]
 }
