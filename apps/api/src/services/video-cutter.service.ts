@@ -213,7 +213,10 @@ const candidateMomentsBank: ViralMomentCandidate[] = [
 /**
  * Service to automatically cut video segments based on calculated viral potential scores
  */
-export async function autoCutProjectVideo(projectId: string) {
+export async function autoCutProjectVideo(
+  projectId: string,
+  overrideMaxClips?: number
+) {
   const [project] = await db
     .select()
     .from(projects)
@@ -225,7 +228,9 @@ export async function autoCutProjectVideo(projectId: string) {
   }
 
   // Calculate segment count bounded by maxClips (1 to 10)
-  const clipCount = Math.min(Math.max(1, project.maxClips), 10);
+  const rawTargetClips =
+    typeof overrideMaxClips === "number" ? overrideMaxClips : project.maxClips;
+  const clipCount = Math.min(Math.max(1, rawTargetClips), 10);
   const duration = project.clipDuration || 45;
 
   // Score and rank candidate viral moments from the knowledge bank
@@ -252,6 +257,9 @@ export async function autoCutProjectVideo(projectId: string) {
   const rankedCandidates = rankViralCandidates(scoredCandidates, clipCount);
 
   const createdClipsWithSubtitles = await db.transaction(async (tx) => {
+    // Clear existing clips if re-cutting project
+    await tx.delete(clips).where(eq(clips.projectId, project.id));
+
     const results = [];
 
     for (let i = 0; i < rankedCandidates.length; i++) {
@@ -301,10 +309,10 @@ export async function autoCutProjectVideo(projectId: string) {
       });
     }
 
-    // 3. Update project status to completed
+    // 3. Update project status to completed and sync maxClips
     await tx
       .update(projects)
-      .set({ status: "completed" })
+      .set({ status: "completed", maxClips: clipCount })
       .where(eq(projects.id, project.id));
 
     return results;
@@ -317,6 +325,7 @@ export interface GetProjectClipsOptions {
   sortBy?: "viral-desc" | "viral-asc" | "timeline-asc" | "duration-desc";
   category?: string;
   limit?: number;
+  maxClips?: number;
 }
 
 export async function getProjectClips(
@@ -324,10 +333,14 @@ export async function getProjectClips(
   options: GetProjectClipsOptions = {}
 ) {
   const sortBy = options.sortBy || "viral-desc";
-  const maxLimit =
-    typeof options.limit === "number"
-      ? Math.min(Math.max(1, options.limit), 10)
+  const requestedLimit =
+    typeof options.maxClips === "number"
+      ? options.maxClips
+      : typeof options.limit === "number"
+      ? options.limit
       : 10;
+  const maxLimit = Math.min(Math.max(1, requestedLimit), 10);
+
 
   const orderByClause =
     sortBy === "viral-asc"
@@ -388,5 +401,122 @@ export async function getProjectClips(
   }
 
   return clipsWithSubtitles.slice(0, maxLimit);
+}
+
+export const MAX_FAVORITE_CLIPS_PER_PROJECT = 10;
+
+export async function toggleClipFavorite(
+  clipId: string,
+  forceState?: boolean
+) {
+  const [targetClip] = await db
+    .select()
+    .from(clips)
+    .where(eq(clips.id, clipId))
+    .limit(1);
+
+  if (!targetClip) {
+    throw new HttpError(404, "CLIP_NOT_FOUND", "Klip tidak ditemukan.");
+  }
+
+  const nextSelected =
+    typeof forceState === "boolean" ? forceState : !targetClip.isSelected;
+
+  if (nextSelected && !targetClip.isSelected) {
+    const existingSelected = await db
+      .select({ id: clips.id })
+      .from(clips)
+      .where(
+        and(
+          eq(clips.projectId, targetClip.projectId),
+          eq(clips.isSelected, true)
+        )
+      );
+
+    if (existingSelected.length >= MAX_FAVORITE_CLIPS_PER_PROJECT) {
+      throw new HttpError(
+        400,
+        "MAX_FAVORITES_EXCEEDED",
+        `Batas maksimal ${MAX_FAVORITE_CLIPS_PER_PROJECT} klip favorit telah tercapai untuk proyek ini.`
+      );
+    }
+  }
+
+  const [updatedClip] = await db
+    .update(clips)
+    .set({ isSelected: nextSelected })
+    .where(eq(clips.id, clipId))
+    .returning();
+
+  const updatedSelectedList = await db
+    .select({ id: clips.id })
+    .from(clips)
+    .where(
+      and(
+        eq(clips.projectId, targetClip.projectId),
+        eq(clips.isSelected, true)
+      )
+    )
+    .orderBy(asc(clips.rank));
+
+  return {
+    clip: updatedClip,
+    selectedCount: updatedSelectedList.length,
+    maxAllowed: MAX_FAVORITE_CLIPS_PER_PROJECT,
+    selectedClipIds: updatedSelectedList.map((item) => item.id),
+  };
+}
+
+export async function batchUpdateFavoriteClips(
+  projectId: string,
+  clipIds: string[]
+) {
+  const uniqueClipIds = Array.from(new Set(clipIds));
+  if (uniqueClipIds.length > MAX_FAVORITE_CLIPS_PER_PROJECT) {
+    throw new HttpError(
+      400,
+      "MAX_FAVORITES_EXCEEDED",
+      `Maksimal ${MAX_FAVORITE_CLIPS_PER_PROJECT} klip favorit yang dapat dipilih.`
+    );
+  }
+
+  const projectClips = await db
+    .select()
+    .from(clips)
+    .where(eq(clips.projectId, projectId))
+    .orderBy(asc(clips.rank));
+
+  if (projectClips.length === 0) {
+    throw new HttpError(
+      404,
+      "CLIPS_NOT_FOUND",
+      "Tidak ada klip yang ditemukan untuk proyek ini."
+    );
+  }
+
+  const selectedSet = new Set(uniqueClipIds);
+
+  await db.transaction(async (tx) => {
+    for (const clip of projectClips) {
+      const shouldBeSelected = selectedSet.has(clip.id);
+      if (clip.isSelected !== shouldBeSelected) {
+        await tx
+          .update(clips)
+          .set({ isSelected: shouldBeSelected })
+          .where(eq(clips.id, clip.id));
+      }
+    }
+  });
+
+  const validSelectedIds = projectClips
+    .filter((clip) => selectedSet.has(clip.id))
+    .map((clip) => clip.id);
+
+  return {
+    projectId,
+    selectedCount: validSelectedIds.length,
+    maxAllowed: MAX_FAVORITE_CLIPS_PER_PROJECT,
+    selectedClipIds: validSelectedIds,
+  };
 }
 

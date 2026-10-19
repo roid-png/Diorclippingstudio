@@ -5,19 +5,11 @@ import {
   Rocket,
   Download,
   CheckCircle2,
-  Clock,
   Sparkles,
   Film,
-  Layers,
-  Type,
-  Play,
-  RotateCcw,
   Zap,
   ArrowLeft,
-  Flame,
-  HardDrive,
   Cpu,
-  AlertTriangle,
   FileVideo,
 } from "lucide-react";
 import {
@@ -33,6 +25,11 @@ import {
   defaultMotionGraphics,
   defaultSubtitleStyles,
 } from "@/features/auto-edit/mock-data";
+import { RenderClipQueueCard } from "@/features/render/components/RenderClipQueueCard";
+import {
+  RenderQueueFilterBar,
+  type RenderFilterTab,
+} from "@/features/render/components/RenderQueueFilterBar";
 
 export const Route = createFileRoute("/_protected/render")({
   head: () => ({ meta: [{ title: `Render Cepat & Unduh | ${siteConfig.name}` }] }),
@@ -74,7 +71,7 @@ function RenderAndDownloadPage() {
                 subtitleStyleName: subStyle.name,
                 subtitleEnabled: Boolean(matched.config.subtitleEnabled),
                 highlightColor:
-                  matched.config.highlightColor || subStyle.highlightColor,
+                  matched.config.highlightColor || subStyle.accentColor,
               },
             };
           });
@@ -86,6 +83,7 @@ function RenderAndDownloadPage() {
     return initialRenderClips;
   });
 
+  const [activeFilter, setActiveFilter] = useState<RenderFilterTab>("all");
   const [speedMode, setSpeedMode] = useState<RenderSpeedMode>("turbo-fast");
   const [resolution, setResolution] = useState<"1080x1920" | "720x1280">(
     "1080x1920"
@@ -165,11 +163,27 @@ function RenderAndDownloadPage() {
     }
   }, [clips]);
 
-  const completedClips = clips.filter((c) => c.status === "completed");
+  const counts = {
+    all: clips.length,
+    completed: clips.filter((c) => c.status === "completed").length,
+    rendering: clips.filter((c) => c.status === "rendering").length,
+    queued: clips.filter((c) => c.status === "queued").length,
+    idle: clips.filter((c) => c.status === "idle").length,
+    failed: clips.filter((c) => c.status === "failed").length,
+  };
+
+  const selectedClips = clips.filter((c) => c.isSelectedForRender);
   const renderingClips = clips.filter(
     (c) => c.status === "rendering" || c.status === "queued"
   );
-  const selectedClips = clips.filter((c) => c.isSelectedForRender);
+
+  const filteredClips = clips.filter((c) => {
+    if (activeFilter === "all") return true;
+    if (activeFilter === "rendering") {
+      return c.status === "rendering" || c.status === "queued";
+    }
+    return c.status === activeFilter;
+  });
 
   const overallProgress =
     selectedClips.length > 0
@@ -193,6 +207,7 @@ function RenderAndDownloadPage() {
               activeStepId: "crop-9-16",
               activeStepLabel: RENDER_PIPELINE_STEPS[0].label,
               etaSeconds: 4,
+              errorMessage: undefined,
               resolution,
               fps,
             }
@@ -200,6 +215,53 @@ function RenderAndDownloadPage() {
       )
     );
     setStatusBanner("Memulai proses Render Cepat (Turbo NVENC 9:16)...");
+  };
+
+  const handleCancelRender = (clipId: string) => {
+    setClips((prev) =>
+      prev.map((c) =>
+        c.id === clipId
+          ? {
+              ...c,
+              status: "idle",
+              progress: 0,
+              activeStepId: "crop-9-16",
+              activeStepLabel: "Render dibatalkan • Siap dirender ulang",
+              etaSeconds: 5,
+            }
+          : c
+      )
+    );
+    setStatusBanner("Proses render pada klip telah dibatalkan.");
+  };
+
+  const handleRetryRender = (clipId: string) => {
+    handleStartSingleRender(clipId);
+    setStatusBanner("Mengulang proses render dengan pemulihan otomatis...");
+  };
+
+  const handleSimulateError = () => {
+    const target =
+      clips.find((c) => c.status === "idle") || clips[clips.length - 1];
+    if (!target) return;
+    setClips((prev) =>
+      prev.map((c) =>
+        c.id === target.id
+          ? {
+              ...c,
+              status: "failed",
+              progress: 62,
+              activeStepId: "motion-hud",
+              activeStepLabel: "Gagal pada tahap komposit layer HUD",
+              errorMessage:
+                "Buffer GPU penuh saat komposit layer Motion HUD. Klik Coba Lagi (Retry) untuk melanjutkan.",
+            }
+          : c
+      )
+    );
+    setStatusBanner(
+      `Simulasi kendala diaktifkan pada "${target.title}". Silakan uji tombol Coba Lagi (Retry).`
+    );
   };
 
   const handleStartBatchRenderAll = () => {
@@ -215,6 +277,7 @@ function RenderAndDownloadPage() {
             progress: 12,
             activeStepId: "crop-9-16",
             activeStepLabel: RENDER_PIPELINE_STEPS[0].label,
+            errorMessage: undefined,
             resolution,
             fps,
           };
@@ -224,6 +287,7 @@ function RenderAndDownloadPage() {
           status: "queued",
           progress: 0,
           activeStepLabel: "Dalam antrean Render Cepat...",
+          errorMessage: undefined,
           resolution,
           fps,
         };
@@ -244,6 +308,37 @@ function RenderAndDownloadPage() {
     );
   };
 
+  const handleSelectAll = () => {
+    setClips((prev) =>
+      prev.map((c, idx) => ({ ...c, isSelectedForRender: idx < 10 }))
+    );
+  };
+
+  const handleSelectTop3 = () => {
+    setClips((prev) =>
+      prev.map((c) => ({ ...c, isSelectedForRender: c.rank <= 3 }))
+    );
+    setStatusBanner("Berhasil memilih Top 3 Klip Rekomendasi Utama untuk dirender.");
+  };
+
+  const handleResetAllToIdle = () => {
+    setClips((prev) =>
+      prev.map((c, idx) =>
+        idx === 0
+          ? c
+          : {
+              ...c,
+              status: "idle",
+              progress: 0,
+              activeStepId: "crop-9-16",
+              activeStepLabel: "Siap dirender dengan preset 3 pilar",
+              errorMessage: undefined,
+            }
+      )
+    );
+    setStatusBanner("Status antrean telah direset.");
+  };
+
   const handleTriggerDownload = (clip: RenderClipItem) => {
     const link = document.createElement("a");
     link.href = clip.videoUrl;
@@ -251,7 +346,9 @@ function RenderAndDownloadPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    setStatusBanner(`Mengunduh "${clip.downloadFileName}" (${clip.fileSizeMb} MB)...`);
+    setStatusBanner(
+      `Mengunduh "${clip.downloadFileName}" (${clip.fileSizeMb} MB)...`
+    );
   };
 
   return (
@@ -331,7 +428,7 @@ function RenderAndDownloadPage() {
               <Rocket className="h-4 w-4" />
               {renderingClips.length > 0
                 ? `Merender (${renderingClips.length} Klip)...`
-                : `Render Cepat Semua (${selectedClips.length} Klip)`}
+                : `Render Cepat Pilihan (${selectedClips.length} Klip)`}
             </button>
           </div>
         </div>
@@ -363,7 +460,9 @@ function RenderAndDownloadPage() {
             </div>
             <p className="mt-2 text-2xl font-black text-white">
               {selectedClips.length}{" "}
-              <span className="text-xs font-normal text-slate-400">/ 10 klip</span>
+              <span className="text-xs font-normal text-slate-400">
+                / 10 klip
+              </span>
             </p>
             <p className="mt-1 text-[11px] text-slate-400">
               Terurut berdasarkan skor viral
@@ -376,7 +475,7 @@ function RenderAndDownloadPage() {
               <CheckCircle2 className="h-4 w-4 text-emerald-400" />
             </div>
             <p className="mt-2 text-2xl font-black text-emerald-400">
-              {completedClips.length}{" "}
+              {counts.completed}{" "}
               <span className="text-xs font-normal text-slate-400">video</span>
             </p>
             <p className="mt-1 text-[11px] text-slate-400">
@@ -470,192 +569,59 @@ function RenderAndDownloadPage() {
         </div>
       </div>
 
+      {/* Filter & Batch Action Bar */}
+      <RenderQueueFilterBar
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+        counts={counts}
+        selectedCount={selectedClips.length}
+        onSelectAll={handleSelectAll}
+        onSelectTop3={handleSelectTop3}
+        onResetAllToIdle={handleResetAllToIdle}
+        onSimulateError={handleSimulateError}
+      />
+
       {/* Render Queue & Download Cards */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <FileVideo className="h-5 w-5 text-red-400" />
-            Daftar Antrean Render & Unduh Klip ({clips.length} Klip)
+            Daftar Klip & Status Render ({filteredClips.length} Klip)
           </h2>
           <span className="text-xs text-slate-400">
             Menampilkan konfigurasi 3 Pilar yang dipilih dari halaman Edit Otomatis
           </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-4">
-          {clips.map((clip) => {
-            const isCompleted = clip.status === "completed";
-            const isRendering = clip.status === "rendering";
-            const isQueued = clip.status === "queued";
-
-            return (
-              <div
+        {filteredClips.length === 0 ? (
+          <div className="rounded-2xl border border-[#1b3942] bg-[#0b1a1f]/70 p-10 text-center space-y-3">
+            <p className="text-sm font-bold text-slate-200">
+              Tidak ada klip dengan status &ldquo;{activeFilter}&rdquo; saat ini.
+            </p>
+            <button
+              type="button"
+              onClick={() => setActiveFilter("all")}
+              className="rounded-xl bg-[#16343d] px-4 py-2 text-xs font-bold text-white hover:bg-[#1d4450] cursor-pointer"
+            >
+              Tampilkan Semua Klip ({clips.length})
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {filteredClips.map((clip) => (
+              <RenderClipQueueCard
                 key={clip.id}
-                className={`rounded-2xl border p-4 sm:p-5 transition-all ${
-                  isRendering
-                    ? "border-red-500/60 bg-gradient-to-r from-[#131d24] via-[#191922] to-[#11242b] shadow-lg shadow-red-950/30"
-                    : isCompleted
-                    ? "border-emerald-500/40 bg-[#0b1e24]"
-                    : "border-[#1b3942] bg-[#0b1a1f]"
-                }`}
-              >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  {/* Left: Clip Info + 3 Pillars */}
-                  <div className="flex items-start gap-4 flex-1">
-                    <input
-                      type="checkbox"
-                      checked={clip.isSelectedForRender}
-                      onChange={() => handleToggleSelectClip(clip.id)}
-                      aria-label={`Pilih ${clip.title}`}
-                      className="mt-1.5 h-4 w-4 rounded border-slate-600 bg-slate-900 text-red-600 focus:ring-red-500 cursor-pointer"
-                    />
-
-                    {/* Mini 9:16 Video Thumbnail */}
-                    <div className="relative h-24 w-14 shrink-0 overflow-hidden rounded-xl border border-[#254954] bg-black">
-                      <video
-                        src={clip.videoUrl}
-                        muted
-                        playsInline
-                        preload="metadata"
-                        className="h-full w-full object-cover opacity-85"
-                      />
-                      <div className="absolute top-1 left-1 rounded bg-black/80 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">
-                        #{clip.rank}
-                      </div>
-                      <div className="absolute bottom-1 inset-x-1 text-center rounded bg-red-600/90 text-[9px] font-bold text-white">
-                        {clip.durationSeconds}s
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-xs font-bold text-amber-300">
-                          <Flame className="h-3 w-3" />
-                          Skor Viral {clip.viralScore}%
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          Timestamp {clip.startTimeFormatted} – {clip.endTimeFormatted}
-                        </span>
-                        <span className="text-xs text-slate-400">•</span>
-                        <span className="inline-flex items-center gap-1 text-xs text-slate-300">
-                          <HardDrive className="h-3 w-3 text-slate-400" />
-                          {clip.fileSizeMb} MB ({clip.resolution} • {clip.fps}FPS)
-                        </span>
-                      </div>
-
-                      <h3 className="text-base sm:text-lg font-bold text-white truncate">
-                        {clip.title}
-                      </h3>
-
-                      {/* 3-Pillar Active Badges */}
-                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-950/60 border border-red-500/30 px-2.5 py-1 text-xs font-medium text-red-200">
-                          <Film className="h-3.5 w-3.5 text-red-400" />
-                          Edit: {clip.pillarConfig.editingStyleName}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-950/50 border border-amber-500/30 px-2.5 py-1 text-xs font-medium text-amber-200">
-                          <Layers className="h-3.5 w-3.5 text-amber-400" />
-                          Motion: {clip.pillarConfig.motionGraphicName}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-950/50 border border-emerald-500/30 px-2.5 py-1 text-xs font-medium text-emerald-200">
-                          <Type className="h-3.5 w-3.5 text-emerald-400" />
-                          Subtitle:{" "}
-                          {clip.pillarConfig.subtitleEnabled
-                            ? clip.pillarConfig.subtitleStyleName
-                            : "Nonaktif"}
-                        </span>
-                      </div>
-
-                      {/* Progress Bar & Pipeline Step */}
-                      <div className="pt-1">
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span
-                            className={
-                              isCompleted
-                                ? "text-emerald-300 font-medium"
-                                : isRendering
-                                ? "text-red-300 font-semibold"
-                                : "text-slate-400"
-                            }
-                          >
-                            {clip.activeStepLabel}
-                          </span>
-                          <span className="font-bold text-slate-200">
-                            {isCompleted
-                              ? "100% Selesai"
-                              : isRendering
-                              ? `${clip.progress}% (ETA ~${clip.etaSeconds}d)`
-                              : isQueued
-                              ? "Menunggu Antrean"
-                              : "Siap Render"}
-                          </span>
-                        </div>
-                        <div className="h-2 w-full rounded-full bg-[#142c33] overflow-hidden">
-                          <div
-                            className={`h-full transition-all duration-300 ${
-                              isCompleted
-                                ? "bg-emerald-500"
-                                : isRendering
-                                ? "bg-gradient-to-r from-red-600 via-amber-500 to-emerald-400"
-                                : "bg-slate-700"
-                            }`}
-                            style={{
-                              width: `${isCompleted ? 100 : clip.progress}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: Action Buttons */}
-                  <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setPreviewModalClip(clip)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#244854] bg-[#122830] px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-[#193540] hover:text-white transition cursor-pointer"
-                    >
-                      <Play className="h-3.5 w-3.5 text-amber-400" />
-                      Pratinjau Hasil
-                    </button>
-
-                    {!isCompleted ? (
-                      <button
-                        type="button"
-                        onClick={() => handleStartSingleRender(clip.id)}
-                        disabled={isRendering}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-500 disabled:opacity-50 transition cursor-pointer"
-                      >
-                        <Zap className="h-3.5 w-3.5" />
-                        {isRendering ? "Merender..." : "Render Cepat"}
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleStartSingleRender(clip.id)}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-[#244854] bg-[#102329] px-3 py-2 text-xs font-medium text-slate-300 hover:text-white transition cursor-pointer"
-                          title="Render Ulang"
-                        >
-                          <RotateCcw className="h-3.5 w-3.5" />
-                          Render Ulang
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleTriggerDownload(clip)}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-emerald-950/50 hover:bg-emerald-500 transition cursor-pointer"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          Unduh MP4 ({clip.fileSizeMb} MB)
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                clip={clip}
+                onToggleSelect={handleToggleSelectClip}
+                onStartRender={handleStartSingleRender}
+                onCancelRender={handleCancelRender}
+                onRetryRender={handleRetryRender}
+                onOpenPreview={setPreviewModalClip}
+                onDownloadClip={handleTriggerDownload}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Preview Modal */}
