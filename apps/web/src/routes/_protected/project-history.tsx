@@ -15,11 +15,14 @@ import {
   FolderOpen,
   Plus,
   RotateCcw,
+  Eye,
 } from "lucide-react";
 import { initialProjectHistoryItems } from "@/features/project-history/mock-data";
 import { ProjectStatusBadge } from "@/features/project-history/components/ProjectStatusBadge";
 import { ProjectHistoryEmptyState } from "@/features/project-history/components/ProjectHistoryEmptyState";
+import { ProjectHistoryDetailModal } from "@/features/project-history/components/ProjectHistoryDetailModal";
 import type {
+  ProjectClipSummary,
   ProjectHistoryItem,
   ProjectSourceType,
   ProjectWorkflowStage,
@@ -50,6 +53,8 @@ function ProjectHistoryPage() {
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(
     "proj-101"
   );
+  const [detailModalProject, setDetailModalProject] =
+    useState<ProjectHistoryItem | null>(null);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
 
   const filteredProjects = projects
@@ -486,6 +491,15 @@ function ProjectHistoryPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
+                        onClick={() => setDetailModalProject(proj)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-purple-500/40 bg-purple-950/35 px-3 py-2 text-xs font-bold text-purple-200 hover:bg-purple-900/50 hover:text-white transition cursor-pointer"
+                      >
+                        <Eye className="h-3.5 w-3.5 text-purple-300" />
+                        Detail Proyek
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() =>
                           setExpandedProjectId(isExpanded ? null : proj.id)
                         }
@@ -598,6 +612,27 @@ function ProjectHistoryPage() {
           })}
         </div>
       )}
+
+      {/* Archived Project Detail Modal */}
+      <ProjectHistoryDetailModal
+        project={detailModalProject}
+        onClose={() => setDetailModalProject(null)}
+        onDownloadClip={(proj: ProjectHistoryItem, clip: ProjectClipSummary) => {
+          const link = document.createElement("a");
+          link.href = clip.videoUrl;
+          link.download = `DIOR-Arsip_${proj.id}_Rank0${clip.rank}_Score${clip.viralScore}.mp4`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setBannerMessage(
+            `Mengunduh klip arsip "${clip.title}" (${clip.fileSizeMb} MB)...`
+          );
+        }}
+        onResumeProject={(proj: ProjectHistoryItem) => {
+          setDetailModalProject(null);
+          handleResumeProject(proj);
+        }}
+      />
     </div>
   );
 }
