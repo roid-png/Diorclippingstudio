@@ -43,6 +43,13 @@
       "when": 1792389301786,
       "tag": "0005_long_demogoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792395112606,
+      "tag": "0006_huge_bruce_banner",
+      "breakpoints": true
     }
   ]
 }
