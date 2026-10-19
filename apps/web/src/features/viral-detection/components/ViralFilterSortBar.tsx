@@ -1,4 +1,4 @@
-import { Search, SlidersHorizontal, CheckSquare, Square } from "lucide-react";
+import { Search, SlidersHorizontal, CheckSquare, Square, Scissors } from "lucide-react";
 import type { HookCategory, ViralFilterState } from "../types";
 
 interface ViralFilterSortBarProps {
@@ -8,6 +8,8 @@ interface ViralFilterSortBarProps {
   selectedClipsCount: number;
   onSelectAll: () => void;
   onDeselectAll: () => void;
+  clipLimit?: number;
+  setClipLimit?: (limit: number) => void;
 }
 
 export function ViralFilterSortBar({
@@ -17,6 +19,8 @@ export function ViralFilterSortBar({
   selectedClipsCount,
   onSelectAll,
   onDeselectAll,
+  clipLimit = 10,
+  setClipLimit,
 }: ViralFilterSortBarProps) {
   const categories: Array<{ id: HookCategory; label: string; icon: string }> = [
     { id: "all", label: `Semua (${totalClipsCount})`, icon: "⚡" },
@@ -71,6 +75,69 @@ export function ViralFilterSortBar({
         </div>
       </div>
 
+      {/* Middle Row: Kontrol Input Jumlah Klip (1 - 10) */}
+      {setClipLimit && (
+        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t border-[#1b373e]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-[#8ca4aa] font-medium flex items-center gap-1.5">
+              <Scissors className="w-3.5 h-3.5 text-[#2cd3c6]" />
+              <span>Batas Klip Ditampilkan:</span>
+            </span>
+
+            {/* Grid 1 to 10 */}
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+                const isActive = clipLimit === num;
+                return (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setClipLimit(num)}
+                    className={`w-6.5 h-6.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center select-none cursor-pointer ${
+                      isActive
+                        ? "bg-[#20b2aa] text-white shadow-[0_0_8px_rgba(32,178,170,0.5)] font-bold scale-105"
+                        : "bg-[#14282e] text-[#8fa4aa] hover:bg-[#1b3840] hover:text-white"
+                    }`}
+                  >
+                    {num}
+                  </button>
+                );
+              })}
+            </div>
+
+            <span className="text-[10px] text-[#2cd3c6] font-mono bg-[#0c2429] px-2 py-0.5 rounded border border-[#2cd3c6]/30">
+              Top {clipLimit} Klip
+            </span>
+          </div>
+
+          {/* Quick presets */}
+          <div className="flex items-center gap-1.5 text-xs text-[#7d9399]">
+            <span className="text-[11px]">Pintasan:</span>
+            <button
+              type="button"
+              onClick={() => setClipLimit(3)}
+              className="px-2 py-0.5 rounded-md bg-[#132c32] hover:bg-[#193c44] text-[#2cd3c6] text-[10px] font-semibold border border-[#2cd3c6]/30 cursor-pointer transition"
+            >
+              Top 3
+            </button>
+            <button
+              type="button"
+              onClick={() => setClipLimit(5)}
+              className="px-2 py-0.5 rounded-md bg-[#132c32] hover:bg-[#193c44] text-[#2cd3c6] text-[10px] font-semibold border border-[#2cd3c6]/30 cursor-pointer transition"
+            >
+              Top 5
+            </button>
+            <button
+              type="button"
+              onClick={() => setClipLimit(10)}
+              className="px-2 py-0.5 rounded-md bg-[#132c32] hover:bg-[#193c44] text-[#2cd3c6] text-[10px] font-semibold border border-[#2cd3c6]/30 cursor-pointer transition"
+            >
+              Maks 10
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Bottom Row: Sorting & Multi-select Counter */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#1b373e]">
         {/* Selection status */}
@@ -85,11 +152,11 @@ export function ViralFilterSortBar({
             ) : (
               <Square className="w-3.5 h-3.5 text-[#6f8a91]" />
             )}
-            <span>{allSelected ? "Batalkan Pilihan" : "Pilih Semua (Maks 10)"}</span>
+            <span>{allSelected ? "Batalkan Pilihan" : `Pilih Semua (${clipLimit} Klip)`}</span>
           </button>
 
           <span className="text-xs text-[#7d9399]">
-            <strong className="text-[#2cd3c6]">{selectedClipsCount}</strong> dari {totalClipsCount} klip dipilih
+            <strong className="text-[#2cd3c6]">{selectedClipsCount}</strong> dari {clipLimit} klip dipilih
           </span>
         </div>
 

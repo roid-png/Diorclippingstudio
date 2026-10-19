@@ -36,6 +36,7 @@ function DeteksiMomenViralPage() {
     sortBy: "viral-desc",
     searchQuery: "",
   });
+  const [clipLimit, setClipLimit] = useState<number>(10);
 
   const selectedCount = clips.filter((c) => c.isSelected).length;
   const isMaxFavoritesReached = selectedCount >= MAX_FAVORITES;
@@ -122,8 +123,8 @@ function DeteksiMomenViralPage() {
       });
     }
 
-    return result;
-  }, [clips, filter]);
+    return result.slice(0, clipLimit);
+  }, [clips, filter, clipLimit]);
 
   const handleBatchDownload = () => {
     const selected = clips.filter((c) => c.isSelected);
@@ -202,7 +203,7 @@ function DeteksiMomenViralPage() {
       {/* 4 Stats Cards */}
       <ViralStatsOverview clips={clips} />
 
-      {/* Filter & Sorting Bar */}
+      {/* Filter & Sorting Bar with 1-10 Limit Control */}
       <ViralFilterSortBar
         filter={filter}
         setFilter={setFilter}
@@ -210,6 +211,8 @@ function DeteksiMomenViralPage() {
         selectedClipsCount={selectedCount}
         onSelectAll={handleSelectAll}
         onDeselectAll={handleDeselectAll}
+        clipLimit={clipLimit}
+        setClipLimit={setClipLimit}
       />
 
       {/* 4-Columns Grid: Aspect 9:16 Viral Moments */}
