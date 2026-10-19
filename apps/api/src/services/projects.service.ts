@@ -180,3 +180,51 @@ export async function getProjectStatusAndClips(userId: string, projectId: string
     updatedAt: project.updatedAt,
   };
 }
+
+export async function updateProjectMaxClips(
+  userId: string,
+  projectId: string,
+  maxClips: number,
+  regenerateClips = false
+) {
+  if (!Number.isInteger(maxClips) || maxClips < 1 || maxClips > 10) {
+    throw new HttpError(
+      400,
+      "INVALID_MAX_CLIPS",
+      "Parameter jumlah klip (maxClips) harus berupa bilangan bulat antara 1 hingga 10."
+    );
+  }
+
+  const [existingProject] = await db
+    .select()
+    .from(projects)
+    .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
+    .limit(1);
+
+  if (!existingProject) {
+    throw new HttpError(404, "NOT_FOUND", "Proyek tidak ditemukan.");
+  }
+
+  const [updatedProject] = await db
+    .update(projects)
+    .set({ maxClips })
+    .where(eq(projects.id, projectId))
+    .returning();
+
+  const existingClips = await db
+    .select()
+    .from(clips)
+    .where(eq(clips.projectId, projectId));
+
+  if (regenerateClips || existingClips.length < maxClips) {
+    await autoCutProjectVideo(projectId, maxClips);
+  }
+
+  const slicedClips = await getProjectClips(projectId, { maxClips });
+
+  return {
+    project: updatedProject,
+    maxClips,
+    clips: slicedClips,
+  };
+}

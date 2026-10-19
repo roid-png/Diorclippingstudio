@@ -40,3 +40,36 @@ export const batchSelectFavoriteClipsSchema = z
 
 export type BatchSelectFavoriteClipsInput = z.infer<typeof batchSelectFavoriteClipsSchema>;
 
+export const maxClipsParamSchema = z.coerce
+  .number()
+  .int("Jumlah klip harus berupa bilangan bulat.")
+  .min(1, "Jumlah klip minimal 1.")
+  .max(10, "Jumlah klip maksimal 10.")
+  .default(10);
+
+export const updateProjectMaxClipsSchema = z
+  .object({
+    maxClips: z.coerce
+      .number()
+      .int("Jumlah klip harus berupa bilangan bulat.")
+      .min(1, "Jumlah klip minimal 1.")
+      .max(10, "Jumlah klip maksimal 10."),
+    regenerateClips: z.boolean().optional().default(false),
+  })
+  .strict();
+
+export type UpdateProjectMaxClipsInput = z.infer<typeof updateProjectMaxClipsSchema>;
+
+export const listClipsQuerySchema = z.object({
+  projectId: z.string().uuid().optional(),
+  sortBy: z
+    .enum(["viral-desc", "viral-asc", "timeline-asc", "duration-desc"])
+    .optional()
+    .default("viral-desc"),
+  category: z.string().optional().default("all"),
+  maxClips: maxClipsParamSchema.optional(),
+  limit: maxClipsParamSchema.optional(),
+});
+
+export type ListClipsQueryInput = z.infer<typeof listClipsQuerySchema>;
+

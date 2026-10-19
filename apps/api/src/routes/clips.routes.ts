@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { asc, desc, eq } from "drizzle-orm";
 import {
   clipIdSchema,
+  maxClipsParamSchema,
   toggleFavoriteClipSchema,
 } from "@starter/shared/validators/projects";
 import { db } from "../db";
@@ -40,7 +41,7 @@ function resolveVideoFilePath(clipId?: string): string | null {
   return null;
 }
 
-// Get sorted list of viral clips (with optional projectId, sortBy, category, and limit 1..10)
+// Get sorted list of viral clips (with optional projectId, sortBy, category, and maxClips/limit 1..10)
 clipsRouter.get("/", async (req, res) => {
   const projectId =
     typeof req.query.projectId === "string" ? req.query.projectId : undefined;
@@ -48,11 +49,9 @@ clipsRouter.get("/", async (req, res) => {
     typeof req.query.sortBy === "string" ? req.query.sortBy : "viral-desc";
   const category =
     typeof req.query.category === "string" ? req.query.category : "all";
-  const rawLimit =
-    typeof req.query.limit === "string" ? Number(req.query.limit) : 10;
-  const limit = Number.isNaN(rawLimit)
-    ? 10
-    : Math.min(Math.max(1, rawLimit), 10);
+  const rawMaxParam = req.query.maxClips ?? req.query.limit;
+  const limit =
+    rawMaxParam !== undefined ? maxClipsParamSchema.parse(rawMaxParam) : 10;
 
   const orderByClause =
     sortByRaw === "viral-asc"

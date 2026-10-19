@@ -213,7 +213,10 @@ const candidateMomentsBank: ViralMomentCandidate[] = [
 /**
  * Service to automatically cut video segments based on calculated viral potential scores
  */
-export async function autoCutProjectVideo(projectId: string) {
+export async function autoCutProjectVideo(
+  projectId: string,
+  overrideMaxClips?: number
+) {
   const [project] = await db
     .select()
     .from(projects)
@@ -225,7 +228,9 @@ export async function autoCutProjectVideo(projectId: string) {
   }
 
   // Calculate segment count bounded by maxClips (1 to 10)
-  const clipCount = Math.min(Math.max(1, project.maxClips), 10);
+  const rawTargetClips =
+    typeof overrideMaxClips === "number" ? overrideMaxClips : project.maxClips;
+  const clipCount = Math.min(Math.max(1, rawTargetClips), 10);
   const duration = project.clipDuration || 45;
 
   // Score and rank candidate viral moments from the knowledge bank
@@ -252,6 +257,9 @@ export async function autoCutProjectVideo(projectId: string) {
   const rankedCandidates = rankViralCandidates(scoredCandidates, clipCount);
 
   const createdClipsWithSubtitles = await db.transaction(async (tx) => {
+    // Clear existing clips if re-cutting project
+    await tx.delete(clips).where(eq(clips.projectId, project.id));
+
     const results = [];
 
     for (let i = 0; i < rankedCandidates.length; i++) {
@@ -301,10 +309,10 @@ export async function autoCutProjectVideo(projectId: string) {
       });
     }
 
-    // 3. Update project status to completed
+    // 3. Update project status to completed and sync maxClips
     await tx
       .update(projects)
-      .set({ status: "completed" })
+      .set({ status: "completed", maxClips: clipCount })
       .where(eq(projects.id, project.id));
 
     return results;
@@ -317,6 +325,7 @@ export interface GetProjectClipsOptions {
   sortBy?: "viral-desc" | "viral-asc" | "timeline-asc" | "duration-desc";
   category?: string;
   limit?: number;
+  maxClips?: number;
 }
 
 export async function getProjectClips(
@@ -324,10 +333,14 @@ export async function getProjectClips(
   options: GetProjectClipsOptions = {}
 ) {
   const sortBy = options.sortBy || "viral-desc";
-  const maxLimit =
-    typeof options.limit === "number"
-      ? Math.min(Math.max(1, options.limit), 10)
+  const requestedLimit =
+    typeof options.maxClips === "number"
+      ? options.maxClips
+      : typeof options.limit === "number"
+      ? options.limit
       : 10;
+  const maxLimit = Math.min(Math.max(1, requestedLimit), 10);
+
 
   const orderByClause =
     sortBy === "viral-asc"
