@@ -11,7 +11,8 @@ import {
   Check,
   Flame,
   Info,
-  Tag,
+  Crown,
+  Star,
 } from "lucide-react";
 import type { ViralClipItem } from "../types";
 import { getCategoryMeta, getViralScoreMeta } from "../types";
@@ -112,7 +113,7 @@ export function ViralMomentCard({
 
       const blob = new Blob(
         [
-          `Dior Clipping - Klip Viral Otomatis\nJudul: ${clip.title}\nKategori: ${catMeta.label}\nSkor Viral: ${clip.viralScoreFormatted} (${scoreMeta.label})\nDurasi: ${clip.duration} [${clip.timeRange}]\nSorotan: ${clip.highlightMoment}\nAlasan Viral: ${clip.whyViral}`,
+          `Dior Clipping - Klip Viral Otomatis\nJudul: ${clip.title}\nRank: #${clip.rank} ${clip.rank === 1 ? "(REKOMENDASI UTAMA)" : ""}\nKategori: ${catMeta.label}\nSkor Viral: ${clip.viralScoreFormatted} (${scoreMeta.label})\nDurasi: ${clip.duration} [${clip.timeRange}]\nSorotan: ${clip.highlightMoment}\nAlasan Viral: ${clip.whyViral}`,
         ],
         { type: "video/mp4" }
       );
@@ -145,10 +146,40 @@ export function ViralMomentCard({
     <div
       className={`bg-[#0e2125]/85 backdrop-blur-md border rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl transition-all duration-200 group text-slate-100 ${
         clip.isSelected
-          ? "border-[#20b2aa]/70 shadow-[0_0_15px_rgba(32,178,170,0.15)]"
+          ? clip.rank === 1
+            ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.3)]"
+            : "border-[#20b2aa]/80 shadow-[0_0_15px_rgba(32,178,170,0.2)]"
+          : clip.rank === 1
+          ? "border-amber-400/60 shadow-[0_0_18px_rgba(251,191,36,0.18)] hover:border-amber-400"
           : "border-[#1e3c43] hover:border-[#2cd3c6]/40"
       }`}
     >
+      {/* Rekomendasi Utama Banner for Rank #1 */}
+      {clip.rank === 1 && (
+        <div className="bg-gradient-to-r from-amber-500/25 via-yellow-500/20 to-amber-500/10 border border-amber-400/50 rounded-xl px-2.5 py-1.5 flex items-center justify-between text-[11px] font-bold text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.15)]">
+          <div className="flex items-center gap-1.5">
+            <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400 animate-bounce" />
+            <span>👑 REKOMENDASI UTAMA AI</span>
+          </div>
+          <span className="text-[9px] font-black uppercase text-amber-200 bg-amber-500/30 px-1.5 py-0.5 rounded border border-amber-400/40">
+            Top #1 Momen
+          </span>
+        </div>
+      )}
+
+      {/* Rekomendasi Unggulan Banner for Rank #2 & #3 */}
+      {clip.rank > 1 && clip.rank <= 3 && (
+        <div className="bg-gradient-to-r from-[#136f7c]/30 via-[#20b2aa]/20 to-transparent border border-[#2cd3c6]/40 rounded-xl px-2.5 py-1 flex items-center justify-between text-[11px] font-semibold text-[#2cd3c6]">
+          <div className="flex items-center gap-1.5">
+            <Star className="w-3.5 h-3.5 text-[#2cd3c6] fill-[#2cd3c6]" />
+            <span>Top Rekomendasi #{clip.rank}</span>
+          </div>
+          <span className="text-[9px] font-semibold text-cyan-200 bg-[#081e22] px-1.5 py-0.5 rounded border border-[#2cd3c6]/30">
+            Podium Viral
+          </span>
+        </div>
+      )}
+
       {/* 9:16 Aspect Locked Video Container */}
       <div
         onClick={handleTogglePlay}
@@ -184,7 +215,7 @@ export function ViralMomentCard({
             </span>
           </span>
 
-          {/* Label Kategori & Rank Badge */}
+          {/* Label Kategori & Rank Badge with Crown for #1 */}
           <div className="flex items-center gap-1">
             <span
               className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold tracking-tight border backdrop-blur-md flex items-center gap-0.5 ${catMeta.badgeClass}`}
@@ -192,8 +223,17 @@ export function ViralMomentCard({
               <span>{catMeta.icon}</span>
               <span>{catMeta.shortLabel}</span>
             </span>
-            <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-black/80 text-amber-300 border border-amber-400/40 shadow-xs">
-              #{clip.rank}
+            <span
+              className={`px-1.5 py-0.5 rounded-md text-[9px] border shadow-xs flex items-center gap-0.5 ${
+                clip.rank === 1
+                  ? "bg-gradient-to-r from-amber-400 to-yellow-300 text-black border-yellow-200 font-black shadow-[0_0_8px_rgba(251,191,36,0.5)]"
+                  : clip.rank <= 3
+                  ? "bg-[#2cd3c6] text-black border-cyan-200 font-bold"
+                  : "bg-black/80 text-amber-300 border-amber-400/40 font-bold"
+              }`}
+            >
+              {clip.rank === 1 && <Crown className="w-2.5 h-2.5 fill-black" />}
+              <span>#{clip.rank}</span>
             </span>
           </div>
         </div>

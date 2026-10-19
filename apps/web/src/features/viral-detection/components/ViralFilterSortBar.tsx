@@ -108,7 +108,7 @@ export function ViralFilterSortBar({
             }
             className="bg-[#14282e] border border-[#1f3e46] focus:border-[#2cd3c6] rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none cursor-pointer"
           >
-            <option value="viral-desc">🔥 Skor Viral Tertinggi (Rank #1 - #10)</option>
+            <option value="viral-desc">👑 Rekomendasi Utama AI (Skor Tertinggi #1 - #10)</option>
             <option value="viral-asc">📉 Skor Viral Terendah</option>
             <option value="timeline-asc">⏱️ Timeline Video Sumber</option>
             <option value="duration-desc">⏳ Durasi Klip Terpanjang</option>

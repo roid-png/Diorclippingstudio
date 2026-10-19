@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Flame, Sparkles, Check, Clock, TrendingUp, Layers, HelpCircle } from "lucide-react";
+import { X, Flame, Sparkles, Check, Clock, TrendingUp, HelpCircle, Crown, Star } from "lucide-react";
 import type { ViralClipItem } from "../types";
 import { getCategoryMeta, getViralScoreMeta } from "../types";
 
@@ -40,7 +40,7 @@ export function ViralMomentDetailModal({
         className="w-full max-w-2xl bg-[#0e2125] border border-[#2cd3c6]/40 rounded-2xl p-5 sm:p-6 shadow-2xl text-slate-100 flex flex-col max-h-[90vh] overflow-y-auto"
       >
         {/* Top Header: Skor Viral + Label Kategori + Rank */}
-        <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex flex-wrap items-center gap-2">
             {/* Viral Score Badge with Flame & Tier */}
             <span
@@ -78,6 +78,46 @@ export function ViralMomentDetailModal({
         <h3 className="text-base sm:text-lg font-bold text-white mb-2">
           {clip.title}
         </h3>
+
+        {/* Spotlight Banner for Rekomendasi Utama (Rank #1) */}
+        {clip.rank === 1 && (
+          <div className="bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-transparent border border-amber-400/50 rounded-xl p-3 flex items-start gap-2.5 mb-4 shadow-[0_0_15px_rgba(251,191,36,0.15)]">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/25 border border-amber-400/50 flex items-center justify-center shrink-0">
+              <Crown className="w-4 h-4 text-amber-400 fill-amber-400" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                <span>👑 Momen Rekomendasi Utama AI #1</span>
+                <span className="text-[10px] font-normal text-amber-200/80 bg-amber-500/20 px-1.5 py-0.2 rounded border border-amber-400/30">
+                  Prioritas Utama
+                </span>
+              </h4>
+              <p className="text-[11px] text-gray-200 mt-1 leading-relaxed">
+                Klip ini memiliki kombinasi retensi hook 3 detik tertinggi ({clip.metrics.hookRetention}%) dan skor viral teratas ({clip.viralScoreFormatted}). Sangat direkomendasikan untuk di-render pertama kali sebagai video pembuka.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Spotlight Banner for Rank #2 & #3 */}
+        {clip.rank > 1 && clip.rank <= 3 && (
+          <div className="bg-gradient-to-r from-[#136f7c]/25 via-[#2cd3c6]/15 to-transparent border border-[#2cd3c6]/40 rounded-xl p-3 flex items-start gap-2.5 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-[#20b2aa]/20 border border-[#2cd3c6]/40 flex items-center justify-center shrink-0">
+              <Star className="w-4 h-4 text-[#2cd3c6] fill-[#2cd3c6]" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-[#2cd3c6] flex items-center gap-1.5">
+                <span>Top 3 Rekomendasi Unggulan AI (Rank #{clip.rank})</span>
+                <span className="text-[10px] font-normal text-cyan-200/80 bg-[#0c272c] px-1.5 py-0.2 rounded border border-[#2cd3c6]/30">
+                  Podium FYP
+                </span>
+              </h4>
+              <p className="text-[11px] text-gray-200 mt-1 leading-relaxed">
+                Salah satu dari 3 segmen dengan performa terbaik di seluruh video sumber. Memiliki sentimen percakapan dinamis dan potensi retensi audiens tinggi.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* 2 Columns: Video Preview Thumbnail (Left) + AI Viral Breakdown (Right) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
