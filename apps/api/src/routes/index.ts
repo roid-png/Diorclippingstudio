@@ -7,6 +7,7 @@ import { youtubeRouter } from "./youtube.routes";
 import { projectsRouter } from "./projects.routes";
 import { clipsRouter } from "./clips.routes";
 import { autoEditRouter } from "./auto-edit.routes";
+import { renderRouter } from "./render.routes";
 
 // Mounted at /api. Add a router per resource and register it here.
 export const apiRouter = Router();
@@ -19,6 +20,7 @@ apiRouter.use("/youtube", youtubeRouter);
 apiRouter.use("/projects", projectsRouter);
 apiRouter.use("/clips", clipsRouter);
 apiRouter.use("/auto-edit", autoEditRouter);
+apiRouter.use("/render", renderRouter);
 
 
 

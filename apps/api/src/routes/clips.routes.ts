@@ -32,6 +32,12 @@ import {
   getViralScoreCategory,
   resolveHighlightMomentWithFallback,
 } from "../services/viral-scoring.service";
+import {
+  cancelRenderJob,
+  getRenderJobStatus,
+  retryRenderJob,
+  startRenderJob,
+} from "../services/render-jobs.service";
 
 export const clipsRouter = Router();
 
@@ -194,6 +200,46 @@ clipsRouter.post("/:id/render-pipeline", jsonBody, async (req, res) => {
     clipId,
     overrideSettings
   );
+  res.json({ data: result });
+});
+
+// Start fast GPU-accelerated render job for a clip
+clipsRouter.post("/:id/render", jsonBody, async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const result = await startRenderJob(clipId, {
+    speedMode: req.body?.speedMode,
+    resolution: req.body?.resolution,
+    fps: req.body?.fps,
+    namingPattern: req.body?.namingPattern,
+    userId: req.body?.userId,
+  });
+  res.status(201).json({ data: result });
+});
+
+// Get render status and progress telemetry for a clip
+clipsRouter.get("/:id/render", async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const result = await getRenderJobStatus(clipId);
+  res.json({ data: result });
+});
+
+// Cancel active render job for a clip
+clipsRouter.post("/:id/render/cancel", async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const result = await cancelRenderJob(clipId);
+  res.json({ data: result });
+});
+
+// Retry failed render job for a clip
+clipsRouter.post("/:id/render/retry", jsonBody, async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const result = await retryRenderJob(clipId, {
+    speedMode: req.body?.speedMode,
+    resolution: req.body?.resolution,
+    fps: req.body?.fps,
+    namingPattern: req.body?.namingPattern,
+    userId: req.body?.userId,
+  });
   res.json({ data: result });
 });
 
