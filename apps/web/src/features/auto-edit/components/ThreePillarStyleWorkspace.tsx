@@ -185,17 +185,17 @@ export function ThreePillarStyleWorkspace({
           </div>
         </div>
 
-        {/* Preset Cards Grid for Editing Style */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3.5">
+        {/* Preset Cards Grid for Editing Style with Mini Visual Previews */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3.5">
           {editingStyles.map((style) => {
             const isSelected = clip.config.editingStyleId === style.id;
             return (
               <div
                 key={style.id}
                 onClick={() => onUpdateConfig({ editingStyleId: style.id })}
-                className={`p-3 rounded-xl border transition-all cursor-pointer select-none flex flex-col justify-between gap-1.5 ${
+                className={`p-3 rounded-xl border transition-all cursor-pointer select-none flex flex-col justify-between gap-2 ${
                   isSelected
-                    ? "bg-[#14373f] border-[#2cd3c6] shadow-[0_0_15px_rgba(44,211,198,0.2)]"
+                    ? "bg-[#14373f] border-[#2cd3c6] shadow-[0_0_15px_rgba(44,211,198,0.25)]"
                     : "bg-[#12262b]/80 border-[#1d3940] hover:border-[#2cd3c6]/40"
                 }`}
               >
@@ -219,6 +219,120 @@ export function ThreePillarStyleWorkspace({
                     )}
                   </div>
                 </div>
+
+                {/* PRATINJAU MINI GAYA EDIT SINEMATIK (MINI FRAMING PREVIEW) */}
+                <div className="relative h-16 rounded-lg bg-[#061114] border border-white/10 overflow-hidden flex items-center justify-between px-2.5 py-1.5">
+                  {style.layout === "center-ambient" && (
+                    <>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-12 rounded border border-[#2cd3c6]/50 overflow-hidden relative bg-black flex flex-col justify-between p-0.5 shrink-0">
+                          <div className="h-2 w-full bg-cyan-500/25 rounded-xs" />
+                          <img
+                            src={clip.imageSrc}
+                            alt=""
+                            className="w-full h-6 object-cover rounded-xs"
+                          />
+                          <div className="h-2 w-full bg-rose-500/30 rounded-xs" />
+                        </div>
+                        <div>
+                          <div className="text-[9px] font-black text-[#2cd3c6] uppercase tracking-wider">
+                            PRATINJAU MINI: AMBIENT BLUR 9:16
+                          </div>
+                          <div className="text-[8px] text-gray-300 leading-tight mt-0.5">
+                            Frame 16:9 utuh di tengah + backdrop blur sinematik atas-bawah
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-[#13333a] text-[#2cd3c6] border border-[#2cd3c6]/30 shrink-0">
+                        9:16 AMBIENT
+                      </span>
+                    </>
+                  )}
+
+                  {style.layout === "full-crop" && (
+                    <>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-12 rounded border border-amber-400/50 overflow-hidden relative bg-black shrink-0">
+                          <img
+                            src={clip.imageSrc}
+                            alt=""
+                            className="w-full h-full object-cover contrast-125 sepia-[0.1]"
+                          />
+                          <div className="absolute inset-x-0 top-0 h-2 bg-black/90" />
+                          <div className="absolute inset-x-0 bottom-0 h-2 bg-black/90" />
+                        </div>
+                        <div>
+                          <div className="text-[9px] font-black text-amber-300 uppercase tracking-wider">
+                            PRATINJAU MINI: NETFLIX CINEMA
+                          </div>
+                          <div className="text-[8px] text-gray-300 leading-tight mt-0.5">
+                            Letterbox film dokumenter dengan color grade moody hangat
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-300 border border-amber-400/30 shrink-0">
+                        NETFLIX LUT
+                      </span>
+                    </>
+                  )}
+
+                  {style.layout === "split-screen" && (
+                    <>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-12 rounded border border-purple-400/50 overflow-hidden relative bg-black flex flex-col shrink-0">
+                          <img
+                            src={clip.imageSrc}
+                            alt=""
+                            className="w-full h-1/2 object-cover border-b border-[#2cd3c6]"
+                          />
+                          <img
+                            src={clip.imageSrc}
+                            alt=""
+                            className="w-full h-1/2 object-cover scale-125"
+                          />
+                        </div>
+                        <div>
+                          <div className="text-[9px] font-black text-purple-300 uppercase tracking-wider">
+                            PRATINJAU MINI: DUAL SPLIT SCREEN
+                          </div>
+                          <div className="text-[8px] text-gray-300 leading-tight mt-0.5">
+                            Layar atas (Narasumber) + Layar bawah (Host) tampil simultan
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-purple-950/60 text-purple-300 border border-purple-400/30 shrink-0">
+                        50:50 SPLIT
+                      </span>
+                    </>
+                  )}
+
+                  {style.layout === "talking-head" && (
+                    <>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-12 rounded border border-emerald-400/50 overflow-hidden relative bg-black shrink-0">
+                          <img
+                            src={clip.imageSrc}
+                            alt=""
+                            className="w-full h-full object-cover scale-125"
+                          />
+                          <div className="absolute inset-1.5 border border-dashed border-emerald-400/80 rounded-xs" />
+                        </div>
+                        <div>
+                          <div className="text-[9px] font-black text-emerald-300 uppercase tracking-wider">
+                            PRATINJAU MINI: AI FACE TRACKING
+                          </div>
+                          <div className="text-[8px] text-gray-300 leading-tight mt-0.5">
+                            Auto-crop vertikal mengikuti pergerakan wajah pembicara aktif
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-400/30 shrink-0">
+                        AUTO-TRACK
+                      </span>
+                    </>
+                  )}
+                </div>
+
                 <p className="text-[11px] text-[#93adb3] leading-snug">
                   {style.description}
                 </p>
@@ -352,7 +466,7 @@ export function ThreePillarStyleWorkspace({
 
                 {/* PRATINJAU MINI MOTION GRAPHIC (MINI VISUAL PREVIEW) */}
                 <div className="relative h-16 rounded-lg bg-[#071316] border border-white/10 overflow-hidden p-2 flex flex-col justify-between">
-                  {motion.type === "infographic-bar" && (
+                  {motion.type === "infographic-bars" && (
                     <>
                       <div className="flex items-center justify-between text-[8px] font-black text-white">
                         <span className="tracking-wider uppercase text-cyan-300">
@@ -406,7 +520,7 @@ export function ThreePillarStyleWorkspace({
                     </>
                   )}
 
-                  {motion.type === "lower-third" && (
+                  {motion.type === "stat-counter" && (
                     <>
                       <div className="flex items-center justify-between text-[8px] font-black">
                         <span className="text-amber-300 uppercase tracking-wider">
