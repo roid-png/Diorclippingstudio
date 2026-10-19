@@ -15,6 +15,7 @@
     "role:set": "tsx src/set-role.ts"
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@starter/shared": "workspace:*",
     "better-auth": "catalog:",
     "cors": "2.8.6",

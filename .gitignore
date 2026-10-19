@@ -23,3 +23,9 @@ coverage/
 .vercel/
 .claude/settings.local.json
 .codex/config.local.toml
+temp/
+outputs/
+*.mp4
+*.m4a
+*.ass
+

@@ -1,0 +1,26 @@
+{
+  "id": "netflix-cinematic",
+  "name": "Netflix Cinematic",
+  "description": "Format 9:16, color grading moody-sinematik, transisi fade/dissolve, subtitle sans-serif rapi di sepertiga bawah layar.",
+  "format": "9:16",
+  "width": 1080,
+  "height": 1920,
+  "colorGrading": "eq=contrast=1.12:brightness=-0.03:saturation=0.88",
+  "transition": "fade",
+  "subtitleStyle": {
+    "fontName": "Arial",
+    "fontSize": 24,
+    "primaryColor": "&H00FFFFFF",
+    "highlightColor": "&H0000D4FF",
+    "outlineColor": "&H00000000",
+    "outlineWidth": 2,
+    "alignment": 2,
+    "marginV": 80,
+    "bold": true,
+    "animation": "fade"
+  },
+  "motionGraphic": {
+    "progressBar": false,
+    "punchZoom": false
+  }
+}

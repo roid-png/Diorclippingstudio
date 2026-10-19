@@ -18,28 +18,28 @@ export async function getUserQuota(userId: string) {
 
   if (existingQuota) {
     return {
-      totalQuota: existingQuota.totalQuota,
+      totalQuota: 999999,
       usedQuota: existingQuota.usedQuota,
-      remainingQuota: Math.max(0, existingQuota.totalQuota - existingQuota.usedQuota),
+      remainingQuota: 999999,
       resetDate: existingQuota.resetDate,
     };
   }
 
-  // Initialize quota for new user (default: 50 total quota)
+  // Initialize unlimited quota for new user (default: 999999 total quota)
   const [createdQuota] = await db
     .insert(quotas)
     .values({
       userId,
-      totalQuota: 50,
+      totalQuota: 999999,
       usedQuota: 0,
     })
     .returning();
 
   return {
-    totalQuota: createdQuota.totalQuota,
-    usedQuota: createdQuota.usedQuota,
-    remainingQuota: createdQuota.totalQuota - createdQuota.usedQuota,
-    resetDate: createdQuota.resetDate,
+    totalQuota: 999999,
+    usedQuota: createdQuota ? createdQuota.usedQuota : 0,
+    remainingQuota: 999999,
+    resetDate: createdQuota ? createdQuota.resetDate : new Date(),
   };
 }
 

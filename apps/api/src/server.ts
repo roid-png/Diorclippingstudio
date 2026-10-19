@@ -26,6 +26,10 @@ const server = app.listen(env.PORT, env.HOST, async (error) => {
     { port: env.PORT, webOrigin: env.WEB_URL, database },
     `API listening on ${env.BETTER_AUTH_URL}`,
   );
+  try {
+    const { startAutoCleanupScheduler } = await import("./services/cleanup.service");
+    startAutoCleanupScheduler();
+  } catch {}
 });
 
 // Graceful shutdown. `pnpm dev` (tsx watch) restarts on every file change;

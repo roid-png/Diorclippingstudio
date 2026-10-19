@@ -142,14 +142,14 @@ export async function ensureUserDailyQuota(userId: string): Promise<QuotaSummary
           .where(eq(quotas.userId, userId))
           .returning();
         const used = resetRow?.usedQuota ?? 0;
-        const total = resetRow?.totalQuota ?? 50;
+        const total = 999999;
         const summary: QuotaSummary = {
           userId,
           totalQuota: total,
           usedQuota: used,
-          remainingQuota: Math.max(0, total - used),
+          remainingQuota: 999999,
           resetDate: (resetRow?.resetDate ?? nextReset).toISOString(),
-          resetTimeLabel: "00:00 WIB",
+          resetTimeLabel: "Unlimited (Bypass)",
         };
         inMemoryQuotas.set(userId, summary);
         return summary;
@@ -157,11 +157,11 @@ export async function ensureUserDailyQuota(userId: string): Promise<QuotaSummary
 
       const summary: QuotaSummary = {
         userId,
-        totalQuota: q.totalQuota,
+        totalQuota: 999999,
         usedQuota: q.usedQuota,
-        remainingQuota: Math.max(0, q.totalQuota - q.usedQuota),
+        remainingQuota: 999999,
         resetDate: (q.resetDate ?? nextReset).toISOString(),
-        resetTimeLabel: "00:00 WIB",
+        resetTimeLabel: "Unlimited (Bypass)",
       };
       inMemoryQuotas.set(userId, summary);
       return summary;
@@ -171,7 +171,7 @@ export async function ensureUserDailyQuota(userId: string): Promise<QuotaSummary
       .insert(quotas)
       .values({
         userId,
-        totalQuota: 50,
+        totalQuota: 999999,
         usedQuota: 0,
         resetDate: nextReset,
       })
@@ -180,11 +180,11 @@ export async function ensureUserDailyQuota(userId: string): Promise<QuotaSummary
     if (created) {
       const summary: QuotaSummary = {
         userId,
-        totalQuota: created.totalQuota,
-        usedQuota: created.usedQuota,
-        remainingQuota: Math.max(0, created.totalQuota - created.usedQuota),
+        totalQuota: 999999,
+        usedQuota: 0,
+        remainingQuota: 999999,
         resetDate: (created.resetDate ?? nextReset).toISOString(),
-        resetTimeLabel: "00:00 WIB",
+        resetTimeLabel: "Unlimited (Bypass)",
       };
       inMemoryQuotas.set(userId, summary);
       return summary;
@@ -195,26 +195,20 @@ export async function ensureUserDailyQuota(userId: string): Promise<QuotaSummary
 
   const cached = inMemoryQuotas.get(userId);
   if (cached) {
-    if (new Date(cached.resetDate) <= new Date()) {
-      const refreshed: QuotaSummary = {
-        ...cached,
-        usedQuota: 0,
-        remainingQuota: cached.totalQuota,
-        resetDate: nextReset.toISOString(),
-      };
-      inMemoryQuotas.set(userId, refreshed);
-      return refreshed;
-    }
-    return cached;
+    return {
+      ...cached,
+      totalQuota: 999999,
+      remainingQuota: 999999,
+    };
   }
 
   const fallback: QuotaSummary = {
     userId,
-    totalQuota: 50,
-    usedQuota: userId === "user-creator-demo" ? 5 : 0,
-    remainingQuota: userId === "user-creator-demo" ? 45 : 50,
+    totalQuota: 999999,
+    usedQuota: 0,
+    remainingQuota: 999999,
     resetDate: nextReset.toISOString(),
-    resetTimeLabel: "00:00 WIB",
+    resetTimeLabel: "Unlimited (Bypass)",
   };
   inMemoryQuotas.set(userId, fallback);
   return fallback;
@@ -686,42 +680,20 @@ export async function validateUserClipQuotaAvailable(
   clipCount: number
 ) {
   const normalizedCount = Math.floor(Number(clipCount));
-  if (!Number.isFinite(normalizedCount) || normalizedCount < 1 || normalizedCount > 10) {
-    throw new HttpError(
-      400,
-      "INVALID_CLIP_COUNT",
-      "Jumlah klip per proses harus antara 1 hingga maksimal 10 klip."
-    );
-  }
-
+  const count = !Number.isFinite(normalizedCount) || normalizedCount < 1 ? 5 : Math.min(10, normalizedCount);
   const targetUser = await getUserByIdOrDefault(userId);
   const currentQuota = await ensureUserDailyQuota(targetUser.id);
 
-  if (currentQuota.remainingQuota <= 0) {
-    const err = new HttpError(
-      403,
-      "QUOTA_EXHAUSTED",
-      "Kuota klip harian Anda telah habis (0/50 klip tersisa). Pembuatan klip ditolak hingga kuota direset otomatis pukul 00:00 WIB."
-    );
-    (err as any).quota = currentQuota;
-    throw err;
-  }
-
-  if (normalizedCount > currentQuota.remainingQuota) {
-    const err = new HttpError(
-      400,
-      "INSUFFICIENT_QUOTA",
-      `Jumlah klip yang dipilih (${normalizedCount} klip) melebihi sisa kuota harian Anda (${currentQuota.remainingQuota}/${currentQuota.totalQuota} klip tersisa). Silakan kurangi jumlah klip menjadi maksimal ${currentQuota.remainingQuota} klip.`
-    );
-    (err as any).quota = currentQuota;
-    throw err;
-  }
-
+  // Bypass quota rejection as per Fase 5 (unlimited quota)
   return {
     allowed: true,
-    requestedClips: normalizedCount,
-    remainingAfter: Math.max(0, currentQuota.remainingQuota - normalizedCount),
-    quota: currentQuota,
+    requestedClips: count,
+    remainingAfter: 999999,
+    quota: {
+      ...currentQuota,
+      totalQuota: 999999,
+      remainingQuota: 999999,
+    },
   };
 }
 

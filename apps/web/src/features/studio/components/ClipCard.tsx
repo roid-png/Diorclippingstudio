@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import {
   Download,
   Loader2,
@@ -19,31 +19,6 @@ interface ClipCardProps {
   onDownloadNotice?: (msg: string) => void;
 }
 
-function renderNetflixSubtitle(text: string) {
-  if (!text.includes("<hl>")) {
-    return <span>{text}</span>;
-  }
-  const parts = text.split(/(<hl>.*?<\/hl>)/g);
-  return (
-    <>
-      {parts.map((part, i) => {
-        if (part.startsWith("<hl>") && part.endsWith("</hl>")) {
-          const content = part.replace(/<\/?hl>/g, "");
-          return (
-            <span
-              key={i}
-              className="bg-red-600 text-white font-black px-1.5 py-0.5 rounded mx-1 shadow-xs tracking-normal inline-block"
-            >
-              {content}
-            </span>
-          );
-        }
-        return <span key={i}>{part}</span>;
-      })}
-    </>
-  );
-}
-
 export function ClipCard({
   clip,
   isPlayingInline = false,
@@ -53,42 +28,15 @@ export function ClipCard({
 }: ClipCardProps) {
   const [localPlaying, setLocalPlaying] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(true);
-  const [currentTime, setCurrentTime] = useState<number>(0);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [downloadSuccess, setDownloadSuccess] = useState<boolean>(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Parse total duration in seconds from duration string (e.g. "30s" -> 30)
-  const totalSeconds = parseInt(clip.duration.replace(/\D/g, ""), 10) || 30;
-
-  // Determine active playing state
   const isPlaying =
     onTogglePlayInline !== undefined ? isPlayingInline : localPlaying;
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (isPlaying) {
-      timerRef.current = setInterval(() => {
-        setCurrentTime((prev) => {
-          if (prev >= totalSeconds) {
-            return 0; // Loop playback
-          }
-          return prev + 1;
-        });
-      }, 1000);
-    } else {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [isPlaying, totalSeconds]);
+  const rawScore = parseInt(clip.viralScore.replace(/\D/g, ""), 10) || 95;
+  const scoreBadgeText = `🔥 Skor Viral: ${rawScore}/100`;
 
   const handleTogglePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -97,213 +45,169 @@ export function ClipCard({
     } else {
       setLocalPlaying((prev) => !prev);
     }
+
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play().catch(() => {});
+      } else {
+        videoRef.current.pause();
+      }
+    }
   };
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsDownloading(true);
     if (onDownloadNotice) {
-      onDownloadNotice(`Memproses unduhan ${clip.title}.mp4...`);
+      onDownloadNotice(`Memproses unduhan "${clip.title}"...`);
     }
+
+    // Direct download link from backend if available
+    const downloadTarget =
+      clip.downloadUrl ||
+      clip.videoUrl ||
+      `/api/download/dior_${clip.id}.mp4?download=true`;
+
+    const a = document.createElement("a");
+    a.href = downloadTarget;
+    a.download = `${clip.title.toLowerCase().replace(/[^a-z0-9]+/g, "_")}.mp4`;
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 
     setTimeout(() => {
       setIsDownloading(false);
       setDownloadSuccess(true);
       if (onDownloadNotice) {
-        onDownloadNotice(`Berhasil mengunduh klip "${clip.title}.mp4" 📥`);
+        onDownloadNotice(`Berhasil mengunduh klip "${clip.title}" 📥`);
       }
-
-      // Trigger file download
-      const blob = new Blob(
-        [
-          `Klip Viral Otomatis - ${clip.title}\nSkor Viral: ${clip.viralScore}\nDurasi: ${clip.duration}\nPreset: ${clip.preset}\nSorotan: ${clip.highlightMoment}`,
-        ],
-        { type: "video/mp4" }
-      );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${clip.title.toLowerCase().replace(/\s+/g, "_")}_klip_viral.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
       setTimeout(() => setDownloadSuccess(false), 3000);
-    }, 1200);
-  };
-
-  // Find active subtitle cue for current time
-  const activeSubtitle = clip.subtitles
-    ? [...clip.subtitles].reverse().find((cue) => currentTime >= cue.time)
-    : null;
-
-  const progressPercent = Math.min(100, Math.round((currentTime / totalSeconds) * 100));
-
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s < 10 ? "0" : ""}${s}`;
+    }, 1000);
   };
 
   return (
-    <div className="bg-[#0e2125]/85 backdrop-blur-md border border-[#1e3c43] rounded-2xl p-2.5 sm:p-3 flex flex-col gap-2.5 shadow-xl hover:border-[#2cd3c6]/40 transition-all duration-200 group text-slate-100">
+    <div className="bg-[#0e2125]/85 backdrop-blur-md border border-[#1e3c43] rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl hover:border-[#2cd3c6]/40 transition-all duration-200 group text-slate-100">
       {/* 9:16 Video Player Container */}
       <div
         onClick={handleTogglePlay}
-        className="relative w-full aspect-[9/16] max-h-[270px] lg:max-h-[295px] mx-auto rounded-xl overflow-hidden shadow-inner group-hover:scale-[1.01] transition-transform duration-200 bg-[#071316] flex items-center justify-center cursor-pointer select-none"
+        className="relative w-full aspect-[9/16] rounded-xl overflow-hidden shadow-inner group-hover:scale-[1.01] transition-transform duration-200 bg-[#071316] flex items-center justify-center cursor-pointer select-none"
       >
-        {/* Ambient blurred backdrop */}
-        <img
-          src={clip.imageSrc}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover blur-lg opacity-40 scale-125 pointer-events-none"
-        />
-
-        {/* Video Frame */}
-        <img
-          src={clip.imageSrc}
-          alt={clip.title}
-          className={`relative z-10 w-full h-full object-contain pointer-events-none transition-transform duration-700 ${
-            isPlaying ? "scale-105" : "scale-100"
-          }`}
-        />
+        {/* Real HTML5 Video if videoUrl is available */}
+        {clip.videoUrl || clip.videoSrc ? (
+          <video
+            ref={videoRef}
+            src={clip.videoUrl || clip.videoSrc}
+            poster={clip.imageSrc}
+            muted={isMuted}
+            loop
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <>
+            {/* Ambient blurred backdrop */}
+            <img
+              src={clip.imageSrc}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur-lg opacity-40 scale-125 pointer-events-none"
+            />
+            {/* Video Frame */}
+            <img
+              src={clip.imageSrc}
+              alt={clip.title}
+              className={`relative z-10 w-full h-full object-contain pointer-events-none transition-transform duration-700 ${
+                isPlaying ? "scale-105" : "scale-100"
+              }`}
+            />
+          </>
+        )}
 
         {/* Top Badges Overlay */}
         <div className="absolute top-2 left-2 right-2 flex items-center justify-between z-20 pointer-events-none">
-          {/* Viral Score Badge */}
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-black/60 backdrop-blur-xs text-amber-300 border border-amber-400/30 flex items-center gap-1 shadow-sm">
-            <span>🔥</span>
-            <span>{clip.viralScore}</span>
+          {/* Viral Score Badge: 🔥 Skor Viral: XX/100 */}
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-black/75 backdrop-blur-md text-amber-300 border border-amber-400/40 flex items-center gap-1 shadow-sm">
+            <span>{scoreBadgeText}</span>
           </span>
 
-          {/* Playing Indicator */}
-          {isPlaying ? (
-            <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#20b2aa]/90 text-white flex items-center gap-1 shadow-[0_0_8px_rgba(32,178,170,0.6)] animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-              <span>Memutar Inline</span>
-            </span>
-          ) : (
-            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono text-white/80 bg-black/50 backdrop-blur-xs">
-              {clip.duration}
-            </span>
-          )}
+          <span className="px-2 py-0.5 rounded text-[9px] font-mono font-semibold text-white/90 bg-black/60 backdrop-blur-xs">
+            {clip.duration}
+          </span>
         </div>
 
-        {/* Dynamic Subtitle Overlay when Playing Inline (Authentic Netflix / Theo Style) */}
-        {isPlaying && activeSubtitle && (
-          <div className="absolute bottom-10 left-2 right-2 z-20 flex flex-col items-center pointer-events-none animate-fadeIn">
-            {/* Speaker Tag Badge (NARASUMBER / HOST) */}
-            {activeSubtitle.speaker && (
-              <span
-                className={`mb-1 px-1.5 py-0.2 rounded text-[8px] font-black tracking-widest uppercase border ${
-                  activeSubtitle.speaker === "HOST"
-                    ? "bg-black/90 text-cyan-400 border-cyan-500/50"
-                    : "bg-black/90 text-red-500 border-red-500/50"
-                }`}
-              >
-                {activeSubtitle.speaker}
-              </span>
-            )}
-
-            {/* Dark Glass Subtitle Container */}
-            <div className="bg-black/85 backdrop-blur-md border border-white/10 rounded-xl px-2.5 py-1.5 text-center shadow-2xl max-w-[95%]">
-              <p className="text-white font-bold text-[11px] sm:text-xs leading-snug tracking-normal font-sans">
-                {renderNetflixSubtitle(activeSubtitle.text)}
+        {/* Subtitle Preview Overlay */}
+        {clip.subtitles && clip.subtitles.length > 0 && (
+          <div className="absolute bottom-8 left-2 right-2 z-20 flex flex-col items-center pointer-events-none">
+            <div className="bg-black/85 backdrop-blur-md border border-white/10 rounded-xl px-2.5 py-1 text-center shadow-2xl max-w-[95%]">
+              <p className="text-white font-bold text-[11px] leading-snug tracking-normal font-sans">
+                {clip.subtitles[0]?.text || clip.title}
               </p>
             </div>
           </div>
         )}
 
-        {/* Hover / Inactive Play Button */}
+        {/* Play / Pause Overlay Icon */}
         {!isPlaying && (
           <div className="absolute inset-0 bg-black/25 group-hover:bg-black/15 transition-colors flex items-center justify-center z-20">
-            <div className="w-10 h-10 rounded-full bg-[#20b2aa]/90 hover:bg-[#2cd3c6] backdrop-blur-md flex items-center justify-center border border-white/40 text-white shadow-[0_0_15px_rgba(44,211,198,0.5)] group-hover:scale-110 transition-transform">
+            <div className="w-11 h-11 rounded-full bg-[#20b2aa]/90 hover:bg-[#2cd3c6] backdrop-blur-md flex items-center justify-center border border-white/40 text-white shadow-[0_0_18px_rgba(44,211,198,0.5)] group-hover:scale-110 transition-transform">
               <Play className="w-4 h-4 ml-0.5 fill-white" />
             </div>
           </div>
         )}
 
-        {/* Inline Player Bottom Controls & Progress Bar */}
+        {/* Playing Overlay Quick Action */}
         {isPlaying && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2 z-30 flex flex-col gap-1 pointer-events-auto"
+            className="absolute top-2 right-2 z-30 flex items-center gap-1 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-lg text-white/80"
           >
-            {/* Progress Bar */}
-            <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-[#2cd3c6] transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-
-            {/* Time & Quick Controls */}
-            <div className="flex items-center justify-between text-[10px] text-white/90 px-0.5">
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleTogglePlay}
-                  className="hover:text-[#2cd3c6] transition cursor-pointer"
-                  title="Pause"
-                >
-                  <Pause className="w-3.5 h-3.5 fill-current" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsMuted((prev) => !prev)}
-                  className="hover:text-[#2cd3c6] transition cursor-pointer"
-                  title={isMuted ? "Unmute" : "Mute"}
-                >
-                  {isMuted ? (
-                    <VolumeX className="w-3.5 h-3.5" />
-                  ) : (
-                    <Volume2 className="w-3.5 h-3.5" />
-                  )}
-                </button>
-
-                <span className="font-mono text-[9px] text-[#93adb3]">
-                  {formatTime(currentTime)} / {formatTime(totalSeconds)}
-                </span>
-              </div>
-
-              {/* Expand to Modal */}
-              <button
-                type="button"
-                onClick={() => onSelectClip(clip)}
-                className="hover:text-[#2cd3c6] transition cursor-pointer p-0.5"
-                title="Buka Modal Preview Penuh"
-              >
-                <Maximize2 className="w-3 h-3" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsMuted((prev) => !prev)}
+              className="p-1 hover:text-[#2cd3c6] transition"
+              title={isMuted ? "Unmute" : "Mute"}
+            >
+              {isMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => onSelectClip(clip)}
+              className="p-1 hover:text-[#2cd3c6] transition"
+              title="Perbesar Preview"
+            >
+              <Maximize2 className="w-3 h-3" />
+            </button>
           </div>
         )}
       </div>
 
+      {/* Title */}
+      <h4 className="text-xs font-semibold text-gray-200 line-clamp-1 group-hover:text-white transition">
+        {clip.title}
+      </h4>
+
       {/* Info Pills Row */}
-      <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-medium">
-        <div className="flex-1 h-7 bg-[#14282e] border border-[#1f3e46] rounded-lg px-1.5 flex items-center justify-center text-[#8da5ab] whitespace-nowrap">
-          <span>{clip.bottomScoreText}</span>
+      <div className="flex items-center gap-1.5 text-[10px] font-medium">
+        <div className="flex-1 h-6 bg-[#14282e] border border-[#1f3e46] rounded-md px-1.5 flex items-center justify-center text-[#8da5ab] truncate">
+          <span>{clip.preset || "Preset 9:16"}</span>
         </div>
-        <div className="flex-1 h-7 bg-[#14282e] border border-[#1f3e46] rounded-lg px-1.5 flex items-center justify-center text-[#8da5ab] whitespace-nowrap">
-          <span>{clip.bottomPresetText}</span>
+        <div className="flex-1 h-6 bg-[#14282e] border border-[#1f3e46] rounded-md px-1.5 flex items-center justify-center text-[#8da5ab] truncate">
+          <span>{clip.bottomScoreText || "Hook 3s Aktif"}</span>
         </div>
       </div>
 
-      {/* Action Button: Single full-width button (⬇️ Unduh MP4) */}
+      {/* ONLY ONE ACTION BUTTON: ⬇️ Unduh MP4 */}
       <button
         type="button"
         onClick={handleDownload}
         disabled={isDownloading}
-        className="w-full h-8 sm:h-9 rounded-xl bg-gradient-to-r from-[#1a858c] via-[#21a6a3] to-[#2cd3c6] text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(44,211,198,0.25)] hover:shadow-[0_0_18px_rgba(44,211,198,0.45)] hover:brightness-110 active:scale-[0.98] transition-all select-none cursor-pointer"
+        className="w-full h-9 rounded-xl bg-gradient-to-r from-[#1a858c] via-[#21a6a3] to-[#2cd3c6] text-white text-xs font-bold tracking-wide flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(44,211,198,0.25)] hover:shadow-[0_0_20px_rgba(44,211,198,0.5)] hover:brightness-110 active:scale-[0.98] transition-all select-none cursor-pointer"
       >
         {isDownloading ? (
           <>
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            <span>Mengunduh...</span>
+            <span>Mengunduh MP4...</span>
           </>
         ) : downloadSuccess ? (
           <>
@@ -320,4 +224,3 @@ export function ClipCard({
     </div>
   );
 }
-

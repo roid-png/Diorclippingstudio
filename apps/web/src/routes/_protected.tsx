@@ -3,16 +3,28 @@ import {
   Link,
   Outlet,
   redirect,
+  useLocation,
 } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { roleHasPermission } from "@starter/shared/permissions";
-import { Brand } from "@/components/brand";
 import { SignOutButton } from "@/components/sign-out-button";
 import {
   getPersistentSession,
   type StoredSessionUser,
 } from "@/features/auth/session-storage";
 import type { Session } from "@/lib/session";
+import {
+  LayoutDashboard,
+  Video,
+  Palette,
+  History,
+  Code2,
+  Settings,
+  Bell,
+  ChevronRight,
+  ShieldCheck,
+  CheckCircle2,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_protected")({
   beforeLoad: ({ context }) => {
@@ -53,16 +65,15 @@ export const Route = createFileRoute("/_protected")({
   component: ProtectedLayout,
 });
 
-const navLink =
-  "rounded-xl px-3.5 py-1.5 text-xs sm:text-sm font-medium text-[#7d9399] transition-colors hover:text-white hover:bg-[#14282e] data-[status=active]:bg-[#152a2e] data-[status=active]:text-white data-[status=active]:border data-[status=active]:border-[#21434c]";
-
 function ProtectedLayout() {
   const { user } = Route.useRouteContext().session;
   const canAdmin = roleHasPermission(user.role, { notes: ["read-any"] });
+  const location = useLocation();
 
   const [headerSession, setHeaderSession] = useState<StoredSessionUser | null>(() =>
     getPersistentSession()
   );
+  const [showNotificationPopup, setShowNotificationPopup] = useState<boolean>(false);
 
   useEffect(() => {
     const handleSync = () => {
@@ -74,9 +85,6 @@ function ProtectedLayout() {
     }
   }, []);
 
-  const dailyQuota = headerSession?.dailyQuota ?? 50;
-  const usedQuota = headerSession?.usedQuota ?? 0;
-  const remainingQuota = Math.max(0, dailyQuota - usedQuota);
   const displayName = headerSession?.name || user.name;
   const displayAvatar =
     headerSession?.avatarUrl || user.image || "/images/michael_avatar.png";
@@ -84,97 +92,223 @@ function ProtectedLayout() {
     headerSession?.badge ||
     (user.role === "admin" ? "Pro Video Editor" : "Content Creator");
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-[#071518] via-[#0b1b1f] to-[#12282e] text-slate-100 flex flex-col">
-      <header className="border-b border-[#12252a] bg-[#091619] sticky top-0 z-40 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex flex-wrap items-center gap-6">
-            <Link to="/app" className="flex items-center gap-2.5">
-              <div className="w-7 h-7 relative shrink-0">
-                <img
-                  src="/images/dior_icon.png"
-                  alt="Logo"
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
-                />
-              </div>
-              <span className="font-bold text-base sm:text-lg tracking-tight">
-                <span className="text-[#a78bfa]">Dior</span>{" "}
-                <span className="text-[#e2e8f0]">Clipping</span>
-              </span>
-            </Link>
+  // Determine current active section for breadcrumb
+  const pathname = location.pathname;
+  let currentSection = "Auto Video Clipper";
+  if (pathname.includes("viral-clips")) currentSection = "Deteksi Momen Viral";
+  else if (pathname.includes("auto-edit")) currentSection = "Edit Otomatis & Presets";
+  else if (pathname.includes("render")) currentSection = "Render & Unduh";
+  else if (pathname.includes("project-history")) currentSection = "Riwayat Proyek";
+  else if (pathname.includes("profile")) currentSection = "Pengaturan Akun";
+  else if (pathname.includes("admin")) currentSection = "API & Developer Panel";
 
-            <nav aria-label="Main" className="flex items-center gap-1.5">
-              <Link to="/app" className={navLink}>
-                Studio Potong Video
-              </Link>
-              <Link to="/viral-clips" className={navLink}>
-                Deteksi Momen Viral
-              </Link>
-              <Link to="/auto-edit" className={navLink}>
-                Edit Otomatis
-              </Link>
-              <Link to="/render" className={navLink}>
-                Render & Unduh
-              </Link>
-              <Link to="/project-history" className={navLink}>
-                Riwayat Proyek
-              </Link>
-              <Link to="/profile" className={navLink}>
-                Profil
-              </Link>
-              {canAdmin && (
-                <Link to="/admin" className={navLink}>
-                  Admin
+  const navItems = [
+    {
+      to: "/app",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      isActive: pathname === "/app" || pathname === "/",
+    },
+    {
+      to: "/viral-clips",
+      label: "My Project",
+      icon: Video,
+      isActive: pathname.includes("viral-clips"),
+    },
+    {
+      to: "/auto-edit",
+      label: "Presets",
+      icon: Palette,
+      isActive: pathname.includes("auto-edit"),
+    },
+    {
+      to: "/project-history",
+      label: "History",
+      icon: History,
+      isActive: pathname.includes("project-history"),
+    },
+    {
+      to: "/admin",
+      label: "API",
+      icon: Code2,
+      isActive: pathname.includes("admin"),
+      hidden: !canAdmin,
+    },
+    {
+      to: "/profile",
+      label: "Settings",
+      icon: Settings,
+      isActive: pathname.includes("profile"),
+    },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#071518] via-[#0b1b1f] to-[#12282e] text-slate-100 flex">
+      {/* Sidebar kiri navigasi lengkap (Dark Teal Glassmorphism) */}
+      <aside className="w-60 shrink-0 hidden md:flex flex-col bg-[#09171b]/95 backdrop-blur-md border-r border-[#18333a] sticky top-0 h-screen z-30 select-none">
+        {/* Logo Dior Clipping */}
+        <div className="p-4 border-b border-[#142e34] flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#13434c] to-[#20a3a7] p-1.5 flex items-center justify-center border border-[#2cd3c6]/40 shadow-[0_0_15px_rgba(44,211,198,0.3)]">
+            <img
+              src="/images/dior_icon.png"
+              alt="Logo"
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = "none";
+              }}
+            />
+          </div>
+          <div>
+            <div className="font-bold text-base tracking-tight leading-tight">
+              <span className="text-[#a78bfa]">Dior</span>{" "}
+              <span className="text-white">Clipping</span>
+            </div>
+            <div className="text-[10px] text-[#2cd3c6] font-medium tracking-wide">
+              Viral AI Studio
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar Nav Links */}
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          {navItems
+            .filter((item) => !item.hidden)
+            .map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                    item.isActive
+                      ? "bg-gradient-to-r from-[#14373e] to-[#18464f] text-[#2cd3c6] border border-[#20b2aa]/40 shadow-[0_0_15px_rgba(44,211,198,0.15)]"
+                      : "text-[#7a959c] hover:text-white hover:bg-[#11272d]"
+                  }`}
+                >
+                  <Icon
+                    className={`w-4 h-4 shrink-0 ${
+                      item.isActive ? "text-[#2cd3c6]" : "text-[#627e84]"
+                    }`}
+                  />
+                  <span>{item.label}</span>
                 </Link>
-              )}
-            </nav>
+              );
+            })}
+        </nav>
+
+        {/* Sidebar Footer User Info */}
+        <div className="p-3 border-t border-[#142e34] bg-[#071316]/60">
+          <Link
+            to="/profile"
+            className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-[#12282e] transition group"
+          >
+            <div className="w-8 h-8 rounded-full overflow-hidden border border-[#2cd3c6]/40 group-hover:border-[#2cd3c6] bg-[#162f35] shrink-0">
+              <img
+                src={displayAvatar}
+                alt={displayName}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex flex-col truncate">
+              <span className="text-xs font-bold text-gray-200 group-hover:text-white truncate">
+                {displayName}
+              </span>
+              <span className="text-[10px] text-[#2cd3c6] truncate">
+                Unlimited Quota ✅
+              </span>
+            </div>
+          </Link>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top bar dengan breadcrumb "Dashboard / Auto Video Clipper", lonceng notifikasi, dan avatar profil pengguna */}
+        <header className="h-14 border-b border-[#18333a] bg-[#09171b]/90 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-6 flex items-center justify-between">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-xs sm:text-sm font-medium">
+            <Link
+              to="/app"
+              className="text-[#6d8a91] hover:text-white transition flex items-center gap-1.5"
+            >
+              <span className="md:hidden font-bold text-[#a78bfa]">Dior</span>
+              <span>Dashboard</span>
+            </Link>
+            <ChevronRight className="w-3.5 h-3.5 text-[#426066]" />
+            <span className="text-white font-semibold">{currentSection}</span>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            <Link
-              to="/profile"
-              title="Kelola Kuota & Profil"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/30 text-xs font-bold text-cyan-300 transition"
-            >
-              <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-              <span>{remainingQuota} / {dailyQuota} Kuota</span>
-            </Link>
+          {/* Right Top Bar Items */}
+          <div className="flex items-center gap-3">
+            {/* Lonceng Notifikasi */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowNotificationPopup((prev) => !prev)}
+                className="p-2 rounded-xl bg-[#11272d] hover:bg-[#17333b] border border-[#1d3d44] text-[#8ea8af] hover:text-white transition cursor-pointer relative"
+                title="Notifikasi Sistem"
+              >
+                <Bell className="w-4 h-4" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#2cd3c6] animate-pulse" />
+              </button>
 
+              {/* Notification Dropdown */}
+              {showNotificationPopup && (
+                <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-[#0e2125] border border-[#1e3c43] shadow-2xl p-3 z-50 animate-fadeIn text-xs">
+                  <div className="flex items-center justify-between border-b border-[#1b373e] pb-2 mb-2 font-bold text-white">
+                    <span>Notifikasi Sistem</span>
+                    <span className="text-[10px] text-[#2cd3c6] font-mono">Real Engine</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="p-2 rounded-xl bg-[#142a30] text-[#93adb3] text-[11px] flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-[#2cd3c6] shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-white block">Sistem Siap Digunakan</strong>
+                        Pipeline yt-dlp, Groq Whisper, dan FFmpeg render aktif.
+                      </div>
+                    </div>
+                    <div className="p-2 rounded-xl bg-[#142a30] text-[#93adb3] text-[11px] flex items-start gap-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-white block">Kuota Tanpa Batas</strong>
+                        Bypass kuota aktif (999.999 klip) untuk pemotongan bebas.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Avatar Profil Pengguna */}
             <Link
               to="/profile"
-              title="Pengaturan Profil Pengguna"
-              className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-xl bg-[#0f2125] hover:bg-[#142e34] border border-[#1b373e] hover:border-[#2cd3c6]/40 transition group"
+              title="Pengaturan Profil"
+              className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-xl bg-[#11272d] hover:bg-[#17333b] border border-[#1d3d44] hover:border-[#2cd3c6]/40 transition group"
             >
-              <div className="w-6 h-6 rounded-full overflow-hidden border border-[#234b55] group-hover:border-[#2cd3c6] relative shrink-0 bg-[#162f35] transition">
+              <div className="w-6 h-6 rounded-full overflow-hidden border border-[#234b55] group-hover:border-[#2cd3c6] bg-[#162f35] shrink-0">
                 <img
                   src={displayAvatar}
                   alt={displayName}
                   className="w-full h-full object-cover"
                 />
               </div>
-              <div className="flex flex-col text-left">
-                <span className="text-xs font-bold text-gray-200 group-hover:text-white leading-tight transition">
-                  {displayName}
-                </span>
-                <span className="text-[10px] text-slate-400 leading-none">
-                  {displayBadge}
-                </span>
-              </div>
+              <span className="text-xs font-bold text-gray-200 group-hover:text-white hidden sm:inline">
+                {displayName}
+              </span>
             </Link>
+
             <SignOutButton />
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main
-        id="main-content"
-        className="mx-auto max-w-7xl w-full px-4 py-6 sm:px-6 lg:py-8 flex-1"
-      >
-        <Outlet />
-      </main>
+        {/* Page Content */}
+        <main
+          id="main-content"
+          className="mx-auto max-w-7xl w-full px-4 py-6 sm:px-6 lg:py-8 flex-1"
+        >
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

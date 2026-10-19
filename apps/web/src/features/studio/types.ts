@@ -15,6 +15,8 @@ export interface ClipItem {
   preset: string;
   imageSrc: string;
   videoSrc?: string;
+  videoUrl?: string;
+  downloadUrl?: string;
   subtitles?: SubtitleCue[];
   renderStatus?: string;
   progress?: number;

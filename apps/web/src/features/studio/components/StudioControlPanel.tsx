@@ -9,19 +9,8 @@ import {
   Clipboard,
   X,
   Sparkles,
-  Lock,
-  AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
-import type { ProcessingStatus, YouTubeVideoMetadata } from "../types";
-import type {
-  EditingStylePreset,
-  MotionGraphicPreset,
-  SubtitleStylePreset,
-} from "../presets/types";
-import { YouTubeConfirmCard } from "./YouTubeConfirmCard";
-import { DurationSelector } from "./DurationSelector";
-import { ClippingLimitSelector } from "./ClippingLimitSelector";
-import { CreativeStylePanel } from "./CreativeStylePanel";
 
 function YoutubeIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -31,79 +20,68 @@ function YoutubeIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export interface DynamicPresetItem {
+  id: string;
+  name: string;
+  description?: string;
+  colorGrading?: string;
+}
+
 interface StudioControlPanelProps {
   youtubeUrl: string;
   setYoutubeUrl: (url: string) => void;
-  videoMetadata: YouTubeVideoMetadata | null;
-  setVideoMetadata: (metadata: YouTubeVideoMetadata | null) => void;
-  isValidatingUrl: boolean;
-  onValidateAndConfirm: (url: string) => void;
   clippingLimit: number;
   setClippingLimit: (limit: number) => void;
-  totalQuota?: number;
-  usedQuota?: number;
   duration: number;
   setDuration: (duration: number) => void;
-  editingStyle: string;
-  setEditingStyle: (style: string) => void;
-  motionGraphicStyle: string;
-  setMotionGraphicStyle: (style: string) => void;
-  subtitleStyle: string;
-  setSubtitleStyle: (style: string) => void;
-  editingStyles: EditingStylePreset[];
-  motionGraphics: MotionGraphicPreset[];
-  subtitleStyles: SubtitleStylePreset[];
-  onAddNewPreset: (category: "editing" | "motion" | "subtitle", preset: any) => void;
+  presets: DynamicPresetItem[];
+  selectedPresetId: string;
+  setSelectedPresetId: (id: string) => void;
+  enableMotionGraphic: boolean;
+  setEnableMotionGraphic: (enabled: boolean) => void;
   refFileName: string;
   setRefFileName: (name: string) => void;
-  status: ProcessingStatus;
+  onUploadReferenceVideo?: (file: File) => void;
+  isCloningStyle?: boolean;
+  status: string;
   statusMessage: string;
   onGenerate: () => void;
+  onReset: () => void;
   errorMessage: string | null;
 }
 
 export function StudioControlPanel({
   youtubeUrl,
   setYoutubeUrl,
-  videoMetadata,
-  setVideoMetadata,
-  isValidatingUrl,
-  onValidateAndConfirm,
   clippingLimit,
   setClippingLimit,
-  totalQuota = 50,
-  usedQuota = 5,
   duration,
   setDuration,
-  editingStyle,
-  setEditingStyle,
-  motionGraphicStyle,
-  setMotionGraphicStyle,
-  subtitleStyle,
-  setSubtitleStyle,
-  editingStyles,
-  motionGraphics,
-  subtitleStyles,
-  onAddNewPreset,
+  presets,
+  selectedPresetId,
+  setSelectedPresetId,
+  enableMotionGraphic,
+  setEnableMotionGraphic,
   refFileName,
   setRefFileName,
+  onUploadReferenceVideo,
+  isCloningStyle = false,
   status,
   statusMessage,
   onGenerate,
+  onReset,
   errorMessage,
 }: StudioControlPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pasteNotice, setPasteNotice] = useState<string | null>(null);
 
-  const remainingQuota = Math.max(0, (totalQuota ?? 50) - (usedQuota ?? 0));
-  const isQuotaExhausted = remainingQuota === 0;
-  const isQuotaInsufficient = clippingLimit > remainingQuota;
-  const isBlockedByQuota = isQuotaExhausted || isQuotaInsufficient;
-
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setRefFileName(file.name);
+      if (onUploadReferenceVideo) {
+        onUploadReferenceVideo(file);
+      }
     }
   };
 
@@ -113,7 +91,6 @@ export function StudioControlPanel({
         const text = await navigator.clipboard.readText();
         if (text) {
           setYoutubeUrl(text.trim());
-          onValidateAndConfirm(text.trim());
           setPasteNotice("Link berhasil ditempel dari clipboard!");
           setTimeout(() => setPasteNotice(null), 2500);
         }
@@ -126,57 +103,50 @@ export function StudioControlPanel({
 
   const handleClearUrl = () => {
     setYoutubeUrl("");
-    setVideoMetadata(null);
   };
 
-  const isProcessing = status === "downloading" || status === "analyzing";
+  const isProcessing =
+    status === "downloading" ||
+    status === "analyzing" ||
+    status === "processing" ||
+    status === "rendering";
 
   return (
     <section className="bg-[#0e2125]/90 backdrop-blur-md border border-[#1e3c43] rounded-2xl p-4 sm:p-5 shadow-2xl mb-6 text-slate-100">
-      {/* Row 1: YouTube Input + Main Action Button */}
-      <div className="flex flex-col md:flex-row items-stretch gap-3 mb-3">
+      {/* Baris 1: Input URL YouTube + Tombol aksi utama "AUTO-CUT & GENERATE 🚀" + Tombol kecil "Reset / Bersihkan" */}
+      <div className="flex flex-col md:flex-row items-stretch gap-3 mb-4">
         {/* Input container */}
         <div className="relative flex-1 group">
           <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-red-500 flex items-center pointer-events-none">
-            <YoutubeIcon className="w-4 h-4" />
+            <YoutubeIcon className="w-5 h-5" />
           </div>
 
           <input
             type="text"
             value={youtubeUrl}
-            onChange={(e) => {
-              const val = e.target.value;
-              setYoutubeUrl(val);
-              if (val.trim()) {
-                onValidateAndConfirm(val);
-              } else {
-                setVideoMetadata(null);
-              }
-            }}
+            onChange={(e) => setYoutubeUrl(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                onValidateAndConfirm(youtubeUrl);
+              if (e.key === "Enter" && !isProcessing && youtubeUrl.trim()) {
+                onGenerate();
               }
             }}
-            placeholder="Paste YouTube Link here... https://www.youtube.com/watch?v=V0k9u"
+            placeholder="Paste YouTube Link here... contoh: https://www.youtube.com/watch?v=..."
             className={`w-full h-11 bg-[#14282e] border ${
               errorMessage
                 ? "border-red-500/60 focus:border-red-400"
-                : videoMetadata
+                : youtubeUrl.includes("youtu")
                 ? "border-[#20b2aa]/70 focus:border-[#2cd3c6]"
                 : "border-[#1f3e46] focus:border-[#2cd3c6]"
-            } rounded-xl pl-10 pr-24 text-xs sm:text-sm text-gray-200 placeholder-[#58737a] focus:outline-none transition shadow-inner font-sans`}
+            } rounded-xl pl-11 pr-24 text-xs sm:text-sm text-gray-200 placeholder-[#58737a] focus:outline-none transition shadow-inner font-sans`}
           />
 
           {/* Quick Action Buttons inside Input */}
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-            {isValidatingUrl ? (
-              <Loader2 className="w-4 h-4 text-[#2cd3c6] animate-spin" />
-            ) : videoMetadata ? (
-              <span className="text-emerald-400 p-1" title="Link YouTube Valid & Terverifikasi">
+            {youtubeUrl.includes("youtu") && (
+              <span className="text-emerald-400 p-1" title="Link YouTube Valid">
                 <CheckCircle2 className="w-4 h-4" />
               </span>
-            ) : null}
+            )}
 
             {youtubeUrl ? (
               <button
@@ -198,71 +168,41 @@ export function StudioControlPanel({
                 <span>Tempel</span>
               </button>
             )}
-
-            <button
-              type="button"
-              onClick={() => onValidateAndConfirm(youtubeUrl)}
-              className="p-1 text-[#58737a] hover:text-[#2cd3c6] transition cursor-pointer"
-              title="Cek Link Video"
-            >
-              <Search className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
-        {/* Generate Button: AUTO-CUT & GENERATE 🚀 */}
-        <button
-          type="button"
-          onClick={onGenerate}
-          disabled={isProcessing || isBlockedByQuota}
-          className={`h-11 px-7 rounded-xl text-xs sm:text-sm font-bold tracking-wider transition-all flex items-center justify-center gap-2 shrink-0 select-none ${
-            isBlockedByQuota
-              ? "bg-[#1f191b] border border-red-500/40 text-red-300 shadow-none cursor-not-allowed opacity-80"
-              : "bg-gradient-to-r from-[#17858c] via-[#20a3a7] to-[#2cd3c6] text-white shadow-[0_0_20px_rgba(44,211,198,0.35)] hover:shadow-[0_0_25px_rgba(44,211,198,0.55)] hover:brightness-110 active:scale-[0.98] cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
-          }`}
-        >
-          {isProcessing ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>MEMPROSES KLIP...</span>
-            </>
-          ) : isQuotaExhausted ? (
-            <>
-              <Lock className="w-4 h-4 text-red-400" />
-              <span>KUOTA HABIS (0/50)</span>
-            </>
-          ) : isQuotaInsufficient ? (
-            <>
-              <Lock className="w-4 h-4 text-amber-400" />
-              <span>SISA KUOTA TIDAK CUKUP</span>
-            </>
-          ) : (
-            <>
+        {/* Action Buttons: Reset / Bersihkan + AUTO-CUT & GENERATE 🚀 */}
+        <div className="flex items-center gap-2">
+          {/* Tombol kecil "Reset / Bersihkan" di samping input */}
+          <button
+            type="button"
+            onClick={onReset}
+            disabled={isProcessing}
+            title="Reset dan bersihkan seluruh input & hasil klip ke kondisi kosong"
+            className="h-11 px-3.5 rounded-xl border border-[#23454d] bg-[#14282e] hover:bg-[#1a343b] hover:border-[#2cd3c6]/40 text-[#8da5ab] hover:text-white text-xs font-medium flex items-center gap-1.5 transition select-none cursor-pointer shrink-0 disabled:opacity-50"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-[#2cd3c6]" />
+            <span className="hidden sm:inline">Reset / Bersihkan</span>
+          </button>
+
+          {/* Tombol aksi utama "AUTO-CUT & GENERATE 🚀" (gradasi teal menyala) */}
+          <button
+            type="button"
+            onClick={onGenerate}
+            disabled={isProcessing || !youtubeUrl.trim()}
+            className="h-11 px-6 sm:px-7 rounded-xl text-xs sm:text-sm font-bold tracking-wider transition-all flex items-center justify-center gap-2 shrink-0 select-none bg-gradient-to-r from-[#17858c] via-[#20a3a7] to-[#2cd3c6] text-white shadow-[0_0_20px_rgba(44,211,198,0.35)] hover:shadow-[0_0_25px_rgba(44,211,198,0.55)] hover:brightness-110 active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>MEMPROSES KLIP...</span>
+              </>
+            ) : (
               <span>AUTO-CUT & GENERATE 🚀</span>
-            </>
-          )}
-        </button>
+            )}
+          </button>
+        </div>
       </div>
-
-      {/* Quota Exhausted Blocker Alert Banner */}
-      {isQuotaExhausted && (
-        <div className="mb-4 p-3.5 rounded-xl bg-red-950/70 border border-red-500/50 text-red-200 text-xs flex items-center gap-2.5 animate-in fade-in">
-          <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-          <div className="flex-1 leading-relaxed">
-            <strong>Pemotongan video diblokir:</strong> Kuota harian Anda telah habis (0/50 klip). Pemotongan tidak dapat dilanjutkan hingga kuota direset otomatis pada pukul <strong>00:00 WIB</strong> atau lakukan reset kuota demo melalui tombol di atas.
-          </div>
-        </div>
-      )}
-
-      {/* Quota Insufficient Alert Banner */}
-      {!isQuotaExhausted && isQuotaInsufficient && (
-        <div className="mb-4 p-3 rounded-xl bg-amber-950/60 border border-amber-500/50 text-amber-200 text-xs flex items-center gap-2.5 animate-in fade-in">
-          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-          <div className="flex-1 leading-relaxed">
-            <strong>Sisa kuota tidak cukup:</strong> Anda memilih memotong <strong>{clippingLimit} klip</strong>, namun kuota yang tersisa hanya <strong>{remainingQuota} klip</strong>. Silakan kurangi limit klip menjadi maksimal {remainingQuota} pada pilihan di bawah.
-          </div>
-        </div>
-      )}
 
       {/* Paste notification toast */}
       {pasteNotice && (
@@ -270,14 +210,6 @@ export function StudioControlPanel({
           <Sparkles className="w-3.5 h-3.5" />
           <span>{pasteNotice}</span>
         </div>
-      )}
-
-      {/* Video Title Confirmation Card */}
-      {videoMetadata && !errorMessage && (
-        <YouTubeConfirmCard
-          metadata={videoMetadata}
-          onClear={handleClearUrl}
-        />
       )}
 
       {/* Error / Processing Feedback */}
@@ -299,36 +231,71 @@ export function StudioControlPanel({
         </div>
       )}
 
-      {/* Row 2: 3 Columns Configuration Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-0 lg:divide-x divide-[#1d3a41]">
-        {/* Column 1: Clipping Limit (Maks 10) & Sisa Kuota */}
-        <div className="lg:pr-4">
-          <ClippingLimitSelector
-            clippingLimit={clippingLimit}
-            setClippingLimit={setClippingLimit}
-            totalQuota={totalQuota}
-            usedQuota={usedQuota}
-            disabled={isProcessing}
-          />
+      {/* Baris 2: 4 Kolom Pengaturan */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2 border-t border-[#1a3339]">
+        {/* Kolom 1: Clipping Limit (tombol angka 1 sampai 10) */}
+        <div className="flex flex-col justify-between">
+          <label className="text-xs font-semibold text-[#8ca4aa] mb-2 flex items-center justify-between">
+            <span>Clipping Limit</span>
+            <span className="text-[#2cd3c6] font-bold font-mono text-xs">{clippingLimit} Klip</span>
+          </label>
+          <div className="grid grid-cols-5 gap-1.5">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+              const isSelected = clippingLimit === num;
+              return (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => setClippingLimit(num)}
+                  disabled={isProcessing}
+                  className={`h-8 rounded-lg text-xs font-bold font-mono transition-all flex items-center justify-center cursor-pointer ${
+                    isSelected
+                      ? "bg-gradient-to-r from-[#17858c] to-[#2cd3c6] text-white shadow-[0_0_10px_rgba(44,211,198,0.3)] border border-[#2cd3c6]"
+                      : "bg-[#14282e] hover:bg-[#1a333a] text-[#8ea5aa] border border-[#1f3e46]"
+                  }`}
+                >
+                  {num}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Column 2: Duration (30 Detik, 45 Detik, 1 Menit) */}
-        <div className="lg:px-4">
-          <DurationSelector
-            duration={duration}
-            setDuration={setDuration}
-            disabled={isProcessing}
-          />
+        {/* Kolom 2: Duration (tombol pill pilihan 30 Detik, 45 Detik, dan 60 Detik) */}
+        <div className="flex flex-col justify-between">
+          <label className="text-xs font-semibold text-[#8ca4aa] mb-2 flex items-center justify-between">
+            <span>Target Durasi</span>
+            <span className="text-[#2cd3c6] font-bold font-mono text-xs">{duration}s</span>
+          </label>
+          <div className="grid grid-cols-3 gap-1.5">
+            {[30, 45, 60].map((dur) => {
+              const isSelected = duration === dur;
+              return (
+                <button
+                  key={dur}
+                  type="button"
+                  onClick={() => setDuration(dur)}
+                  disabled={isProcessing}
+                  className={`h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center cursor-pointer ${
+                    isSelected
+                      ? "bg-gradient-to-r from-[#17858c] to-[#2cd3c6] text-white shadow-[0_0_10px_rgba(44,211,198,0.3)] border border-[#2cd3c6]"
+                      : "bg-[#14282e] hover:bg-[#1a333a] text-[#8ea5aa] border border-[#1f3e46]"
+                  }`}
+                >
+                  {dur} Detik
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Column 3: AI Style Cloner */}
-        <div className="lg:pl-4 flex flex-col justify-between">
-          <h3 className="text-xs font-semibold text-[#8ca4aa] mb-2 flex items-center gap-1">
+        {/* Kolom 3: AI Style Cloner 🪄 (area upload dashed untuk video referensi 5-15s) */}
+        <div className="flex flex-col justify-between">
+          <label className="text-xs font-semibold text-[#8ca4aa] mb-2 flex items-center gap-1">
             <span>AI Style Cloner</span>
             <span>🪄</span>
-          </h3>
-
-          <div className="flex flex-col gap-2">
+          </label>
+          <div className="flex flex-col gap-1.5">
             <input
               type="file"
               ref={fileInputRef}
@@ -336,40 +303,80 @@ export function StudioControlPanel({
               accept="video/*"
               className="hidden"
             />
-            {/* Dashed Upload Button */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-full h-8 border border-dashed border-[#294c53] bg-[#14282e]/50 hover:bg-[#173038] hover:border-[#2cd3c6]/60 rounded-xl px-3 text-[11px] text-[#93adb3] flex items-center justify-center gap-1.5 cursor-pointer transition select-none group"
+              disabled={isCloningStyle || isProcessing}
+              className="w-full h-8 border border-dashed border-[#294c53] bg-[#14282e]/50 hover:bg-[#173038] hover:border-[#2cd3c6]/60 rounded-xl px-2.5 text-[11px] text-[#93adb3] flex items-center justify-center gap-1.5 cursor-pointer transition select-none group"
             >
-              <Upload className="w-3.5 h-3.5 text-[#2cd3c6] group-hover:scale-110 transition-transform" />
-              <span>Upload Ref Video (5-15s)</span>
+              {isCloningStyle ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 text-[#2cd3c6] animate-spin" />
+                  <span>Menganalisis Gaya...</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-3.5 h-3.5 text-[#2cd3c6] group-hover:scale-110 transition-transform" />
+                  <span>Upload Ref Video (5-15s)</span>
+                </>
+              )}
             </button>
 
-            {/* File status */}
-            <div className="flex items-center gap-1.5 text-[11px] text-[#849ea4] truncate">
-              <FileText className="w-3.5 h-3.5 text-[#8fa4aa] shrink-0" />
-              <span className="truncate">{refFileName}</span>
-              <span className="text-emerald-400 font-medium shrink-0">(Cloned ✅)</span>
-            </div>
+            {refFileName && (
+              <div className="flex items-center gap-1.5 text-[10px] text-[#849ea4] truncate px-1">
+                <FileText className="w-3 h-3 text-[#8fa4aa] shrink-0" />
+                <span className="truncate">{refFileName}</span>
+                <span className="text-emerald-400 font-medium shrink-0">✅</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Kolom 4: Subtitle & Motion Preset (pilihan preset dinamis dari /api/presets + Toggle Switch Motion Graphic) */}
+        <div className="flex flex-col justify-between">
+          <label className="text-xs font-semibold text-[#8ca4aa] mb-2 flex items-center justify-between">
+            <span>Gaya & Motion Preset</span>
+          </label>
+          <div className="flex flex-col gap-2">
+            {/* Dropdown / Preset Selector */}
+            <select
+              value={selectedPresetId}
+              onChange={(e) => setSelectedPresetId(e.target.value)}
+              disabled={isProcessing}
+              className="w-full h-8 bg-[#14282e] border border-[#1f3e46] rounded-xl px-2.5 text-xs text-gray-200 focus:outline-none focus:border-[#2cd3c6] transition cursor-pointer"
+            >
+              {presets.map((p) => (
+                <option key={p.id} value={p.id} className="bg-[#0e2125] text-white">
+                  {p.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Toggle Switch: Auto Motion Graphic (Progress Bar & Zoom) */}
+            <label className="flex items-center justify-between px-1 cursor-pointer select-none group">
+              <span className="text-[11px] text-[#8ca4aa] group-hover:text-gray-200 transition">
+                Auto Motion Graphic
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={enableMotionGraphic}
+                onClick={() => setEnableMotionGraphic(!enableMotionGraphic)}
+                disabled={isProcessing}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  enableMotionGraphic ? "bg-[#2cd3c6]" : "bg-[#1b343b]"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                    enableMotionGraphic ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </label>
           </div>
         </div>
       </div>
-
-      {/* Row 3: 3 Distinct Preset Selectors (Editing Style, Motion Graphic, Subtitle) */}
-      <CreativeStylePanel
-        editingStyle={editingStyle}
-        setEditingStyle={setEditingStyle}
-        motionGraphicStyle={motionGraphicStyle}
-        setMotionGraphicStyle={setMotionGraphicStyle}
-        subtitleStyle={subtitleStyle}
-        setSubtitleStyle={setSubtitleStyle}
-        editingStyles={editingStyles}
-        motionGraphics={motionGraphics}
-        subtitleStyles={subtitleStyles}
-        onAddNewPreset={onAddNewPreset}
-        disabled={isProcessing}
-      />
     </section>
   );
 }

@@ -1,368 +1,263 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState, useRef, useEffect } from "react";
 import { siteConfig } from "@/config/site";
-import { initialClips } from "@/features/studio/mock-data";
-import type { ClipItem, ProcessingStatus, YouTubeVideoMetadata } from "@/features/studio/types";
-import { StudioControlPanel } from "@/features/studio/components/StudioControlPanel";
+import type { ClipItem, ProcessingStatus } from "@/features/studio/types";
+import { StudioControlPanel, type DynamicPresetItem } from "@/features/studio/components/StudioControlPanel";
 import { ClipCard } from "@/features/studio/components/ClipCard";
 import { VideoModal } from "@/features/studio/components/VideoModal";
 import { ProcessingProgressBar } from "@/features/studio/components/ProcessingProgressBar";
 import { EmptyClipsState } from "@/features/studio/components/EmptyClipsState";
-import { ErrorClipsState } from "@/features/studio/components/ErrorClipsState";
-import {
-  fetchYouTubeMetadata,
-  validateYouTubeUrl,
-  sampleYouTubeVideos,
-} from "@/features/studio/utils/youtube";
-import {
-  defaultEditingStyles,
-  defaultMotionGraphics,
-  defaultSubtitleStyles,
-  type EditingStylePreset,
-  type MotionGraphicPreset,
-  type SubtitleStylePreset,
-} from "@/features/studio/presets";
-import { StudioQuotaBanner } from "@/features/studio/components/StudioQuotaBanner";
-import {
-  getPersistentSession,
-  updatePersistentUserQuota,
-  resetPersistentUserQuota,
-} from "@/features/auth/session-storage";
+import { Sparkles, Download, Layers } from "lucide-react";
 
 export const Route = createFileRoute("/_protected/app")({
   head: () => ({ meta: [{ title: `Studio Potong Video | ${siteConfig.name}` }] }),
   component: StudioPotongVideoPage,
 });
 
+const defaultPresetsList: DynamicPresetItem[] = [
+  { id: "viral-motion", name: "Viral Motion" },
+  { id: "netflix-cinematic", name: "Netflix Cinematic" },
+  { id: "aesthetic-soft-film", name: "Aesthetic Soft Film" },
+  { id: "theo-podcast", name: "THEO Podcast Dark" },
+];
+
 function StudioPotongVideoPage() {
-  const [youtubeUrl, setYoutubeUrl] = useState<string>(
-    "https://www.youtube.com/watch?v=V0k9u"
-  );
-
-  // Initialize with confirmed metadata for default sample video
-  const [videoMetadata, setVideoMetadata] = useState<YouTubeVideoMetadata | null>({
-    ...sampleYouTubeVideos.V0k9u,
-    url: "https://www.youtube.com/watch?v=V0k9u",
-    isConfirmed: true,
-  });
-
-  const [isValidatingUrl, setIsValidatingUrl] = useState<boolean>(false);
-  const [clippingLimit, setClippingLimit] = useState<number>(10);
-  const [userQuota, setUserQuota] = useState<{ total: number; used: number }>({
-    total: 50,
-    used: 5,
-  });
-  const [lastDeduction, setLastDeduction] = useState<{
-    amount: number;
-    timestamp: number;
-  } | null>(null);
+  // ZERO SAMPLE / CLEAN INITIAL STATE
+  const [youtubeUrl, setYoutubeUrl] = useState<string>("");
+  const [clippingLimit, setClippingLimit] = useState<number>(5);
   const [duration, setDuration] = useState<number>(45);
 
-  // 3 distinct style presets: Editing Style, Motion Graphic, Subtitle Style
-  const [editingStyles, setEditingStyles] =
-    useState<EditingStylePreset[]>(defaultEditingStyles);
-  const [motionGraphics, setMotionGraphics] =
-    useState<MotionGraphicPreset[]>(defaultMotionGraphics);
-  const [subtitleStyles, setSubtitleStyles] =
-    useState<SubtitleStylePreset[]>(defaultSubtitleStyles);
+  const [presets, setPresets] = useState<DynamicPresetItem[]>(defaultPresetsList);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>("viral-motion");
+  const [enableMotionGraphic, setEnableMotionGraphic] = useState<boolean>(true);
 
-  const [editingStyle, setEditingStyle] = useState<string>("theo-podcast");
-  const [motionGraphicStyle, setMotionGraphicStyle] = useState<string>("theo-infographics");
-  const [subtitleStyle, setSubtitleStyle] = useState<string>("theo-red-pill");
-
-  const handleAddNewPreset = (
-    category: "editing" | "motion" | "subtitle",
-    newPreset: any
-  ) => {
-    if (category === "editing") {
-      setEditingStyles((prev) => [...prev, newPreset]);
-    } else if (category === "motion") {
-      setMotionGraphics((prev) => [...prev, newPreset]);
-    } else if (category === "subtitle") {
-      setSubtitleStyles((prev) => [...prev, newPreset]);
-    }
-  };
-
-  const [refFileName, setRefFileName] = useState<string>("reference_style.mp4");
+  const [refFileName, setRefFileName] = useState<string>("");
+  const [isCloningStyle, setIsCloningStyle] = useState<boolean>(false);
 
   const [status, setStatus] = useState<ProcessingStatus>("idle");
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [processingPercent, setProcessingPercent] = useState<number>(0);
 
-  const [clips, setClips] = useState<ClipItem[]>(initialClips);
+  // Clean empty array - NO DUMMY SAMPLES!
+  const [clips, setClips] = useState<ClipItem[]>([]);
   const [selectedClip, setSelectedClip] = useState<ClipItem | null>(null);
   const [activePlayingClipId, setActivePlayingClipId] = useState<string | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Fetch dynamic presets from /api/presets
   useEffect(() => {
-    // Initial sync with persistent session
-    const syncQuota = () => {
-      const session = getPersistentSession();
-      if (session) {
-        setUserQuota({
-          total: session.dailyQuota || 50,
-          used: session.usedQuota || 0,
-        });
-      }
-    };
-    syncQuota();
-
-    // Listen to changes across tabs or other components
-    if (typeof window !== "undefined") {
-      window.addEventListener("storage", syncQuota);
-      return () => {
-        window.removeEventListener("storage", syncQuota);
-        if (progressTimerRef.current) {
-          clearInterval(progressTimerRef.current);
+    fetch("/api/presets")
+      .then((res) => res.json())
+      .then((res) => {
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setPresets(res.data);
         }
-      };
-    }
-
-    return () => {
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-      }
-    };
+      })
+      .catch(() => {});
   }, []);
-
-  const handleResetQuota = () => {
-    const reset = resetPersistentUserQuota();
-    setUserQuota({
-      total: reset.dailyQuota,
-      used: 0,
-    });
-    setLastDeduction(null);
-    setErrorMessage(null);
-  };
 
   const handleTogglePlayInline = (clipId: string) => {
     setActivePlayingClipId((prev) => (prev === clipId ? null : clipId));
   };
 
-  const handleValidateAndConfirm = useCallback(async (url: string) => {
-    if (!url.trim()) {
-      setErrorMessage("Silakan masukkan link video YouTube terlebih dahulu.");
-      setVideoMetadata(null);
-      return;
-    }
-
-    const validation = validateYouTubeUrl(url);
-    if (!validation.isValid) {
-      setErrorMessage(
-        validation.error ||
-          "Link YouTube tidak valid. Gunakan format seperti: https://www.youtube.com/watch?v=... atau https://youtu.be/..."
-      );
-      setVideoMetadata(null);
-      return;
-    }
-
-    setErrorMessage(null);
-    setIsValidatingUrl(true);
-
-    try {
-      const meta = await fetchYouTubeMetadata(url);
-      setVideoMetadata(meta);
-      setErrorMessage(null);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal memverifikasi video YouTube.";
-      setErrorMessage(msg);
-      setVideoMetadata(null);
-    } finally {
-      setIsValidatingUrl(false);
-    }
-  }, []);
-
-  const handleResetUrl = () => {
-    setYoutubeUrl("");
-    setVideoMetadata(null);
-    setErrorMessage(null);
-    setStatus("idle");
+  const handleDownloadNotice = (msg: string) => {
+    setNoticeMessage(msg);
+    setTimeout(() => setNoticeMessage(null), 3000);
   };
 
-  const handleLoadSampleVideo = () => {
-    const sampleUrl = "https://www.youtube.com/watch?v=V0k9u";
-    setYoutubeUrl(sampleUrl);
-    setVideoMetadata({
-      ...sampleYouTubeVideos.V0k9u,
-      url: sampleUrl,
-      isConfirmed: true,
-    });
-    setErrorMessage(null);
-    setStatus("idle");
-  };
-
-  const handleCancelProcessing = () => {
+  // Reset / Bersihkan action
+  const handleReset = async () => {
     if (progressTimerRef.current) {
       clearInterval(progressTimerRef.current);
       progressTimerRef.current = null;
     }
+
+    setYoutubeUrl("");
+    setClips([]);
     setStatus("idle");
+    setStatusMessage("");
+    setErrorMessage(null);
     setProcessingPercent(0);
-    setStatusMessage("Proses pemotongan video dibatalkan.");
+    setRefFileName("");
+    setActivePlayingClipId(null);
+    setSelectedClip(null);
+
+    try {
+      await fetch("/api/reset", { method: "POST" });
+    } catch {}
+
+    setNoticeMessage("Tampilan dan antrean berhasil dikosongkan (Empty State Bersih).");
+    setTimeout(() => setNoticeMessage(null), 3000);
   };
 
-  const handleGenerate = () => {
-    if (!youtubeUrl.trim()) {
-      setErrorMessage("Silakan masukkan link video YouTube terlebih dahulu.");
-      setStatus("error");
+  // Upload reference video for AI style cloner
+  const handleUploadReferenceVideo = async (file: File) => {
+    setIsCloningStyle(true);
+    setRefFileName(file.name);
+    setNoticeMessage("Menganalisis gaya video dengan Gemini Multimodal...");
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64Data = reader.result as string;
+        try {
+          const res = await fetch("/api/clone-style", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              videoBase64: base64Data,
+              presetName: `Cloned (${file.name.slice(0, 12)}) 🪄`,
+            }),
+          });
+          const json = await res.json();
+          if (json.success && json.data) {
+            setPresets((prev) => [
+              { id: json.data.id, name: json.data.name },
+              ...prev.filter((p) => p.id !== json.data.id),
+            ]);
+            setSelectedPresetId(json.data.id);
+            setNoticeMessage("Gaya video berhasil dikloning ke preset aktif!");
+          }
+        } catch {
+          setNoticeMessage("Gagal menghubungi server untuk clone style.");
+        } finally {
+          setIsCloningStyle(false);
+          setTimeout(() => setNoticeMessage(null), 3000);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setIsCloningStyle(false);
+    }
+  };
+
+  // Real One-Click Pipeline Generation
+  const handleGenerate = async () => {
+    const trimmedUrl = youtubeUrl.trim();
+    if (!trimmedUrl) {
+      setErrorMessage("Silakan tempel link video YouTube terlebih dahulu.");
       return;
     }
-
-    const validation = validateYouTubeUrl(youtubeUrl);
-    if (!validation.isValid) {
-      setErrorMessage(
-        validation.error ||
-          "Link YouTube tidak valid. Mohon periksa kembali link yang Anda masukkan."
-      );
-      setStatus("error");
-      return;
-    }
-
-    const remainingQuota = Math.max(0, userQuota.total - userQuota.used);
-    if (remainingQuota <= 0) {
-      setErrorMessage(
-        "Pemotongan video diblokir: Kuota klip harian Anda telah habis (0/50 klip tersisa). Kuota diperbarui otomatis pukul 00:00 WIB atau tekan tombol Reset Kuota untuk simulasi demo."
-      );
-      setStatus("error");
-      return;
-    }
-
-    if (clippingLimit > remainingQuota) {
-      setErrorMessage(
-        `Pemotongan video diblokir: Jumlah klip yang dipilih (${clippingLimit}) melebihi sisa kuota Anda (${remainingQuota} klip). Silakan kurangi limit klip.`
-      );
-      setStatus("error");
-      return;
-    }
-
-    if (!videoMetadata) {
-      handleValidateAndConfirm(youtubeUrl);
-    }
-
-    const videoTitle = videoMetadata?.title || "Video Sumber YouTube";
 
     setErrorMessage(null);
     setStatus("downloading");
     setProcessingPercent(15);
-    setStatusMessage(`Langkah 1/3: Mengunduh audio & video "${videoTitle}"...`);
+    setStatusMessage("Langkah 1/3: Mengunduh audio YouTube dengan yt-dlp...");
 
-    // Stage 1 -> Stage 2
-    setTimeout(() => {
-      setStatus("analyzing");
-      setProcessingPercent(55);
-      setStatusMessage(
-        `Langkah 2/3: Menganalisis momen puncak viral & sentimen pada "${videoTitle}"...`
-      );
-
-      // Stage 2 -> Stage 3
-      setTimeout(() => {
-        setProcessingPercent(88);
-        setStatusMessage(
-          `Langkah 3/3: Memotong ${clippingLimit} klip vertikal 9:16 & sinkronisasi subtitle...`
-        );
-
-        setTimeout(() => {
-          const activeEditing = editingStyles.find((e) => e.id === editingStyle);
-          const activeSubtitle = subtitleStyles.find((s) => s.id === subtitleStyle);
-          const activeEditingName = activeEditing?.name || "Theo Podcast";
-          const activeSubtitleName = activeSubtitle?.name || "Red Pill Highlight";
-
-          setProcessingPercent(100);
-          setStatus("completed");
-          setStatusMessage(
-            `Selesai! Berhasil memotong ${clippingLimit} klip (${duration}s) dengan Gaya Editing "${activeEditingName}" & Subtitle "${activeSubtitleName}". Kuota terpakai: ${clippingLimit}.`
-          );
-
-          // Deduct user quota and sync persistent storage
-          updatePersistentUserQuota(clippingLimit);
-          setLastDeduction({ amount: clippingLimit, timestamp: Date.now() });
-          setUserQuota((prev) => ({
-            ...prev,
-            used: Math.min(prev.total, prev.used + clippingLimit),
-          }));
-
-          // Generate dynamic mock clips based on clipping limit, duration, and selected styles
-          const updated = initialClips.map((c, i) => ({
-            ...c,
-            duration: `${duration}s`,
-            viralScore: `${Math.floor(92 + (i === 0 ? 7 : Math.random() * 6))}/100`,
-            bottomPresetText:
-              (activeEditing?.badge || activeEditingName.split(" ")[0]) +
-              " • " +
-              (activeSubtitle?.highlightStyle === "red-pill" ? "Red Pill" : "Minimal"),
-          }));
-          setClips(updated);
-        }, 1200);
-      }, 1400);
+    // Smooth simulated progress stepping while backend executes real pipeline
+    let currentPct = 15;
+    progressTimerRef.current = setInterval(() => {
+      currentPct = Math.min(92, currentPct + 4);
+      setProcessingPercent(currentPct);
+      if (currentPct === 40) {
+        setStatus("analyzing");
+        setStatusMessage("Langkah 2/3: Mentranskripsi kata (Groq Whisper) & kurasi viral (Gemini 2.5 Flash)...");
+      } else if (currentPct === 70) {
+        setStatusMessage("Langkah 3/3: Merender video vertikal 9:16 & membakar subtitle (.ass) dengan FFmpeg...");
+      }
     }, 1200);
+
+    try {
+      const response = await fetch("/api/pipeline/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          youtubeUrl: trimmedUrl,
+          maxClips: clippingLimit,
+          clipDuration: duration,
+          presetId: selectedPresetId,
+          enableMotionGraphic,
+        }),
+      });
+
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        setStatus("error");
+        setErrorMessage(result.message || "Gagal memproses klip video.");
+        setProcessingPercent(0);
+        return;
+      }
+
+      setProcessingPercent(100);
+      setStatus("completed");
+      setStatusMessage(`Selesai! Berhasil memotong ${result.data?.clips?.length || 0} klip video 9:16.`);
+
+      // Map backend clips to frontend ClipItem shape
+      const mappedClips: ClipItem[] = (result.data?.clips || []).map((c: any, index: number) => ({
+        id: c.id || `clip-${index + 1}`,
+        title: c.title || `Klip Viral #${index + 1}`,
+        duration: `${c.duration || duration}s`,
+        viralScore: String(c.viralScore || 95),
+        rank: c.rank || index + 1,
+        highlightMoment: c.hookDescription || c.viralReason || "Hook 3 detik pertama memikat.",
+        preset: c.presetName || "Viral Motion",
+        imageSrc: result.data.thumbnail || "/images/video_preview.jpg",
+        videoUrl: c.videoUrl,
+        downloadUrl: c.downloadUrl,
+        bottomScoreText: `Skor ${c.viralScore}/100`,
+        bottomPresetText: c.presetName || "Viral Motion",
+      }));
+
+      setClips(mappedClips);
+    } catch (err: any) {
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      setStatus("error");
+      setErrorMessage(err?.message || "Terjadi kesalahan saat memproses klip.");
+      setProcessingPercent(0);
+    }
   };
 
-  const isProcessing = status === "downloading" || status === "analyzing";
+  const isProcessing =
+    status === "downloading" ||
+    status === "analyzing";
 
   return (
-    <div className="w-full text-slate-100">
-      {/* Top Breadcrumb & Status */}
-      <div className="flex items-center justify-between py-2 px-1 mb-5">
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-[#6d868c] font-medium">Dashboard</span>
-          <span className="text-[#3c565d]">/</span>
-          <span className="text-white font-medium tracking-wide">
-            Auto Video Clipper
-          </span>
+    <div className="w-full flex flex-col gap-6 animate-fadeIn text-slate-100">
+      {/* Toast Notification */}
+      {noticeMessage && (
+        <div className="fixed top-16 right-6 z-50 px-4 py-2.5 rounded-xl bg-[#0f2a30] border border-[#2cd3c6] text-teal-200 text-xs font-semibold shadow-[0_0_20px_rgba(44,211,198,0.35)] flex items-center gap-2 animate-fadeIn">
+          <Sparkles className="w-4 h-4 text-[#2cd3c6] shrink-0" />
+          <span>{noticeMessage}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs px-2.5 py-1 rounded-full bg-[#136f7c]/50 text-[#2cd3c6] border border-[#2cd3c6]/30 font-medium">
-            AI Video Clipper Pro
-          </span>
-        </div>
-      </div>
+      )}
 
-      {/* Prominent Daily Clip Quota Display */}
-      <StudioQuotaBanner
-        totalQuota={userQuota.total}
-        usedQuota={userQuota.used}
-        onResetQuota={handleResetQuota}
-        lastDeduction={lastDeduction}
-      />
-
-      {/* Main Control Panel with YouTube Validation & Title Confirmation */}
+      {/* Main Studio Control Panel */}
       <StudioControlPanel
         youtubeUrl={youtubeUrl}
-        setYoutubeUrl={(val) => {
-          setYoutubeUrl(val);
-          if (errorMessage) setErrorMessage(null);
-        }}
-        videoMetadata={videoMetadata}
-        setVideoMetadata={setVideoMetadata}
-        isValidatingUrl={isValidatingUrl}
-        onValidateAndConfirm={handleValidateAndConfirm}
+        setYoutubeUrl={setYoutubeUrl}
         clippingLimit={clippingLimit}
         setClippingLimit={setClippingLimit}
-        totalQuota={userQuota.total}
-        usedQuota={userQuota.used}
         duration={duration}
         setDuration={setDuration}
-        editingStyle={editingStyle}
-        setEditingStyle={setEditingStyle}
-        motionGraphicStyle={motionGraphicStyle}
-        setMotionGraphicStyle={setMotionGraphicStyle}
-        subtitleStyle={subtitleStyle}
-        setSubtitleStyle={setSubtitleStyle}
-        editingStyles={editingStyles}
-        motionGraphics={motionGraphics}
-        subtitleStyles={subtitleStyles}
-        onAddNewPreset={handleAddNewPreset}
+        presets={presets}
+        selectedPresetId={selectedPresetId}
+        setSelectedPresetId={setSelectedPresetId}
+        enableMotionGraphic={enableMotionGraphic}
+        setEnableMotionGraphic={setEnableMotionGraphic}
         refFileName={refFileName}
         setRefFileName={setRefFileName}
+        onUploadReferenceVideo={handleUploadReferenceVideo}
+        isCloningStyle={isCloningStyle}
         status={status}
         statusMessage={statusMessage}
         onGenerate={handleGenerate}
+        onReset={handleReset}
         errorMessage={errorMessage}
       />
 
-      {/* Multi-stage Progress Bar when actively processing */}
+      {/* Processing Progress Bar */}
       {isProcessing && (
         <ProcessingProgressBar
           status={status}
@@ -370,68 +265,67 @@ function StudioPotongVideoPage() {
           currentStepMessage={statusMessage}
           clippingLimit={clippingLimit}
           duration={duration}
-          onCancel={handleCancelProcessing}
+          onCancel={handleReset}
         />
       )}
 
-      {/* Error State Banner */}
-      {status === "error" && errorMessage && (
-        <ErrorClipsState
-          errorMessage={errorMessage}
-          onRetry={handleGenerate}
-          onReset={handleResetUrl}
-        />
-      )}
+      {/* Section Header: All Generated Clips */}
+      <div className="flex items-center justify-between border-b border-[#1b343b] pb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#13434c] to-[#1e616d] flex items-center justify-center border border-[#2cd3c6]/40 text-[#2cd3c6]">
+            <Layers className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
+              All Generated Clips
+            </h2>
+            <p className="text-xs text-[#7e9ca2]">
+              {clips.length > 0
+                ? `${clips.length} klip vertikal 9:16 siap diunduh`
+                : "Hasil klip video vertikal berpotensi viral"}
+            </p>
+          </div>
+        </div>
 
-      {/* Empty State when no clips exist */}
-      {clips.length === 0 && status !== "error" && !isProcessing && (
-        <EmptyClipsState onLoadSample={handleLoadSampleVideo} />
-      )}
-
-      {/* Section: All Generated Clips */}
-      {clips.length > 0 && (
-        <section className="mt-2 flex-1 flex flex-col">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-            <div>
-              <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
-                <span>All Generated Clips</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-[#136f7c]/40 text-[#2cd3c6] border border-[#2cd3c6]/30 font-medium">
-                  {clips.length} Klip Siap
-                </span>
-              </h2>
-              <span className="text-xs text-[#7d9399]">
-                Urutan berdasarkan skor potensi viral tertinggi
-              </span>
-            </div>
-
-            <Link
-              to="/viral-clips"
-              className="px-3 py-1.5 rounded-xl bg-[#142f36] hover:bg-[#1b3e47] border border-[#20b2aa]/40 text-[#2cd3c6] text-xs font-semibold flex items-center gap-1.5 transition self-start sm:self-auto cursor-pointer"
+        {clips.length > 0 && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="px-3 py-1.5 rounded-xl border border-[#23454d] bg-[#14282e] hover:bg-[#1a343b] text-xs text-[#8da5ab] hover:text-white transition"
             >
-              <span>🔥 Buka Deteksi Momen Viral (10 Klip)</span>
-            </Link>
+              Bersihkan Tampilan
+            </button>
           </div>
+        )}
+      </div>
 
-          {/* 4-Columns Grid: Aspect 9:16 locked with rounded corners */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4.5">
-            {clips.map((clip) => (
-              <ClipCard
-                key={clip.id}
-                clip={clip}
-                isPlayingInline={activePlayingClipId === clip.id}
-                onTogglePlayInline={handleTogglePlayInline}
-                onSelectClip={(c) => setSelectedClip(c)}
-              />
-            ))}
-          </div>
-        </section>
+      {/* Grid Hasil Klip: EMPTY STATE or REAL CLIPS */}
+      {clips.length === 0 && !isProcessing ? (
+        <EmptyClipsState />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {clips.map((clip) => (
+            <ClipCard
+              key={clip.id}
+              clip={clip}
+              isPlayingInline={activePlayingClipId === clip.id}
+              onTogglePlayInline={handleTogglePlayInline}
+              onSelectClip={setSelectedClip}
+              onDownloadNotice={handleDownloadNotice}
+            />
+          ))}
+        </div>
       )}
 
-      {/* Video Preview Modal */}
-      <VideoModal
-        clip={selectedClip}
-        onClose={() => setSelectedClip(null)}
-      />
+      {/* Video Modal Preview */}
+      {selectedClip && (
+        <VideoModal
+          clip={selectedClip}
+          onClose={() => setSelectedClip(null)}
+          onDownloadNotice={handleDownloadNotice}
+        />
+      )}
     </div>
   );
 }

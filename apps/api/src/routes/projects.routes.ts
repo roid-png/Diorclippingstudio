@@ -42,6 +42,13 @@ projectsRouter.get("/quota", async (req, res) => {
   res.json({ data: quota });
 });
 
+// Reset active clipping queue and temporary files
+projectsRouter.post("/reset", async (_req, res) => {
+  const { resetAllActiveClipsAndTemp } = await import("../services/cleanup.service");
+  const result = await resetAllActiveClipsAndTemp();
+  res.json({ success: true, message: "Seluruh antrean klip dan file sementara berhasil dibersihkan.", data: result });
+});
+
 // Create new video clipping job with quota check and auto-cut
 projectsRouter.post("/", jsonBody, async (req, res) => {
   const userId = getAuth(req).user.id;
