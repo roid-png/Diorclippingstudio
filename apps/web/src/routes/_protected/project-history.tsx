@@ -21,6 +21,7 @@ import { initialProjectHistoryItems } from "@/features/project-history/mock-data
 import { ProjectStatusBadge } from "@/features/project-history/components/ProjectStatusBadge";
 import { ProjectHistoryEmptyState } from "@/features/project-history/components/ProjectHistoryEmptyState";
 import { ProjectHistoryDetailModal } from "@/features/project-history/components/ProjectHistoryDetailModal";
+import { DeleteProjectConfirmDialog } from "@/features/project-history/components/DeleteProjectConfirmDialog";
 import type {
   ProjectClipSummary,
   ProjectHistoryItem,
@@ -54,6 +55,8 @@ function ProjectHistoryPage() {
     "proj-101"
   );
   const [detailModalProject, setDetailModalProject] =
+    useState<ProjectHistoryItem | null>(null);
+  const [projectToDelete, setProjectToDelete] =
     useState<ProjectHistoryItem | null>(null);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
 
@@ -108,9 +111,10 @@ function ProjectHistoryPage() {
     );
   };
 
-  const handleDeleteProject = (projectId: string, title: string) => {
-    setProjects((prev) => prev.filter((p) => p.id !== projectId));
-    setBannerMessage(`Proyek "${title}" berhasil dihapus dari riwayat.`);
+  const handleConfirmDeleteProject = (proj: ProjectHistoryItem) => {
+    setProjects((prev) => prev.filter((p) => p.id !== proj.id));
+    setProjectToDelete(null);
+    setBannerMessage(`Proyek "${proj.title}" berhasil dihapus dari riwayat.`);
   };
 
   const handleResetFilters = () => {
@@ -521,7 +525,7 @@ function ProjectHistoryPage() {
 
                       <button
                         type="button"
-                        onClick={() => handleDeleteProject(proj.id, proj.title)}
+                        onClick={() => setProjectToDelete(proj)}
                         title="Hapus proyek dari riwayat"
                         className="rounded-xl border border-[#224550] bg-[#10252c] p-2 text-slate-300 hover:text-rose-400 transition cursor-pointer"
                       >
@@ -632,6 +636,13 @@ function ProjectHistoryPage() {
           setDetailModalProject(null);
           handleResumeProject(proj);
         }}
+      />
+
+      {/* Delete Project Confirmation Dialog */}
+      <DeleteProjectConfirmDialog
+        project={projectToDelete}
+        onCancel={() => setProjectToDelete(null)}
+        onConfirmDelete={handleConfirmDeleteProject}
       />
     </div>
   );
