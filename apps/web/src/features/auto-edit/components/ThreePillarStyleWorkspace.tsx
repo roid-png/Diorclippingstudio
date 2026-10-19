@@ -310,8 +310,8 @@ export function ThreePillarStyleWorkspace({
           </button>
         </div>
 
-        {/* Preset Cards Grid for Motion Graphics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3.5">
+        {/* Preset Cards Grid for Motion Graphics with Mini Visual Previews */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3.5">
           {motionGraphics.map((motion) => {
             const isSelected = clip.config.motionGraphicId === motion.id;
             return (
@@ -323,9 +323,9 @@ export function ThreePillarStyleWorkspace({
                     infographicEnabled: motion.type !== "none",
                   })
                 }
-                className={`p-3 rounded-xl border transition-all cursor-pointer select-none flex flex-col justify-between gap-1.5 ${
+                className={`p-3 rounded-xl border transition-all cursor-pointer select-none flex flex-col justify-between gap-2 ${
                   isSelected
-                    ? "bg-purple-950/40 border-purple-400 shadow-[0_0_15px_rgba(192,132,252,0.2)]"
+                    ? "bg-purple-950/40 border-purple-400 shadow-[0_0_15px_rgba(192,132,252,0.25)]"
                     : "bg-[#12262b]/80 border-[#1d3940] hover:border-purple-400/40"
                 }`}
               >
@@ -349,6 +349,99 @@ export function ThreePillarStyleWorkspace({
                     )}
                   </div>
                 </div>
+
+                {/* PRATINJAU MINI MOTION GRAPHIC (MINI VISUAL PREVIEW) */}
+                <div className="relative h-16 rounded-lg bg-[#071316] border border-white/10 overflow-hidden p-2 flex flex-col justify-between">
+                  {motion.type === "infographic-bar" && (
+                    <>
+                      <div className="flex items-center justify-between text-[8px] font-black text-white">
+                        <span className="tracking-wider uppercase text-cyan-300">
+                          PRATINJAU MINI: TOP INFOGRAFIS
+                        </span>
+                        <span className="px-1 rounded bg-red-600/30 text-red-300 border border-red-500/40">
+                          LIVE STAT
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <div>
+                          <div className="flex justify-between text-[8px] text-gray-300 font-bold mb-0.5">
+                            <span>WHITE COLLAR RISK</span>
+                            <span className="text-red-400">92% HIGH</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full w-[92%] bg-gradient-to-r from-red-600 to-rose-400 rounded-full" />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-[8px] text-gray-300 font-bold mb-0.5">
+                            <span>BLUE COLLAR SAFE</span>
+                            <span className="text-emerald-400">85% SAFE</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full w-[85%] bg-gradient-to-r from-emerald-600 to-teal-400 rounded-full" />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {motion.type === "progress-zoom" && (
+                    <>
+                      <div className="flex items-center justify-between text-[8px] font-black">
+                        <span className="text-purple-300 uppercase tracking-wider">
+                          PRATINJAU MINI: PUNCH ZOOM
+                        </span>
+                        <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-[#2cd3c6] border border-[#2cd3c6]/40">
+                          🔍 1.15x AUTO-ZOOM
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-center my-auto">
+                        <div className="px-2 py-0.5 rounded border border-dashed border-purple-400/60 bg-purple-950/40 text-[9px] font-bold text-purple-200 animate-pulse">
+                          [ Frame Kamera Dinamis + Shake Halus ]
+                        </div>
+                      </div>
+                      <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full w-2/3 bg-gradient-to-r from-red-500 via-amber-400 to-[#2cd3c6]" />
+                      </div>
+                    </>
+                  )}
+
+                  {motion.type === "lower-third" && (
+                    <>
+                      <div className="flex items-center justify-between text-[8px] font-black">
+                        <span className="text-amber-300 uppercase tracking-wider">
+                          PRATINJAU MINI: LOWER THIRD
+                        </span>
+                        <span className="text-[8px] text-gray-400 font-mono">
+                          PODCAST BADGE
+                        </span>
+                      </div>
+                      <div className="mt-auto flex items-center gap-2 bg-black/75 border-l-2 border-red-500 px-2 py-1 rounded-r-md">
+                        <div className="w-2 h-2 rounded-full bg-red-500 animate-ping shrink-0" />
+                        <div className="truncate">
+                          <div className="text-[9px] font-black text-white leading-none">
+                            DARINOL PODCAST • NARASUMBER
+                          </div>
+                          <div className="text-[8px] text-[#2cd3c6] leading-tight">
+                            Topik: Prediksi Ekonomi & AI 2026
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {motion.type === "none" && (
+                    <div className="h-full flex flex-col items-center justify-center text-center">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                        PRATINJAU MINI: CLEAN VIDEO 9:16
+                      </span>
+                      <span className="text-[8px] text-gray-500 mt-0.5">
+                        Tanpa bar infografis / overlay tambahan di atas video
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <p className="text-[11px] text-[#93adb3] leading-snug">
                   {motion.description}
                 </p>
@@ -356,7 +449,7 @@ export function ThreePillarStyleWorkspace({
                   {motion.features.map((feat, i) => (
                     <span
                       key={i}
-                      className="text-[9px] px-1.5 py-0.2 rounded bg-black/40 text-gray-300 border border-white/10"
+                      className="text-[9px] px-1.5 py-0.5 rounded bg-black/40 text-gray-300 border border-white/10"
                     >
                       {feat}
                     </span>
