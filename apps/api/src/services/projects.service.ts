@@ -555,4 +555,104 @@ export async function deleteProject(userId: string, projectId: string) {
   };
 }
 
+export async function resumeProject(userId: string, projectId: string) {
+  const [project] = await db
+    .select()
+    .from(projects)
+    .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
+    .limit(1);
+
+  if (!project) {
+    throw new HttpError(404, "NOT_FOUND", "Proyek tidak ditemukan.");
+  }
+
+  const projectClips = await db
+    .select()
+    .from(clips)
+    .where(eq(clips.projectId, projectId));
+
+  const clipIds = projectClips.map((c) => c.id);
+  const projectRenderJobs =
+    clipIds.length > 0
+      ? await db
+          .select()
+          .from(renderJobs)
+          .where(inArray(renderJobs.clipId, clipIds))
+      : [];
+
+  const completedCount = projectRenderJobs.filter(
+    (j) => j.status === "completed"
+  ).length;
+  const renderingCount = projectRenderJobs.filter(
+    (j) => j.status === "rendering"
+  ).length;
+  const failedCount = projectRenderJobs.filter(
+    (j) => j.status === "failed"
+  ).length;
+
+  let resolvedStage = project.stage;
+  let resolvedStageLabel = project.stageLabel;
+  let resumeRoute = "/auto-edit";
+
+  if (completedCount > 0 || renderingCount > 0 || failedCount > 0) {
+    resolvedStage =
+      completedCount === projectClips.length && projectClips.length > 0
+        ? "completed"
+        : renderingCount > 0
+        ? "rendering"
+        : failedCount > 0
+        ? "failed"
+        : "rendering";
+    resolvedStageLabel =
+      resolvedStage === "completed"
+        ? "Render Selesai"
+        : resolvedStage === "rendering"
+        ? "Sedang Dirender"
+        : "Render Gagal";
+    resumeRoute = "/render";
+  } else if (projectClips.length > 0) {
+    resolvedStage = "auto-edit";
+    resolvedStageLabel = "Auto-Edit Siap";
+    resumeRoute = "/auto-edit";
+  } else {
+    resolvedStage = "viral-detected";
+    resolvedStageLabel = "Deteksi Viral";
+    resumeRoute = "/viral-clips";
+  }
+
+  // Update project updatedAt and stage
+  const [updatedProject] = await db
+    .update(projects)
+    .set({
+      stage: resolvedStage,
+      stageLabel: resolvedStageLabel,
+      updatedAt: new Date(),
+    })
+    .where(eq(projects.id, projectId))
+    .returning();
+
+  // Create an info notification for resuming
+  const { createNotification } = await import("./notifications.service");
+  await createNotification({
+    userId,
+    title: "Melanjutkan Proyek",
+    message: `Proyek "${project.videoTitle || "Klip Viral"}" dilanjutkan dari tahap ${resolvedStageLabel} (${resumeRoute}).`,
+    type: "info",
+  });
+
+  return {
+    project: updatedProject,
+    stage: resolvedStage,
+    stageLabel: resolvedStageLabel,
+    resumeRoute,
+    resumedAt: new Date().toISOString(),
+    summary: {
+      totalClips: projectClips.length,
+      completedClips: completedCount,
+      renderingClips: renderingCount,
+      failedClips: failedCount,
+    },
+  };
+}
+
 

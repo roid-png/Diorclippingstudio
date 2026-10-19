@@ -20,6 +20,7 @@ import {
   getProjectStatusAndClips,
   getUserQuota,
   listUserProjects,
+  resumeProject,
   toggleProjectPin,
   updateProjectMaxClips,
 } from "../services/projects.service";
@@ -180,6 +181,21 @@ projectsRouter.delete("/:id", async (req, res) => {
   const userId = getAuth(req).user.id;
   const id = projectIdSchema.parse(req.params.id);
   const result = await deleteProject(userId, id);
+  res.json({ data: result });
+});
+
+// Resume project from last workflow stage
+projectsRouter.post("/:id/resume", async (req, res) => {
+  const userId = getAuth(req).user.id;
+  const id = projectIdSchema.parse(req.params.id);
+  const result = await resumeProject(userId, id);
+  res.json({ data: result });
+});
+
+projectsRouter.get("/:id/resume", async (req, res) => {
+  const userId = getAuth(req).user.id;
+  const id = projectIdSchema.parse(req.params.id);
+  const result = await resumeProject(userId, id);
   res.json({ data: result });
 });
 
