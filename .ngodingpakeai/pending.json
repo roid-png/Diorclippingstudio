@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "d28eb15ffa3f4aff1f2567b78b5d9d95319a193a",
+  "generatedForCommit": "bdad05019b659728ca9a44d1550ac3bdb6201a11",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -723,14 +723,20 @@
       "size": 1180
     },
     {
-      "path": "apps/web/src/features/project-history/mock-data.ts",
+      "path": "apps/web/src/features/project-history/components/ProjectStatusBadge.tsx",
       "reason": "new",
+      "language": "typescript",
+      "size": 3249
+    },
+    {
+      "path": "apps/web/src/features/project-history/mock-data.ts",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 7919
     },
     {
       "path": "apps/web/src/features/project-history/types.ts",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 1169
     },
@@ -1042,9 +1048,9 @@
     },
     {
       "path": "apps/web/src/routes/_protected/project-history.tsx",
-      "reason": "new",
+      "reason": "changed",
       "language": "typescript",
-      "size": 24320
+      "size": 24319
     },
     {
       "path": "apps/web/src/routes/_protected/render.tsx",
@@ -1060,7 +1066,7 @@
     },
     {
       "path": "apps/web/src/routes/_protected.tsx",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 3708
     },
@@ -1072,7 +1078,7 @@
     },
     {
       "path": "apps/web/src/routeTree.gen.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 9877
     },

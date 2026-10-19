@@ -4,21 +4,21 @@ import { siteConfig } from "@/config/site";
 import {
   History,
   Search,
-  Youtube,
+  Link2,
   Upload,
   Sparkles,
   Rocket,
   Film,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
   Trash2,
   Pin,
   ExternalLink,
   FolderOpen,
   Plus,
+  RotateCcw,
 } from "lucide-react";
 import { initialProjectHistoryItems } from "@/features/project-history/mock-data";
+import { ProjectStatusBadge } from "@/features/project-history/components/ProjectStatusBadge";
+import { ProjectHistoryEmptyState } from "@/features/project-history/components/ProjectHistoryEmptyState";
 import type {
   ProjectHistoryItem,
   ProjectSourceType,
@@ -108,8 +108,25 @@ function ProjectHistoryPage() {
     setBannerMessage(`Proyek "${title}" berhasil dihapus dari riwayat.`);
   };
 
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setSourceFilter("all");
+    setStageFilter("all");
+    setDurationFilter("all");
+  };
+
+  const handleRestoreDemoProjects = () => {
+    setProjects(initialProjectHistoryItems);
+    handleResetFilters();
+    setBannerMessage("Berhasil memuat ulang 5 proyek contoh ke Riwayat Proyek.");
+  };
+
   const handleResumeProject = (proj: ProjectHistoryItem) => {
-    if (proj.stage === "completed" || proj.stage === "rendering" || proj.stage === "failed") {
+    if (
+      proj.stage === "completed" ||
+      proj.stage === "rendering" ||
+      proj.stage === "failed"
+    ) {
       navigate({ to: "/render" });
       return;
     }
@@ -136,13 +153,40 @@ function ProjectHistoryPage() {
             </span>
           </div>
 
-          <Link
-            to="/app"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-purple-950/50 hover:from-purple-500 hover:to-indigo-500 transition"
-          >
-            <Plus className="h-4 w-4" />
-            Buat Proyek Auto-Cut Baru
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {projects.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setProjects([]);
+                  setBannerMessage(
+                    "Menampilkan pratinjau Tampilan Kosong (Empty State) Riwayat Proyek."
+                  );
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#224550] bg-[#10252c] px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5 text-slate-400" />
+                Simulasi Kosongkan
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRestoreDemoProjects}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-950/40 px-3 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-900/50 transition cursor-pointer"
+              >
+                <RotateCcw className="h-3.5 w-3.5 text-cyan-400" />
+                Muat Data Contoh
+              </button>
+            )}
+
+            <Link
+              to="/app"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-purple-950/50 hover:from-purple-500 hover:to-indigo-500 transition"
+            >
+              <Plus className="h-4 w-4" />
+              Buat Proyek Auto-Cut Baru
+            </Link>
+          </div>
         </div>
 
         <div className="mt-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -323,25 +367,20 @@ function ProjectHistoryPage() {
         </div>
       </div>
 
-      {/* Project Cards List */}
-      {filteredProjects.length === 0 ? (
-        <div className="rounded-2xl border border-[#1b3942] bg-[#0b1a1f]/80 p-10 text-center space-y-3">
-          <p className="text-sm font-bold text-slate-200">
-            Tidak ditemukan proyek yang sesuai dengan filter pencarian.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setSearchQuery("");
-              setSourceFilter("all");
-              setStageFilter("all");
-              setDurationFilter("all");
-            }}
-            className="rounded-xl bg-[#16343d] px-4 py-2 text-xs font-bold text-white hover:bg-[#1d4450] cursor-pointer"
-          >
-            Reset Filter Pencarian
-          </button>
-        </div>
+      {/* Project Cards List or Empty State */}
+      {projects.length === 0 ? (
+        <ProjectHistoryEmptyState
+          mode="no-projects"
+          onResetFilters={handleResetFilters}
+          onRestoreDemoProjects={handleRestoreDemoProjects}
+        />
+      ) : filteredProjects.length === 0 ? (
+        <ProjectHistoryEmptyState
+          mode="no-filter-matches"
+          searchQuery={searchQuery}
+          onResetFilters={handleResetFilters}
+          onRestoreDemoProjects={handleRestoreDemoProjects}
+        />
       ) : (
         <div className="space-y-4">
           {filteredProjects.map((proj) => {
@@ -375,7 +414,7 @@ function ProjectHistoryPage() {
                         }`}
                       >
                         {proj.sourceType === "youtube" ? (
-                          <Youtube className="h-3 w-3" />
+                          <Link2 className="h-3 w-3" />
                         ) : (
                           <Upload className="h-3 w-3" />
                         )}
@@ -437,26 +476,12 @@ function ProjectHistoryPage() {
 
                   {/* Right: Status Badge & Actions */}
                   <div className="flex flex-col sm:flex-row lg:flex-col items-start sm:items-center lg:items-end justify-between gap-3 shrink-0">
-                    <div
-                      className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold ${
-                        proj.stage === "completed"
-                          ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-300"
-                          : proj.stage === "rendering"
-                          ? "border-amber-500/40 bg-amber-950/40 text-amber-300"
-                          : proj.stage === "failed"
-                          ? "border-rose-500/40 bg-rose-950/40 text-rose-300"
-                          : "border-purple-500/40 bg-purple-950/40 text-purple-200"
-                      }`}
-                    >
-                      {proj.stage === "completed" ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                      ) : proj.stage === "failed" ? (
-                        <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />
-                      ) : (
-                        <Clock className="h-3.5 w-3.5 text-amber-400" />
-                      )}
-                      {proj.stageLabel}
-                    </div>
+                    <ProjectStatusBadge
+                      stage={proj.stage}
+                      stageLabel={proj.stageLabel}
+                      completedClipsCount={proj.completedClipsCount}
+                      requestedClipsCount={proj.requestedClipsCount}
+                    />
 
                     <div className="flex flex-wrap items-center gap-2">
                       <button
