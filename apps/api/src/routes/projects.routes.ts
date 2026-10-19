@@ -19,6 +19,7 @@ import {
   getProjectStatusAndClips,
   getUserQuota,
   listUserProjects,
+  toggleProjectPin,
   updateProjectMaxClips,
 } from "../services/projects.service";
 import {
@@ -161,5 +162,15 @@ projectsRouter.get("/:id", async (req, res) => {
   const project = await getProjectById(userId, id);
   if (!project) throw new HttpError(404, "NOT_FOUND", "Proyek tidak ditemukan.");
   res.json({ data: project });
+});
+
+// Toggle or update pinned status for a project
+projectsRouter.patch("/:id/pin", jsonBody, async (req, res) => {
+  const userId = getAuth(req).user.id;
+  const id = projectIdSchema.parse(req.params.id);
+  const isPinned =
+    typeof req.body?.isPinned === "boolean" ? req.body.isPinned : undefined;
+  const result = await toggleProjectPin(userId, id, isPinned);
+  res.json({ data: result });
 });
 
