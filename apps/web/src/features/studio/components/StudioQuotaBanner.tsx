@@ -6,17 +6,22 @@ interface StudioQuotaBannerProps {
   totalQuota: number;
   usedQuota: number;
   onResetQuota?: () => void;
+  lastDeduction?: { amount: number; timestamp: number } | null;
 }
 
 export function StudioQuotaBanner({
   totalQuota = 50,
   usedQuota = 5,
   onResetQuota,
+  lastDeduction,
 }: StudioQuotaBannerProps) {
   const [isResetting, setIsResetting] = useState(false);
   const remainingQuota = Math.max(0, totalQuota - usedQuota);
   const percentUsed = Math.min(100, Math.round((usedQuota / totalQuota) * 100));
   const percentRemaining = Math.max(0, 100 - percentUsed);
+
+  const showRecentBadge =
+    lastDeduction && Date.now() - lastDeduction.timestamp < 10000;
 
   const isExhausted = remainingQuota === 0;
   const isLow = remainingQuota > 0 && remainingQuota <= 10;
@@ -83,6 +88,12 @@ export function StudioQuotaBanner({
               >
                 {remainingQuota} / {totalQuota} Klip
               </span>
+              {showRecentBadge && (
+                <span className="flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold animate-in fade-in zoom-in-95 duration-300">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>-{lastDeduction?.amount} Klip Selesai Dipotong!</span>
+                </span>
+              )}
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800/80 text-slate-300 border border-slate-700 font-medium">
                 Maks. 10 klip / proses
               </span>

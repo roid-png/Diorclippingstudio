@@ -52,6 +52,10 @@ function StudioPotongVideoPage() {
     total: 50,
     used: 5,
   });
+  const [lastDeduction, setLastDeduction] = useState<{
+    amount: number;
+    timestamp: number;
+  } | null>(null);
   const [duration, setDuration] = useState<number>(45);
 
   // 3 distinct style presets: Editing Style, Motion Graphic, Subtitle Style
@@ -129,6 +133,7 @@ function StudioPotongVideoPage() {
       total: reset.dailyQuota,
       used: 0,
     });
+    setLastDeduction(null);
     setErrorMessage(null);
   };
 
@@ -264,6 +269,7 @@ function StudioPotongVideoPage() {
 
           // Deduct user quota and sync persistent storage
           updatePersistentUserQuota(clippingLimit);
+          setLastDeduction({ amount: clippingLimit, timestamp: Date.now() });
           setUserQuota((prev) => ({
             ...prev,
             used: Math.min(prev.total, prev.used + clippingLimit),
@@ -310,6 +316,7 @@ function StudioPotongVideoPage() {
         totalQuota={userQuota.total}
         usedQuota={userQuota.used}
         onResetQuota={handleResetQuota}
+        lastDeduction={lastDeduction}
       />
 
       {/* Main Control Panel with YouTube Validation & Title Confirmation */}

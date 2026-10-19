@@ -4,10 +4,14 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { roleHasPermission } from "@starter/shared/permissions";
 import { Brand } from "@/components/brand";
 import { SignOutButton } from "@/components/sign-out-button";
-import { getPersistentSession } from "@/features/auth/session-storage";
+import {
+  getPersistentSession,
+  type StoredSessionUser,
+} from "@/features/auth/session-storage";
 import type { Session } from "@/lib/session";
 
 export const Route = createFileRoute("/_protected")({
@@ -55,6 +59,30 @@ const navLink =
 function ProtectedLayout() {
   const { user } = Route.useRouteContext().session;
   const canAdmin = roleHasPermission(user.role, { notes: ["read-any"] });
+
+  const [headerSession, setHeaderSession] = useState<StoredSessionUser | null>(() =>
+    getPersistentSession()
+  );
+
+  useEffect(() => {
+    const handleSync = () => {
+      setHeaderSession(getPersistentSession());
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", handleSync);
+      return () => window.removeEventListener("storage", handleSync);
+    }
+  }, []);
+
+  const dailyQuota = headerSession?.dailyQuota ?? 50;
+  const usedQuota = headerSession?.usedQuota ?? 0;
+  const remainingQuota = Math.max(0, dailyQuota - usedQuota);
+  const displayName = headerSession?.name || user.name;
+  const displayAvatar =
+    headerSession?.avatarUrl || user.image || "/images/michael_avatar.png";
+  const displayBadge =
+    headerSession?.badge ||
+    (user.role === "admin" ? "Pro Video Editor" : "Content Creator");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#071518] via-[#0b1b1f] to-[#12282e] text-slate-100 flex flex-col">
@@ -112,7 +140,7 @@ function ProtectedLayout() {
               className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/30 text-xs font-bold text-cyan-300 transition"
             >
               <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-              <span>50 Kuota Harian</span>
+              <span>{remainingQuota} / {dailyQuota} Kuota</span>
             </Link>
 
             <Link
@@ -122,17 +150,17 @@ function ProtectedLayout() {
             >
               <div className="w-6 h-6 rounded-full overflow-hidden border border-[#234b55] group-hover:border-[#2cd3c6] relative shrink-0 bg-[#162f35] transition">
                 <img
-                  src={user.image || "/images/michael_avatar.png"}
-                  alt={user.name}
+                  src={displayAvatar}
+                  alt={displayName}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="flex flex-col text-left">
                 <span className="text-xs font-bold text-gray-200 group-hover:text-white leading-tight transition">
-                  {user.name}
+                  {displayName}
                 </span>
                 <span className="text-[10px] text-slate-400 leading-none">
-                  {user.role === "admin" ? "Pro Editor" : "Content Creator"}
+                  {displayBadge}
                 </span>
               </div>
             </Link>
