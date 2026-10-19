@@ -37,3 +37,4 @@ export interface YouTubeMetadataResponse {
   viewCount?: string;
   isConfirmed: boolean;
 }
+

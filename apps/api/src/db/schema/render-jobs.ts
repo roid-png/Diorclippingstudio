@@ -39,3 +39,4 @@ export const renderJobs = pgTable(
 
 export type RenderJob = typeof renderJobs.$inferSelect;
 export type NewRenderJob = typeof renderJobs.$inferInsert;
+

@@ -17,6 +17,7 @@ import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as ProtectedAdminRouteImport } from './routes/_protected/admin'
 import { Route as ProtectedAppRouteImport } from './routes/_protected/app'
 import { Route as ProtectedNotesRouteImport } from './routes/_protected/notes'
+import { Route as ProtectedViralClipsRouteImport } from './routes/_protected/viral-clips'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -56,6 +57,11 @@ const ProtectedNotesRoute = ProtectedNotesRouteImport.update({
   path: '/notes',
   getParentRoute: () => ProtectedRoute,
 } as any)
+const ProtectedViralClipsRoute = ProtectedViralClipsRouteImport.update({
+  id: '/viral-clips',
+  path: '/viral-clips',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof ProtectedAdminRoute
   '/app': typeof ProtectedAppRoute
   '/notes': typeof ProtectedNotesRoute
+  '/viral-clips': typeof ProtectedViralClipsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -72,6 +79,7 @@ export interface FileRoutesByTo {
   '/admin': typeof ProtectedAdminRoute
   '/app': typeof ProtectedAppRoute
   '/notes': typeof ProtectedNotesRoute
+  '/viral-clips': typeof ProtectedViralClipsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -83,12 +91,27 @@ export interface FileRoutesById {
   '/_protected/admin': typeof ProtectedAdminRoute
   '/_protected/app': typeof ProtectedAppRoute
   '/_protected/notes': typeof ProtectedNotesRoute
+  '/_protected/viral-clips': typeof ProtectedViralClipsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sign-in' | '/sign-up' | '/admin' | '/app' | '/notes'
+  fullPaths:
+    | '/'
+    | '/sign-in'
+    | '/sign-up'
+    | '/admin'
+    | '/app'
+    | '/notes'
+    | '/viral-clips'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/sign-in' | '/sign-up' | '/admin' | '/app' | '/notes'
+  to:
+    | '/'
+    | '/sign-in'
+    | '/sign-up'
+    | '/admin'
+    | '/app'
+    | '/notes'
+    | '/viral-clips'
   id:
     | '__root__'
     | '/'
@@ -99,6 +122,7 @@ export interface FileRouteTypes {
     | '/_protected/admin'
     | '/_protected/app'
     | '/_protected/notes'
+    | '/_protected/viral-clips'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -165,6 +189,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedNotesRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/viral-clips': {
+      id: '/_protected/viral-clips'
+      path: '/viral-clips'
+      fullPath: '/viral-clips'
+      preLoaderRoute: typeof ProtectedViralClipsRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
   }
 }
 
@@ -184,12 +215,14 @@ interface ProtectedRouteChildren {
   ProtectedAdminRoute: typeof ProtectedAdminRoute
   ProtectedAppRoute: typeof ProtectedAppRoute
   ProtectedNotesRoute: typeof ProtectedNotesRoute
+  ProtectedViralClipsRoute: typeof ProtectedViralClipsRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedAdminRoute: ProtectedAdminRoute,
   ProtectedAppRoute: ProtectedAppRoute,
   ProtectedNotesRoute: ProtectedNotesRoute,
+  ProtectedViralClipsRoute: ProtectedViralClipsRoute,
 }
 
 const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(

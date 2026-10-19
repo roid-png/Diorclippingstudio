@@ -43,3 +43,4 @@ export const clips = pgTable(
 
 export type Clip = typeof clips.$inferSelect;
 export type NewClip = typeof clips.$inferInsert;
+

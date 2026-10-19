@@ -34,3 +34,4 @@ export const quotas = pgTable(
 
 export type Quota = typeof quotas.$inferSelect;
 export type NewQuota = typeof quotas.$inferInsert;
+

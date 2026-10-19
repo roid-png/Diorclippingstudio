@@ -19,3 +19,4 @@ export const createProjectSchema = z
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 
 export const projectIdSchema = z.string().uuid("ID proyek harus berupa UUID yang valid.");
+

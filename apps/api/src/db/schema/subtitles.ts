@@ -30,3 +30,4 @@ export const subtitles = pgTable(
 
 export type Subtitle = typeof subtitles.$inferSelect;
 export type NewSubtitle = typeof subtitles.$inferInsert;
+

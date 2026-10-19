@@ -49,6 +49,9 @@ function ProtectedLayout() {
               <Link to="/app" className={navLink}>
                 Studio Potong Video
               </Link>
+              <Link to="/viral-clips" className={navLink}>
+                Deteksi Momen Viral
+              </Link>
               {canAdmin && (
                 <Link to="/admin" className={navLink}>
                   Admin

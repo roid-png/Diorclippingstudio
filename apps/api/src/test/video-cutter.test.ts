@@ -51,3 +51,4 @@ describe("Video Cutter & Viral Scoring Rules", () => {
     ).toThrow();
   });
 });
+

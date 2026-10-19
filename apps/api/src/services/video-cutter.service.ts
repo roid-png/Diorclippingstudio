@@ -304,3 +304,4 @@ export async function getProjectClips(projectId: string) {
 
   return clipsWithSubtitles;
 }
+

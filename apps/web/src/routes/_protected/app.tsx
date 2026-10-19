@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { siteConfig } from "@/config/site";
 import { initialClips } from "@/features/studio/mock-data";
@@ -330,16 +330,25 @@ function StudioPotongVideoPage() {
       {/* Section: All Generated Clips */}
       {clips.length > 0 && (
         <section className="mt-2 flex-1 flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
-              <span>All Generated Clips</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-[#136f7c]/40 text-[#2cd3c6] border border-[#2cd3c6]/30 font-medium">
-                {clips.length} Klip Siap
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+                <span>All Generated Clips</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-[#136f7c]/40 text-[#2cd3c6] border border-[#2cd3c6]/30 font-medium">
+                  {clips.length} Klip Siap
+                </span>
+              </h2>
+              <span className="text-xs text-[#7d9399]">
+                Urutan berdasarkan skor potensi viral tertinggi
               </span>
-            </h2>
-            <span className="text-xs text-[#7d9399]">
-              Urutan berdasarkan skor potensi viral tertinggi
-            </span>
+            </div>
+
+            <Link
+              to="/viral-clips"
+              className="px-3 py-1.5 rounded-xl bg-[#142f36] hover:bg-[#1b3e47] border border-[#20b2aa]/40 text-[#2cd3c6] text-xs font-semibold flex items-center gap-1.5 transition self-start sm:self-auto cursor-pointer"
+            >
+              <span>🔥 Buka Deteksi Momen Viral (10 Klip)</span>
+            </Link>
           </div>
 
           {/* 4-Columns Grid: Aspect 9:16 locked with rounded corners */}
