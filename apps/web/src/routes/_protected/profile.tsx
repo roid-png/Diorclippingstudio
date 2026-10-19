@@ -15,6 +15,8 @@ import {
   Undo2,
   AlertCircle,
   Link2,
+  Lock,
+  KeyRound,
 } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import {
@@ -26,6 +28,7 @@ import {
 } from "@/features/auth/session-storage";
 import { DEFAULT_AVATARS, type DefaultAvatarOption } from "@/features/auth/default-avatars";
 import { ProfileLivePreviewCard } from "@/features/auth/components/ProfileLivePreviewCard";
+import { ChangePasswordCard } from "@/features/auth/components/ChangePasswordCard";
 
 export const Route = createFileRoute("/_protected/profile")({
   head: () => ({ meta: [{ title: `Profil Pengguna & Avatar | ${siteConfig.name}` }] }),
@@ -41,6 +44,7 @@ const ROLE_BADGES = [
 ];
 
 function ProfilePage() {
+  const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
   const [sessionUser, setSessionUser] = useState<StoredSessionUser>(DEFAULT_DEMO_USER);
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState<string>(
     DEFAULT_DEMO_USER.avatarUrl || "/images/michael_avatar.png"
@@ -189,15 +193,47 @@ function ProfilePage() {
 
       {/* Main Grid: Left 2 Cols (Edit Form & Avatars), Right 1 Col (Live Preview & Quota) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left 2 Cols: Form Ubah Nama & Foto Profil */}
+        {/* Left 2 Cols: Form Ubah Nama & Foto Profil / Ubah Kata Sandi */}
         <div className="lg:col-span-2 flex flex-col gap-6">
-          {/* Section: Form Ubah Profil */}
-          <div className="rounded-2xl border border-[#1a363d] bg-[#0c1a1e]/90 p-5 sm:p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                <User className="w-5 h-5 text-[#2cd3c6]" />
-                <span>Form Ubah Nama & Foto Profil</span>
-              </h2>
+          {/* Navigation Tabs */}
+          <div className="flex items-center gap-2 p-1 rounded-xl bg-[#0a171b] border border-[#16353d]">
+            <button
+              type="button"
+              onClick={() => setActiveTab("profile")}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer ${
+                activeTab === "profile"
+                  ? "bg-[#133037] text-[#2cd3c6] border border-[#2cd3c6]/40 shadow-sm"
+                  : "text-[#8ca4aa] hover:text-white hover:bg-[#0f2125]"
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Data Profil & Avatar</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("password")}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer ${
+                activeTab === "password"
+                  ? "bg-[#133037] text-[#2cd3c6] border border-[#2cd3c6]/40 shadow-sm"
+                  : "text-[#8ca4aa] hover:text-white hover:bg-[#0f2125]"
+              }`}
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              <span>Ubah Kata Sandi</span>
+            </button>
+          </div>
+
+          {activeTab === "password" ? (
+            <ChangePasswordCard />
+          ) : (
+            <>
+              {/* Section: Form Ubah Profil */}
+              <div className="rounded-2xl border border-[#1a363d] bg-[#0c1a1e]/90 p-5 sm:p-6 shadow-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    <User className="w-5 h-5 text-[#2cd3c6]" />
+                    <span>Form Ubah Nama & Foto Profil</span>
+                  </h2>
               {isDirty && (
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-medium">
                   Perubahan Belum Disimpan
@@ -392,7 +428,9 @@ function ProfilePage() {
               })}
             </div>
           </div>
-        </div>
+        </>
+      )}
+    </div>
 
         {/* Right Col: Live Preview Component & Daily Quota Status */}
         <div className="flex flex-col gap-6">
