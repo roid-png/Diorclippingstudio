@@ -1,6 +1,6 @@
 {
   "repo": "website-tahapan-dengan-kemauan-ku",
-  "generatedForCommit": "9efa9323bcb74a4d8a085121aa28de5c29e7e0a3",
+  "generatedForCommit": "057fb6c674e2e6f3a5dd40f9e78cf50ffaa26d13",
   "files": [
     {
       "path": ".agents/skills/build-feature/SKILL.md",
@@ -724,13 +724,13 @@
     },
     {
       "path": "apps/web/src/features/project-history/components/DeleteProjectConfirmDialog.tsx",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 4289
     },
     {
       "path": "apps/web/src/features/project-history/components/ProjectHistoryDetailModal.tsx",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 15049
     },
@@ -1068,7 +1068,7 @@
       "path": "apps/web/src/routes/_protected/project-history.tsx",
       "reason": "changed",
       "language": "typescript",
-      "size": 27078
+      "size": 32673
     },
     {
       "path": "apps/web/src/routes/_protected/render.tsx",

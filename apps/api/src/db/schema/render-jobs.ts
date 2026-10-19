@@ -2,6 +2,7 @@ import {
   boolean,
   index,
   integer,
+  numeric,
   pgTable,
   text,
   timestamp,
@@ -19,9 +20,17 @@ export const renderJobs = pgTable(
     subtitleEnabled: boolean("subtitle_enabled").default(true).notNull(),
     motionGraphicStyle: text("motion_graphic_style").default("theo-infographics").notNull(),
     editStyle: text("edit_style").default("theo-podcast").notNull(),
-    status: text("status").default("queued").notNull(),
+    speedMode: text("speed_mode").default("turbo-fast").notNull(),
+    resolution: text("resolution").default("1080x1920").notNull(),
+    fps: integer("fps").default(60).notNull(),
+    status: text("status").default("queued").notNull(), // 'queued' | 'rendering' | 'completed' | 'failed'
     progress: integer("progress").default(0).notNull(),
+    activeStepId: text("active_step_id"),
+    activeStepLabel: text("active_step_label"),
     outputUrl: text("output_url"),
+    fileSizeMb: numeric("file_size_mb", { precision: 6, scale: 2 }),
+    downloadFileName: text("download_file_name"),
+    errorMessage: text("error_message"),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -39,4 +48,3 @@ export const renderJobs = pgTable(
 
 export type RenderJob = typeof renderJobs.$inferSelect;
 export type NewRenderJob = typeof renderJobs.$inferInsert;
-
