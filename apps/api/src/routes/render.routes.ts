@@ -1,11 +1,13 @@
 import { Router } from "express";
-import { clipIdSchema } from "@starter/shared/validators/projects";
+import { clipIdSchema, projectIdSchema } from "@starter/shared/validators/projects";
 import { jsonBody } from "../middleware/body";
 import {
   cancelRenderJob,
+  getProjectRenderTelemetry,
   getRenderJobStatus,
   retryRenderJob,
   startRenderJob,
+  updateRenderJobProgress,
 } from "../services/render-jobs.service";
 
 export const renderRouter = Router();
@@ -40,6 +42,28 @@ renderRouter.post("/:clipId/start", jsonBody, async (req, res) => {
 renderRouter.get("/:clipId/status", async (req, res) => {
   const clipId = clipIdSchema.parse(req.params.clipId);
   const result = await getRenderJobStatus(clipId);
+  res.json({ data: result });
+});
+
+// Update render progress for a clip (simulated GPU tick / worker callback)
+renderRouter.patch("/:clipId/progress", jsonBody, async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.clipId);
+  const progress = Number(req.body?.progress ?? 0);
+  const result = await updateRenderJobProgress(clipId, {
+    progress,
+    activeStepId: req.body?.activeStepId,
+    activeStepLabel: req.body?.activeStepLabel,
+    status: req.body?.status,
+    errorMessage: req.body?.errorMessage,
+    fileSizeMb: req.body?.fileSizeMb,
+  });
+  res.json({ data: result });
+});
+
+// Get aggregated render progress and telemetry for an entire project
+renderRouter.get("/project/:projectId", async (req, res) => {
+  const projectId = projectIdSchema.parse(req.params.projectId);
+  const result = await getProjectRenderTelemetry(projectId);
   res.json({ data: result });
 });
 

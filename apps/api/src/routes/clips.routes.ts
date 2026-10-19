@@ -37,6 +37,7 @@ import {
   getRenderJobStatus,
   retryRenderJob,
   startRenderJob,
+  updateRenderJobProgress,
 } from "../services/render-jobs.service";
 
 export const clipsRouter = Router();
@@ -220,6 +221,27 @@ clipsRouter.post("/:id/render", jsonBody, async (req, res) => {
 clipsRouter.get("/:id/render", async (req, res) => {
   const clipId = clipIdSchema.parse(req.params.id);
   const result = await getRenderJobStatus(clipId);
+  res.json({ data: result });
+});
+
+clipsRouter.get("/:id/render-status", async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const result = await getRenderJobStatus(clipId);
+  res.json({ data: result });
+});
+
+// Update render progress for a clip (simulated GPU tick / worker callback)
+clipsRouter.patch("/:id/render/progress", jsonBody, async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const progress = Number(req.body?.progress ?? 0);
+  const result = await updateRenderJobProgress(clipId, {
+    progress,
+    activeStepId: req.body?.activeStepId,
+    activeStepLabel: req.body?.activeStepLabel,
+    status: req.body?.status,
+    errorMessage: req.body?.errorMessage,
+    fileSizeMb: req.body?.fileSizeMb,
+  });
   res.json({ data: result });
 });
 
