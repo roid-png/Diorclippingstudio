@@ -2,6 +2,10 @@ import { and, desc, eq } from "drizzle-orm";
 import { db } from "../db";
 import { clips, projects, subtitles } from "../db/schema";
 import { HttpError } from "../lib/http-error";
+import {
+  calculateViralPotentialScore,
+  rankViralCandidates,
+} from "./viral-scoring.service";
 
 export interface ViralMomentCandidate {
   title: string;
@@ -222,31 +226,56 @@ export async function autoCutProjectVideo(projectId: string) {
   const clipCount = Math.min(Math.max(1, project.maxClips), 10);
   const duration = project.clipDuration || 45;
 
-  // Pick top candidate viral moments from the knowledge bank
-  const selectedCandidates = candidateMomentsBank
-    .slice(0, clipCount)
-    .sort((a, b) => b.viralScore - a.viralScore);
+  // Score and rank candidate viral moments from the knowledge bank
+  const scoredCandidates = candidateMomentsBank.map((candidate) => {
+    const transcriptText = candidate.subtitles.map((s) => s.text).join(" ");
+    const scoring = calculateViralPotentialScore({
+      title: candidate.title,
+      transcriptText,
+      highlightMoment: candidate.highlightMoment,
+      durationSeconds: duration,
+      startTimeSeconds: candidate.relativeStartSecond,
+      baseScoreHint: candidate.viralScore,
+    });
+
+    return {
+      ...candidate,
+      startTime: candidate.relativeStartSecond,
+      endTime: candidate.relativeStartSecond + duration,
+      scoring,
+      viralScore: scoring.viralScore,
+    };
+  });
+
+  const rankedCandidates = rankViralCandidates(scoredCandidates, clipCount);
 
   const createdClipsWithSubtitles = await db.transaction(async (tx) => {
     const results = [];
 
-    for (let i = 0; i < selectedCandidates.length; i++) {
-      const candidate = selectedCandidates[i];
-      const rank = i + 1;
-      const startTime = candidate.relativeStartSecond;
-      const endTime = startTime + duration;
+    for (let i = 0; i < rankedCandidates.length; i++) {
+      const candidate = rankedCandidates[i];
+      const rank = candidate.rank;
+      const startTime = candidate.startTime;
+      const endTime = candidate.endTime;
 
-      // 1. Insert clip
+      // 1. Insert clip with full viral scoring & auto-edit metadata
       const [insertedClip] = await tx
         .insert(clips)
         .values({
           projectId: project.id,
+          title: candidate.title,
+          category: candidate.scoring.contentCategory,
           startTime,
           endTime,
           duration,
           viralScore: candidate.viralScore.toFixed(2),
+          viralLabel: candidate.viralLabel,
           rank,
-          highlightMoment: candidate.highlightMoment,
+          isPrimaryRecommendation: candidate.isPrimaryRecommendation,
+          highlightMoment: candidate.scoring.highlightMoment,
+          whyViral: candidate.scoring.whyViral,
+          emotionalTrigger: candidate.scoring.emotionalTrigger,
+          peakRetention: candidate.scoring.peakRetention,
           isSelected: i === 0, // Auto-select top-ranked clip
         })
         .returning();
