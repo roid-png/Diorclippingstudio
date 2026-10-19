@@ -11,6 +11,11 @@ import { db } from "../db";
 import { clips, subtitles } from "../db/schema";
 import { HttpError } from "../lib/http-error";
 import { jsonBody } from "../middleware/body";
+import {
+  getClipSubtitlesWithWordTimings,
+  toggleClipAutoSubtitles,
+  transcribeClipSubtitles,
+} from "../services/subtitle-transcription.service";
 import { toggleClipFavorite } from "../services/video-cutter.service";
 import {
   getViralScoreCategory,
@@ -129,6 +134,41 @@ const handleToggleFavorite = async (req: any, res: any) => {
 
 clipsRouter.patch("/:id/favorite", jsonBody, handleToggleFavorite);
 clipsRouter.post("/:id/favorite", jsonBody, handleToggleFavorite);
+
+// Get enriched word-by-word automatic subtitles for a clip
+clipsRouter.get("/:id/subtitles", async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const result = await getClipSubtitlesWithWordTimings(clipId);
+  res.json({ data: result });
+});
+
+// Trigger or regenerate automatic subtitle transcription for a clip
+clipsRouter.post("/:id/subtitles/transcribe", jsonBody, async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const customLines = Array.isArray(req.body?.lines) ? req.body.lines : undefined;
+  await transcribeClipSubtitles(clipId, customLines);
+  const result = await getClipSubtitlesWithWordTimings(clipId);
+  res.json({ data: result });
+});
+
+// Toggle automatic subtitles on/off for a clip
+clipsRouter.patch("/:id/subtitles/toggle", jsonBody, async (req, res) => {
+  const clipId = clipIdSchema.parse(req.params.id);
+  const subtitleEnabled =
+    typeof req.body?.subtitleEnabled === "boolean"
+      ? req.body.subtitleEnabled
+      : undefined;
+  const subtitleStyleId =
+    typeof req.body?.subtitleStyleId === "string"
+      ? req.body.subtitleStyleId
+      : undefined;
+  const result = await toggleClipAutoSubtitles(
+    clipId,
+    subtitleEnabled,
+    subtitleStyleId
+  );
+  res.json({ data: result });
+});
 
 // Get clip metadata and subtitles
 clipsRouter.get("/:id", async (req, res) => {

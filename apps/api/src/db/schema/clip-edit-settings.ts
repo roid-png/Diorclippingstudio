@@ -94,3 +94,4 @@ export type NewStylePresetRecord = typeof stylePresets.$inferInsert;
 
 export type ClipEditSetting = typeof clipEditSettings.$inferSelect;
 export type NewClipEditSetting = typeof clipEditSettings.$inferInsert;
+
