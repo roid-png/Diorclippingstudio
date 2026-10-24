@@ -15,6 +15,14 @@ import {
   generateParametricAssSubtitles,
   type WordTimestamp,
 } from "./clone_subtitle_generator";
+import {
+  resolveBgmTrackPath,
+  buildAudioDuckingFilterComplex,
+} from "../audio_mixer";
+import {
+  buildFfmpegColorFilter,
+  type ColorGradeParameters,
+} from "../color_grade_service";
 
 const execFileAsync = promisify(execFile);
 
@@ -36,6 +44,10 @@ export interface UniversalCloneClipInput {
   enableBottomMotion?: boolean;
   animatedHeaderTrackPath?: string;
   accentColor?: string;
+  bgmTrackId?: string;
+  bgmFilePath?: string;
+  bgmBaseVolume?: number;
+  duckingDepthDb?: number;
 }
 
 /**
@@ -140,19 +152,26 @@ export async function runUniversalCloneCompositor(
     hookInputIdx = nextInputIdx++;
   }
 
-  // Color grade filter
-  const contrast =
-    blueprint?.color_grade?.contrast ??
-    blueprint?.color_science_and_atmosphere?.lut_contrast ??
-    1.04;
-  const brightness =
-    blueprint?.color_grade?.brightness ??
-    0.0;
-  const saturation =
-    blueprint?.color_grade?.saturation ??
-    blueprint?.color_science_and_atmosphere?.lut_saturation ??
-    1.05;
-  const colorGradingFilter = `eq=contrast=${Number(contrast).toFixed(2)}:brightness=${Number(brightness).toFixed(2)}:saturation=${Number(saturation).toFixed(2)}`;
+  // [FASE 1: AUTO-DUCKING BACKGROUND MUSIC COMPONENT]
+  let bgmInputIdx = -1;
+  const bgmTrack = input.bgmFilePath || input.bgmTrackId || blueprint?.audio?.bgm_track_id;
+  const resolvedBgm = resolveBgmTrackPath(bgmTrack);
+  if (resolvedBgm && fs.existsSync(resolvedBgm)) {
+    inputs.push("-i", resolvedBgm);
+    bgmInputIdx = nextInputIdx++;
+  }
+
+  // [FASE 3: ADAPTIVE COLOR GRADING ENGINE]
+  const gradeParams: ColorGradeParameters = {
+    contrast: Number(blueprint?.color_grade?.contrast ?? blueprint?.color_science_and_atmosphere?.lut_contrast ?? 1.04),
+    brightness: Number(blueprint?.color_grade?.brightness ?? 0.02),
+    saturation: Number(blueprint?.color_grade?.saturation ?? blueprint?.color_science_and_atmosphere?.lut_saturation ?? 1.08),
+    gamma_r: Number(blueprint?.color_grade?.gamma_r ?? 1.02),
+    gamma_g: Number(blueprint?.color_grade?.gamma_g ?? 1.00),
+    gamma_b: Number(blueprint?.color_grade?.gamma_b ?? 0.98),
+    lutPath: blueprint?.color_grade?.lut_file_path || blueprint?.color_science_and_atmosphere?.lut_file_path,
+  };
+  const colorGradingFilter = buildFfmpegColorFilter(gradeParams);
 
   const filterParts: string[] = [];
 
@@ -206,13 +225,31 @@ export async function runUniversalCloneCompositor(
     finalVideoNode = "[v_sub]";
   }
 
+  // [FASE 1: INTEGRASI AUDIO DUCKING & NORMALISASI LOUDNORM]
+  let finalAudioMap: string[] = ["-map", "0:a?"];
+  if (bgmInputIdx !== -1) {
+    const ducking = buildAudioDuckingFilterComplex(
+      "[0:a]",
+      bgmInputIdx,
+      {
+        bgmBaseVolume: input.bgmBaseVolume ?? 0.15,
+        duckingDepthDb: input.duckingDepthDb ?? -20,
+        hookDelaySec: 4.5,
+        enableLoudnorm: true,
+      },
+      "a_final"
+    );
+    filterParts.push(...ducking.filterParts);
+    finalAudioMap = ["-map", `[${ducking.outputLabel}]`];
+  }
+
   const filterComplex = filterParts.join(";");
 
   const ffmpegArgs = [
     ...inputs,
     "-filter_complex", filterComplex,
     "-map", finalVideoNode,
-    "-map", "0:a?",
+    ...finalAudioMap,
     "-threads", "0",
     "-c:v", "libx264",
     "-preset", "ultrafast",

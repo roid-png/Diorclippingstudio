@@ -5,6 +5,7 @@ import { createCanvas, type SKRSContext2D } from "@napi-rs/canvas";
 import { getFfmpegPath } from "../../utils/ffmpeg-path";
 import type { UniversalParametricBlueprint, TypographyStyleSchema } from "./universal_style_analyzer";
 import type { WordTimestamp } from "./clone_subtitle_generator";
+import { CLONE_POP_EASING } from "./easing_engine";
 import { z } from "zod";
 
 type TypographyStyle = z.infer<typeof TypographyStyleSchema>;
@@ -214,8 +215,22 @@ export async function renderParametricOpeningHook(
     gapBetweenLines +
     line2Layout.lines.length * line2Layout.lineHeight;
 
-  const startY = centerY - totalBlockHeight / 2;
+  // [FASE 2: ADAPTIVE LAYOUT GEOMETRY & CHIN COLLISION GUARD]
+  // Kunci batas penempatan teks vertikal agar tidak pernah menabrak dagu atau wajah pembicara (Y: 1100 s/d 1480 px).
+  let startY = centerY - totalBlockHeight / 2;
+  const MIN_SAFE_Y = 1100;
+  const MAX_SAFE_Y = 1480;
+  if (startY + totalBlockHeight > MAX_SAFE_Y) {
+    startY = MAX_SAFE_Y - totalBlockHeight;
+  }
+  if (startY < MIN_SAFE_Y) {
+    startY = MIN_SAFE_Y;
+  }
 
+  // [FASE 2: MULTI-LAYER TYPOGRAPHY EXTRACTION VIA @napi-rs/canvas]
+  // Pass 1: Directional Motion Blur slices
+  // Pass 2: Ambient Bloom Glow (Neon halo)
+  // Pass 3: Sharp Core Text with solid stroke & directed shadow
   const drawTypographyLine = (
     c: SKRSContext2D,
     text: string,
@@ -237,23 +252,8 @@ export async function renderParametricOpeningHook(
     const fontStyle = `${style.font_weight} ${style.size_px}px "${fontName}", sans-serif`;
     c.font = fontStyle;
 
-    // Terapkan Visual Effect
-    if (
-      style.visual_effect === "MOTION_BLUR_GLOW" ||
-      style.visual_effect === "NEON_GLOW" ||
-      style.visual_effect === "GLOW"
-    ) {
-      c.shadowColor = style.effect_color_hex;
-      c.shadowBlur = style.effect_radius_px;
-    } else if (
-      style.visual_effect === "HARD_SHADOW" ||
-      style.visual_effect === "SHADOW"
-    ) {
-      c.shadowColor = style.effect_color_hex;
-      c.shadowOffsetX = 3;
-      c.shadowOffsetY = 4;
-      c.shadowBlur = style.effect_radius_px;
-    } else if (style.visual_effect === "SOLID_BOX" || style.visual_effect === "BOX") {
+    // Optional solid backdrop box if requested
+    if (style.visual_effect === "SOLID_BOX" || style.visual_effect === "BOX") {
       const metrics = c.measureText(text);
       const boxW = metrics.width + 48;
       const boxH = Math.round(lineHeight * 0.95);
@@ -265,15 +265,48 @@ export async function renderParametricOpeningHook(
       c.fill();
     }
 
-    // Gambar Teks Utama
+    // PASS 1: Directional Motion Blur (multi-offset horizontal blur slices)
+    if (
+      style.visual_effect === "MOTION_BLUR_GLOW" ||
+      style.visual_effect === "NEON_GLOW" ||
+      style.visual_effect === "GLOW"
+    ) {
+      c.save();
+      c.globalAlpha = Math.max(0, Math.min(1, alphaAnim)) * 0.25;
+      c.fillStyle = style.effect_color_hex;
+      for (const offset of [-8, -4, 4, 8]) {
+        c.fillText(text, offset, 0);
+      }
+      c.restore();
+    }
+
+    // PASS 2: Ambient Bloom Glow (High-radius neon aura)
+    if (
+      style.visual_effect === "MOTION_BLUR_GLOW" ||
+      style.visual_effect === "NEON_GLOW" ||
+      style.visual_effect === "GLOW"
+    ) {
+      c.save();
+      c.shadowColor = style.effect_color_hex;
+      c.shadowBlur = Math.max(16, (style.effect_radius_px || 16) * 1.5);
+      c.globalAlpha = Math.max(0, Math.min(1, alphaAnim)) * 0.85;
+      c.fillStyle = style.color_hex;
+      c.fillText(text, 0, 0);
+      c.restore();
+    }
+
+    // PASS 3: Sharp Core Text (Stroke hitam tegas + drop shadow terarah)
+    c.save();
+    c.shadowColor = "rgba(0, 0, 0, 0.85)";
+    c.shadowOffsetX = 3;
+    c.shadowOffsetY = 4;
+    c.shadowBlur = 5;
+    c.strokeStyle = "#000000";
+    c.lineWidth = Math.max(2, Math.round(style.size_px * 0.055));
+    c.strokeText(text, 0, 0);
     c.fillStyle = style.color_hex;
     c.fillText(text, 0, 0);
-
-    // Multi-pass neon glow untuk kesan glowing premium
-    if (style.visual_effect === "NEON_GLOW" || style.visual_effect === "MOTION_BLUR_GLOW") {
-      c.shadowBlur = style.effect_radius_px * 1.5;
-      c.fillText(text, 0, 0);
-    }
+    c.restore();
 
     c.restore();
   };
@@ -289,15 +322,17 @@ export async function renderParametricOpeningHook(
         ctx.fillRect(0, 0, width, height);
       }
 
-      // Animasi kemunculan (0.0s s/d 0.35s)
-      const enterP = Math.min(1, curTime / 0.35);
-      const scale1 = 0.88 + 0.12 * enterP;
-      const alpha1 = enterP;
+      // [FASE 2: LIGHTWEIGHT EASING ENGINE (cubic-bezier 0.25, 1, 0.5, 1)]
+      const enterP1 = Math.min(1, curTime / 0.35);
+      const eased1 = CLONE_POP_EASING(enterP1);
+      const scale1 = 0.88 + 0.12 * eased1;
+      const alpha1 = eased1;
 
-      // Animasi Baris 2 (sedikit delayed 0.15s)
-      const enterP2 = Math.min(1, Math.max(0, (curTime - 0.15) / 0.35));
-      const scale2 = 0.85 + 0.15 * enterP2;
-      const alpha2 = enterP2;
+      // Animasi Baris 2 (staggered delay 0.12s)
+      const enterP2 = Math.min(1, Math.max(0, (curTime - 0.12) / 0.35));
+      const eased2 = CLONE_POP_EASING(enterP2);
+      const scale2 = 0.85 + 0.15 * eased2;
+      const alpha2 = eased2;
 
       // Animasi keluar menjelang akhir hook
       const exitStart = durationSec - 0.4;

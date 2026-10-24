@@ -372,9 +372,9 @@ processVideoRouter.post("/", (req: Request, res: Response, next) => {
   } catch (err: any) {
     updateJobProgress(jobId, { status: "error", error: err?.message || "Gagal memproses klip video." });
     // If an error occurred with an uploaded file, clean it up
-    if (uploadedFile && fs.existsSync(uploadedFile.path)) {
+    if (directUploadedFile && fs.existsSync(directUploadedFile.path)) {
       try {
-        fs.unlinkSync(uploadedFile.path);
+        fs.unlinkSync(directUploadedFile.path);
       } catch {}
     }
 

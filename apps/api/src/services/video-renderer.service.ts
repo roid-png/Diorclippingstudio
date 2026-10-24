@@ -10,6 +10,8 @@ import { HttpError } from "../lib/http-error";
 import { getFontsDirPath } from "./ass-generator.service";
 import { getOrBuildCinemaFramePng, getOrBuildBottomVignettePng } from "./satori_hook_builder";
 import { getOrBuildSfxFiles } from "./sfx_generator";
+import { resolveBgmTrackPath, buildAudioDuckingFilterComplex } from "./audio_mixer";
+import { resolveAdaptiveColorGrading } from "./color_grade_service";
 
 const execFileAsync = promisify(execFile);
 
@@ -133,6 +135,10 @@ export interface RenderClipParams {
   inSceneKineticHookTrackPath?: string;
   tempJobDir?: string;
   enableMotionGraphic?: boolean;
+  bgmTrackId?: string;
+  bgmFilePath?: string;
+  bgmBaseVolume?: number;
+  duckingDepthDb?: number;
 }
 
 export interface RenderResult {
@@ -354,6 +360,15 @@ export async function renderVerticalClip(params: RenderClipParams): Promise<Rend
         whooshIdx = nextColdInputIdx++;
       }
 
+      // [FASE 1: AUTO-DUCKING BGM INPUT]
+      let bgmIdx = -1;
+      const bgmTrack = params.bgmFilePath || params.bgmTrackId;
+      const resolvedBgm = resolveBgmTrackPath(bgmTrack);
+      if (resolvedBgm && fs.existsSync(resolvedBgm)) {
+        inputs.push("-i", resolvedBgm);
+        bgmIdx = nextColdInputIdx++;
+      }
+
       const gradingTag = resolvedGrading ? `,${resolvedGrading}` : "";
       const polishTag = params.colorPolish !== false ? ",hue=s=1.06" : "";
       const fgExtra = `${polishTag}${gradingTag}`;
@@ -483,11 +498,28 @@ export async function renderVerticalClip(params: RenderClipParams): Promise<Rend
         } else {
           filterParts.push(`[a_dialog]anull[a_out]`);
         }
+
+        // [FASE 1: SIDECHAIN DUCKING BGM TERHADAP DIALOG & SFX]
+        if (bgmIdx !== -1) {
+          const ducking = buildAudioDuckingFilterComplex(
+            "[a_out]",
+            bgmIdx,
+            {
+              bgmBaseVolume: params.bgmBaseVolume ?? 0.15,
+              duckingDepthDb: params.duckingDepthDb ?? -20,
+              hookDelaySec: 4.5,
+              enableLoudnorm: true,
+            },
+            "a_final"
+          );
+          filterParts.push(...ducking.filterParts);
+        }
+
         hasAudioOut = true;
       }
 
       const audioArgs = hasAudioOut
-        ? ["-map", "[a_out]"]
+        ? (bgmIdx !== -1 ? ["-map", "[a_final]"] : ["-map", "[a_out]"])
         : (hasBaudio ? ["-map", "1:a"] : []);
 
       ffmpegArgs = [
@@ -582,6 +614,15 @@ export async function renderVerticalClip(params: RenderClipParams): Promise<Rend
         boomIdx = nextInputIdx++;
         inputs.push("-i", whooshWavPath);
         whooshIdx = nextInputIdx++;
+      }
+
+      // [FASE 1: AUTO-DUCKING BGM INPUT]
+      let bgmIdx = -1;
+      const bgmTrack = params.bgmFilePath || params.bgmTrackId;
+      const resolvedBgm = resolveBgmTrackPath(bgmTrack);
+      if (resolvedBgm && fs.existsSync(resolvedBgm)) {
+        inputs.push("-i", resolvedBgm);
+        bgmIdx = nextInputIdx++;
       }
 
       const gradingTag = resolvedGrading ? `,${resolvedGrading}` : "";
@@ -689,11 +730,28 @@ export async function renderVerticalClip(params: RenderClipParams): Promise<Rend
         filterParts.push(
           `${amixInputs.join("")}amix=inputs=${amixInputs.length}:duration=first:dropout_transition=2[a_out]`
         );
+
+        // [FASE 1: SIDECHAIN DUCKING BGM TERHADAP DIALOG & SFX]
+        if (bgmIdx !== -1) {
+          const ducking = buildAudioDuckingFilterComplex(
+            "[a_out]",
+            bgmIdx,
+            {
+              bgmBaseVolume: params.bgmBaseVolume ?? 0.15,
+              duckingDepthDb: params.duckingDepthDb ?? -20,
+              hookDelaySec: 4.5,
+              enableLoudnorm: true,
+            },
+            "a_final"
+          );
+          filterParts.push(...ducking.filterParts);
+        }
+
         hasAudioOut = true;
       }
 
       const audioArgs = hasAudioOut
-        ? ["-map", "[a_out]"]
+        ? (bgmIdx !== -1 ? ["-map", "[a_final]"] : ["-map", "[a_out]"])
         : (hasAudio ? ["-map", "0:a"] : []);
 
       ffmpegArgs = [

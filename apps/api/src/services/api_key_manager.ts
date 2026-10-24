@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GoogleAIFileManager, FileState } from "@google/generative-ai/server";
 import Groq from "groq-sdk";
+import { tokenTracker } from "./token_tracker";
 
 // Constants for Primary & Backup keys (loaded dynamically from environment)
 const DEFAULT_GEMINI_TRANSCRIPTION_PRIMARY = process.env.GEMINI_API_KEY_TRANSCRIPTION || "";
@@ -11,6 +12,9 @@ const DEFAULT_GEMINI_CURATOR_BACKUP = process.env.GEMINI_API_KEY_CURATOR_BACKUP 
 
 const DEFAULT_GEMINI_ART_DIRECTOR_PRIMARY = process.env.GEMINI_API_KEY_ART_DIRECTOR || "";
 const DEFAULT_GEMINI_ART_DIRECTOR_BACKUP = process.env.GEMINI_API_KEY_ART_DIRECTOR_BACKUP || "";
+
+const DEFAULT_GEMINI_STYLE_CLONER_PRIMARY = process.env.GEMINI_API_KEY_STYLE_CLONER || "";
+const DEFAULT_GEMINI_STYLE_CLONER_BACKUP = process.env.GEMINI_API_KEY_STYLE_CLONER_BACKUP || "";
 
 const DEFAULT_GROQ_PRIMARY = process.env.GROQ_API_KEY_PRIMARY || process.env.GROQ_API_KEY || "";
 const DEFAULT_GROQ_BACKUP = process.env.GROQ_API_KEY_BACKUP || "";
@@ -284,6 +288,14 @@ export async function executeGeminiWithFailover<T>(options: {
           ]);
         }
         const result = await callPromise;
+
+        // [FASE 4: REAL-TIME TOKEN RECORDING & QUOTA DEDUCTION]
+        try {
+          const usage = (result as any)?.response?.usageMetadata || (result as any)?.usageMetadata;
+          const tokens = usage?.totalTokenCount || usage?.promptTokenCount || 0;
+          tokenTracker.recordUsage(keyInfo.key, options.service, tokens, "gemini");
+        } catch {}
+
         return result;
       } catch (err: any) {
         lastError = err;
@@ -360,6 +372,13 @@ export async function executeGroqWithFailover<T>(
     try {
       const client = new Groq({ apiKey: activeEntry.key, timeout: timeoutMs });
       const result = await action(client, activeEntry);
+
+      // [FASE 4: REAL-TIME GROQ TOKEN RECORDING]
+      try {
+        const tokens = (result as any)?.usage?.total_tokens || 0;
+        tokenTracker.recordUsage(activeEntry.key, "GROQ", tokens, "groq");
+      } catch {}
+
       return result;
     } catch (err: any) {
       lastError = err;

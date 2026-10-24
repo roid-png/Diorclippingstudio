@@ -1,6 +1,7 @@
 import express, { Router, type Request, type Response } from "express";
 import fs from "node:fs";
 import path from "node:path";
+import { tokenTracker } from "../services/token_tracker";
 
 export const settingsRouter = Router();
 
@@ -410,4 +411,52 @@ settingsRouter.post("/check-keys", async (req: Request, res: Response) => {
     checkedAt: Date.now(),
   });
 });
+
+/**
+ * GET /api/settings/api-tokens
+ * [FASE 4: REAL-TIME API KEY & TOKEN USAGE SNAPSHOT]
+ */
+settingsRouter.get("/api-tokens", (_req: Request, res: Response) => {
+  const usage = tokenTracker.getAllUsage();
+  res.status(200).json({
+    success: true,
+    data: usage,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * GET /api/settings/token-stream
+ * [FASE 4: SERVER-SENT EVENTS (SSE) FOR REAL-TIME TOKEN DEDUCTION MONITORING]
+ */
+settingsRouter.get("/token-stream", (req: Request, res: Response) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+
+  // Send initial snapshot
+  const initial = tokenTracker.getAllUsage();
+  res.write(`event: token_snapshot\ndata: ${JSON.stringify(initial)}\n\n`);
+
+  const onDeducted = (data: any) => {
+    try {
+      res.write(`event: token_deducted\ndata: ${JSON.stringify(data)}\n\n`);
+    } catch {}
+  };
+
+  tokenTracker.on("token_deducted", onDeducted);
+
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(": keepalive\n\n");
+    } catch {}
+  }, 15000);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    tokenTracker.off("token_deducted", onDeducted);
+  });
+});
+
 

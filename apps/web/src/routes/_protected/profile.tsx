@@ -190,6 +190,10 @@ function ProfilePage() {
   const [isCheckingKeys, setIsCheckingKeys] = useState<boolean>(false);
   const [testingKeyName, setTestingKeyName] = useState<string | null>(null);
 
+  // 3. Live Token Ledger State (FASE 4)
+  const [tokenLedger, setTokenLedger] = useState<Record<string, any>>({});
+  const [recentlyDeductedKeys, setRecentlyDeductedKeys] = useState<Record<string, number>>({});
+
   // Notifications
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -215,6 +219,53 @@ function ProfilePage() {
 
     // 2. Load API keys from backend
     fetchApiKeys();
+
+    // 3. Real-Time Token Monitor Stream (SSE)
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource(`${API_URL}/api/settings/token-stream`);
+
+      eventSource.addEventListener("token_snapshot", (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          setTokenLedger(data);
+        } catch {}
+      });
+
+      eventSource.addEventListener("token_deducted", (e: MessageEvent) => {
+        try {
+          const item = JSON.parse(e.data);
+          setTokenLedger((prev) => ({
+            ...prev,
+            [item.keyId]: {
+              keyName: item.keyId,
+              alias: item.key_alias,
+              service: item.service,
+              type: item.type,
+              totalLimit: item.total_limit,
+              tokensUsed: item.total_used,
+              tokensRemaining: item.remaining,
+              lastTokensDeducted: item.used,
+              lastUsedAt: item.timestamp,
+            },
+          }));
+
+          const serviceKey = item.service || item.key_alias;
+          setRecentlyDeductedKeys((prev) => ({ ...prev, [serviceKey]: Date.now() }));
+          setTimeout(() => {
+            setRecentlyDeductedKeys((prev) => {
+              const next = { ...prev };
+              delete next[serviceKey];
+              return next;
+            });
+          }, 3500);
+        } catch {}
+      });
+    } catch {}
+
+    return () => {
+      if (eventSource) eventSource.close();
+    };
   }, []);
 
   const STORAGE_KEY = "dior_clipping_api_keys";
@@ -851,16 +902,77 @@ function ProfilePage() {
                     {def.description}
                   </p>
 
-                  {/* Quota & Token Telemetry Box */}
-                  <div className="bg-[#0b1c20] border border-[#16333a] rounded-lg p-2.5 text-[10px] space-y-1 mb-2">
+                  {/* [FASE 4: REAL-TIME TOKEN USAGE & PROGRESS BAR TELEMETRY BOX] */}
+                  <div className="bg-[#0b1c20] border border-[#16333a] rounded-lg p-2.5 text-[10px] space-y-2 mb-2">
                     <div className="flex items-center justify-between text-[#7d9b9f]">
                       <span>Aturan Limit:</span>
                       <span className="font-mono font-bold text-[#2cd3c6]">{def.quotaRule}</span>
                     </div>
 
+                    {/* Dynamic Real-time Token Deduction Progress Bar */}
+                    {(() => {
+                      const keySuffix = (apiKeys[def.name] || "").slice(-12);
+                      const usageRecord = Object.values(tokenLedger).find((u: any) =>
+                        (keySuffix && u.keyName?.includes(keySuffix)) ||
+                        def.name.includes(u.service) ||
+                        (def.type === "groq" && u.type === "groq") ||
+                        u.alias?.includes(def.label)
+                      ) || {
+                        totalLimit: 1000000,
+                        tokensUsed: 0,
+                        tokensRemaining: 1000000,
+                      };
+
+                      const remaining = typeof usageRecord.tokensRemaining === "number" ? usageRecord.tokensRemaining : 1000000;
+                      const limit = typeof usageRecord.totalLimit === "number" ? usageRecord.totalLimit : 1000000;
+                      const pct = Math.max(0, Math.min(100, Math.round((remaining / limit) * 100)));
+
+                      let barColor = "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]";
+                      let textColor = "text-emerald-400";
+                      if (pct < 20) {
+                        barColor = "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]";
+                        textColor = "text-rose-400";
+                      } else if (pct <= 50) {
+                        barColor = "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]";
+                        textColor = "text-amber-400";
+                      }
+
+                      const hasRecentDeduction = Boolean(
+                        recentlyDeductedKeys[def.name] ||
+                        recentlyDeductedKeys[usageRecord.service] ||
+                        recentlyDeductedKeys[def.label]
+                      );
+
+                      return (
+                        <div className="border-t border-[#142e33] pt-1.5 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#6e8f96] flex items-center gap-1.5">
+                              <span>Sisa Kuota:</span>
+                              {hasRecentDeduction && (
+                                <span className="animate-pulse px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-mono font-semibold">
+                                  -{usageRecord.lastTokensDeducted || 350} Token!
+                                </span>
+                              )}
+                            </span>
+                            <span className={`font-mono font-bold ${textColor}`}>
+                              {remaining.toLocaleString()} / {limit.toLocaleString()} Token
+                            </span>
+                          </div>
+
+                          {/* Dynamic Progress Bar */}
+                          <div className="w-full bg-[#061013] rounded-full h-1.5 overflow-hidden border border-[#163036]">
+                            <div
+                              className={`h-full transition-all duration-700 rounded-full ${barColor}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {/* Groq Live Requests Telemetry */}
                     {statusInfo?.remainingRequests && (
-                      <div className="flex items-center justify-between text-[#8aa8ae] border-t border-[#12282d] pt-1 mt-1">
+                      <div className="flex items-center justify-between text-[#8aa8ae] border-t border-[#12282d] pt-1">
                         <span>Sisa Request:</span>
                         <span className="font-mono font-bold text-emerald-300">
                           {statusInfo.remainingRequests}
@@ -870,7 +982,7 @@ function ProfilePage() {
 
                     {/* Latency & Diagnosis */}
                     {statusInfo && statusInfo.status !== "unconfigured" && (
-                      <div className="flex items-center justify-between text-[#759398] border-t border-[#12282d] pt-1 mt-1">
+                      <div className="flex items-center justify-between text-[#759398] border-t border-[#12282d] pt-1">
                         <span>Status Diagnostik:</span>
                         <span className="truncate max-w-[170px]" title={statusInfo.details}>
                           {statusInfo.latencyMs ? `${statusInfo.latencyMs}ms • ` : ""}
