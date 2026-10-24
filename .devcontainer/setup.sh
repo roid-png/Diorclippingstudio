@@ -12,11 +12,10 @@ sudo apt-get install -y --no-install-recommends \
     build-essential \
     libcairo2-dev \
     libpango1.0-dev \
-    libjpeg-dev \
+    libjpeg62-turbo-dev \
     libgif-dev \
     librsvg2-dev \
-    fontconfig \
-    fonts-montserrat || true
+    fontconfig || true
 
 echo "=========================================================="
 echo " [2/4] Menyiapkan Folder Wajib & Hak Akses Output        "
