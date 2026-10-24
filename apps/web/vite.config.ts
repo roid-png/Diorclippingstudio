@@ -20,10 +20,9 @@ export default defineConfig(({ command, mode }) => {
   const port =
     Number(new URL(process.env.WEB_URL || "http://localhost:3000").port) ||
     3000;
-  const apiTarget =
-    process.env.VITE_API_URL ||
-    process.env.API_URL ||
-    (process.env.PORT ? `http://localhost:${process.env.PORT}` : "http://localhost:5000");
+  // Selalu arahkan reverse proxy /api ke backend internal port 5000 (atau process.env.PORT)
+  const backendPort = process.env.PORT || "5000";
+  const apiTarget = process.env.INTERNAL_API_URL || `http://127.0.0.1:${backendPort}`;
 
   return {
     envDir,
@@ -36,6 +35,7 @@ export default defineConfig(({ command, mode }) => {
         "/api": {
           target: apiTarget,
           changeOrigin: true,
+          ws: true,
         },
         "/outputs": {
           target: apiTarget,

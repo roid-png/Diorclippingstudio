@@ -14,7 +14,7 @@ try {
   runPnpm(["run", "dev:prepare"]);
   runPnpm(["run", "doctor"]);
   console.log(
-    "\nReady. Run pnpm dev: the API starts on BETTER_AUTH_URL (default http://localhost:4000) and the web app on WEB_URL (default http://localhost:3000).\n",
+    "\nReady. Run pnpm dev: the API starts on BETTER_AUTH_URL (default http://localhost:5000) and the web app on WEB_URL (default http://localhost:3000).\n",
   );
 } catch (error) {
   console.error(`\nSetup stopped: ${error.message}`);

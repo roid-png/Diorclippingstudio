@@ -37,8 +37,8 @@ const schema = z.object({
     .string()
     .min(32, "Run pnpm run setup to generate a secret."),
   BETTER_AUTH_URL: origin(
-    "Use the API's origin, e.g. http://localhost:4000.",
-  ).default("http://localhost:4000"),
+    "Use the API's origin, e.g. http://localhost:5000.",
+  ).default("http://localhost:5000"),
   WEB_URL: origin(
     "Use the web app's origin, e.g. http://localhost:3000.",
   ).default("http://localhost:3000"),
@@ -88,7 +88,7 @@ const values = parsed.data;
 
 export const env = {
   ...values,
-  PORT: values.PORT ?? (Number(new URL(values.BETTER_AUTH_URL).port) || 4000),
+  PORT: values.PORT ?? (Number(new URL(values.BETTER_AUTH_URL).port) || 5000),
   isProduction: values.NODE_ENV === "production",
   isTest: values.NODE_ENV === "test",
   // Browser origins allowed to call the API with cookies.

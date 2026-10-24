@@ -1,10 +1,16 @@
-import { z } from "zod";
+/**
+ * Dynamic API Origin Resolution:
+ * 1. Di browser (termasuk GitHub Codespaces *.app.github.dev):
+ *    Gunakan window.location.origin agar SEMUA request /api otomatis lewat reverse-proxy Vite
+ *    di port 3000 -> diteruskan ke backend server (port 5000) tanpa masalah CORS / Mixed Content / Port.
+ * 2. Di server / SSR:
+ *    Gunakan process.env.VITE_API_URL atau fallback ke http://127.0.0.1:5000.
+ */
+function resolveApiUrl(): string {
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return process.env.VITE_API_URL || process.env.API_URL || "http://127.0.0.1:5000";
+}
 
-// Safe for the browser bundle. VITE_API_URL is inlined at build time, so a
-// production image must be built with the API's public origin.
-const apiUrl = z
-  .url("Set VITE_API_URL to the API's origin, e.g. http://localhost:4000.")
-  .parse(import.meta.env.VITE_API_URL ?? "http://localhost:4000");
-
-// The API origin the browser calls (Better Auth + application routes).
-export const API_URL = new URL(apiUrl).origin;
+export const API_URL = resolveApiUrl();
