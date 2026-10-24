@@ -1,6 +1,6 @@
 {
   "name": "Dior Clipping Studio (Codespaces)",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bullseye",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
   "features": {},
   "overrideCommand": false,
   "forwardPorts": [3000, 5000],

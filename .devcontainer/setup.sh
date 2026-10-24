@@ -1,6 +1,15 @@
 #!/bin/bash
 set -e
 
+# Pastikan NVM aktif dan Node 22 (sesuai .nvmrc) terpasang
+export NVM_DIR="/usr/local/share/nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$HOME/.nvm/nvm.sh" ] && \. "$HOME/.nvm/nvm.sh"
+if command -v nvm &> /dev/null; then
+    nvm install 22 2>/dev/null || true
+    nvm use 22 2>/dev/null || nvm use default 2>/dev/null || true
+fi
+
 echo "=========================================================="
 echo " [1/4] Mengupdate Package Linux & Menginstal Dependensi  "
 echo "=========================================================="
