@@ -26,7 +26,7 @@ export const requestContext: RequestHandler = (req, res, next) => {
   const incoming = req.get("x-request-id");
   const reqId =
     incoming && SAFE_REQUEST_ID.test(incoming) ? incoming : randomUUID();
-  req.id = reqId;
+  (req as any).id = reqId;
   res.setHeader("X-Request-Id", reqId);
   storage.run({ reqId }, next);
 };

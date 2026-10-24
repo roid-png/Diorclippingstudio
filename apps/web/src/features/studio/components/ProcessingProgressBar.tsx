@@ -5,6 +5,9 @@ interface ProcessingProgressBarProps {
   status: ProcessingStatus;
   progressPercent: number;
   currentStepMessage: string;
+  step?: 1 | 2 | 3;
+  currentClipIndex?: number;
+  totalClips?: number;
   clippingLimit: number;
   duration: number;
   onCancel?: () => void;
@@ -14,6 +17,9 @@ export function ProcessingProgressBar({
   status,
   progressPercent,
   currentStepMessage,
+  step,
+  currentClipIndex,
+  totalClips,
   clippingLimit,
   duration,
   onCancel,
@@ -22,32 +28,52 @@ export function ProcessingProgressBar({
     return null;
   }
 
+  const currentStep =
+    step ||
+    (progressPercent >= 100
+      ? 3
+      : progressPercent >= 35
+      ? 3
+      : progressPercent >= 20
+      ? 2
+      : 1);
+
   const steps = [
     {
       id: 1,
       name: "Unduh Sumber",
       icon: Video,
-      isDone: status === "analyzing" || progressPercent >= 40,
-      isActive: status === "downloading" && progressPercent < 40,
+      isDone: currentStep > 1,
+      isActive: currentStep === 1,
+      subtext: currentStep > 1 ? "Selesai ✓" : "Mengekstrak...",
     },
     {
       id: 2,
       name: "Analisis Momen Viral",
       icon: Cpu,
-      isDone: progressPercent >= 80,
-      isActive: (status === "analyzing" || progressPercent >= 40) && progressPercent < 80,
+      isDone: currentStep > 2,
+      isActive: currentStep === 2,
+      subtext: currentStep > 2 ? "Selesai ✓" : currentStep === 2 ? "Kurasi AI..." : "Menunggu",
     },
     {
       id: 3,
       name: "Auto-Cut 9:16",
       icon: Scissors,
       isDone: progressPercent >= 100,
-      isActive: progressPercent >= 80 && progressPercent < 100,
+      isActive: currentStep === 3,
+      subtext:
+        progressPercent >= 100
+          ? "Selesai ✓"
+          : currentStep === 3 && currentClipIndex && totalClips
+          ? `Klip ${currentClipIndex}/${totalClips}`
+          : currentStep === 3
+          ? "Merender..."
+          : "Menunggu",
     },
   ];
 
   return (
-    <div className="w-full bg-gradient-to-r from-[#0c1f23]/95 via-[#112d33]/90 to-[#0e2429]/95 border border-[#20b2aa]/50 rounded-2xl p-4 sm:p-5 shadow-[0_0_30px_rgba(32,178,170,0.15)] mb-6 animate-fadeIn">
+    <div className="w-full bg-[#0c1f23] border border-[#20b2aa]/40 rounded-2xl p-4 sm:p-5 shadow-md mb-6">
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3.5">
         <div className="flex items-center gap-2.5">
@@ -127,11 +153,7 @@ export function ProcessingProgressBar({
                   {step.name}
                 </p>
                 <p className="text-[9px] text-[#6e8a91] truncate">
-                  {step.isDone
-                    ? "Selesai ✓"
-                    : step.isActive
-                    ? "Memproses..."
-                    : "Menunggu"}
+                  {step.subtext}
                 </p>
               </div>
             </div>

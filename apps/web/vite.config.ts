@@ -20,15 +20,25 @@ export default defineConfig(({ command, mode }) => {
   const port =
     Number(new URL(process.env.WEB_URL || "http://localhost:3000").port) ||
     3000;
+  const apiTarget =
+    process.env.VITE_API_URL ||
+    process.env.API_URL ||
+    (process.env.PORT ? `http://localhost:${process.env.PORT}` : "http://localhost:5000");
+
   return {
     envDir,
     resolve: { tsconfigPaths: true },
     server: {
+      host: "0.0.0.0",
       port,
       strictPort: true,
       proxy: {
         "/api": {
-          target: "http://localhost:4000",
+          target: apiTarget,
+          changeOrigin: true,
+        },
+        "/outputs": {
+          target: apiTarget,
           changeOrigin: true,
         },
       },

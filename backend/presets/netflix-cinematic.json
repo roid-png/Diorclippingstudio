@@ -11,16 +11,19 @@
     "fontName": "Arial",
     "fontSize": 24,
     "primaryColor": "&H00FFFFFF",
-    "highlightColor": "&H0000D4FF",
+    "highlightColor": "#E50914",
     "outlineColor": "&H00000000",
     "outlineWidth": 2,
     "alignment": 2,
-    "marginV": 80,
+    "marginV": 370,
     "bold": true,
-    "animation": "fade"
+    "animation": "fade",
+    "showSpeakerTag": false
   },
   "motionGraphic": {
     "progressBar": false,
     "punchZoom": false
-  }
+  },
+  "accentColor": "#E50914",
+  "primaryAccentHex": "#E50914"
 }

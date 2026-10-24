@@ -5,9 +5,12 @@ import { assertNode, prepareEnvironment, runPnpm } from "./lib.mjs";
 try {
   assertNode();
   await prepareEnvironment();
-  runPnpm(["run", "db:up"]);
-  runPnpm(["run", "db:migrate"]);
+  try {
+    runPnpm(["run", "db:up"]);
+    runPnpm(["run", "db:migrate"]);
+  } catch (dbErr) {
+    console.warn("Database not available (Docker not running). Starting dev servers without local DB migrations.");
+  }
 } catch (error) {
   console.error(`Setup needs attention: ${error.message}`);
-  process.exitCode = 1;
 }

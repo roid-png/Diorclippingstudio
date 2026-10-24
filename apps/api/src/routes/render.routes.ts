@@ -10,8 +10,13 @@ import {
   updateRenderJobProgress,
 } from "../services/render-jobs.service";
 import { notificationsRouter } from "./notifications.routes";
+import { processVideoRouter } from "./process-video.routes";
 
 export const renderRouter = Router();
+
+// Full pipeline execution endpoint aliases
+renderRouter.post("/", processVideoRouter);
+renderRouter.post("/direct-upload", processVideoRouter);
 
 // Start GPU-accelerated render job for a clip
 renderRouter.post("/start", jsonBody, async (req, res) => {

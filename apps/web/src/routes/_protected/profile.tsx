@@ -1,524 +1,836 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   User,
-  ShieldCheck,
-  Zap,
-  Clock,
   Sparkles,
   CheckCircle2,
   RefreshCw,
   Camera,
-  ArrowRight,
   Save,
-  Film,
-  Undo2,
   AlertCircle,
-  Link2,
-  Lock,
-  KeyRound,
+  Key,
+  Upload,
+  Eye,
+  EyeOff,
+  Activity,
+  Layers,
+  ArrowLeft,
+  Sliders,
+  Check,
+  Zap,
 } from "lucide-react";
 import { siteConfig } from "@/config/site";
+import { API_URL } from "@/lib/env";
 import {
   getPersistentSession,
   savePersistentSession,
-  resetPersistentUserQuota,
   DEFAULT_DEMO_USER,
   type StoredSessionUser,
 } from "@/features/auth/session-storage";
 import { DEFAULT_AVATARS, type DefaultAvatarOption } from "@/features/auth/default-avatars";
-import { ProfileLivePreviewCard } from "@/features/auth/components/ProfileLivePreviewCard";
-import { ChangePasswordCard } from "@/features/auth/components/ChangePasswordCard";
 
 export const Route = createFileRoute("/_protected/profile")({
-  head: () => ({ meta: [{ title: `Profil Pengguna & Avatar | ${siteConfig.name}` }] }),
+  head: () => ({ meta: [{ title: `Pengaturan Akun & API Keys | ${siteConfig.name}` }] }),
   component: ProfilePage,
 });
 
-const ROLE_BADGES = [
-  "Content Creator",
-  "Pro Video Editor",
-  "Podcast Curator",
-  "Viral Clip Specialist",
-  "Media Agency",
+interface ApiKeyStatusItem {
+  name: string;
+  type: "gemini" | "groq";
+  role: "primary" | "backup";
+  status: "active" | "warning" | "rate_limited" | "invalid" | "unconfigured" | "error";
+  label: string;
+  quotaRules: string;
+  details: string;
+  latencyMs?: number;
+  remainingRequests?: string;
+  remainingTokens?: string;
+  resetTime?: string;
+}
+
+interface KeyDefinition {
+  name: string;
+  label: string;
+  type: "gemini" | "groq";
+  role: "primary" | "backup";
+  description: string;
+  quotaRule: string;
+}
+
+const KEY_DEFINITIONS: KeyDefinition[] = [
+  // Gemini Primary
+  {
+    name: "GEMINI_API_KEY_TRANSCRIPTION",
+    label: "Gemini Transkripsi Audio",
+    type: "gemini",
+    role: "primary",
+    description: "Kunci utama ekstraksi audio WAV & transkripsi kata Gemini",
+    quotaRule: "15 RPM • 1,000,000 TPM • 1,500 RPD",
+  },
+  {
+    name: "GEMINI_API_KEY_CURATION",
+    label: "Gemini Kurasi Momen Viral",
+    type: "gemini",
+    role: "primary",
+    description: "Kunci utama kurasi momen berpotensi viral & penentuan hook",
+    quotaRule: "15 RPM • 1,000,000 TPM • 1,500 RPD",
+  },
+  {
+    name: "GEMINI_API_KEY_ART_DIRECTOR",
+    label: "Gemini Art Director & Beats",
+    type: "gemini",
+    role: "primary",
+    description: "Kunci perancang 4 kartu infografis & animasi header kinetik",
+    quotaRule: "15 RPM • 1,000,000 TPM • 1,500 RPD",
+  },
+  {
+    name: "GEMINI_API_KEY_STYLE_CLONER",
+    label: "Gemini Universal Style Cloner",
+    type: "gemini",
+    role: "primary",
+    description: "Kunci analisis video referensi & cloning visual otomatis",
+    quotaRule: "15 RPM • 1,000,000 TPM • 1,500 RPD",
+  },
+  {
+    name: "GEMINI_API_KEY",
+    label: "Gemini Fallback Utama",
+    type: "gemini",
+    role: "primary",
+    description: "Kunci umum utama jika direktori spesifik tidak terisi",
+    quotaRule: "15 RPM • 1,000,000 TPM • 1,500 RPD",
+  },
+
+  // Gemini Backup
+  {
+    name: "GEMINI_API_KEY_TRANSCRIPTION_BACKUP",
+    label: "Gemini Transkripsi (Cadangan)",
+    type: "gemini",
+    role: "backup",
+    description: "Otomatis aktif saat kuota transkripsi utama mencapai limit",
+    quotaRule: "15 RPM • 1,000,000 TPM • 1,500 RPD",
+  },
+  {
+    name: "GEMINI_API_KEY_CURATION_BACKUP",
+    label: "Gemini Kurasi (Cadangan)",
+    type: "gemini",
+    role: "backup",
+    description: "Otomatis aktif saat kuota kurasi utama mencapai limit",
+    quotaRule: "15 RPM • 1,000,000 TPM • 1,500 RPD",
+  },
+  {
+    name: "GEMINI_API_KEY_ART_DIRECTOR_BACKUP",
+    label: "Gemini Art Director (Cadangan)",
+    type: "gemini",
+    role: "backup",
+    description: "Otomatis aktif saat kuota art director utama mencapai limit",
+    quotaRule: "15 RPM • 1,000,000 TPM • 1,500 RPD",
+  },
+  {
+    name: "GEMINI_API_KEY_STYLE_CLONER_BACKUP",
+    label: "Gemini Style Cloner (Cadangan)",
+    type: "gemini",
+    role: "backup",
+    description: "Otomatis aktif saat kuota style cloner utama mencapai limit",
+    quotaRule: "15 RPM • 1,000,000 TPM • 1,500 RPD",
+  },
+  {
+    name: "GEMINI_API_KEY_BACKUP",
+    label: "Gemini Fallback Cadangan",
+    type: "gemini",
+    role: "backup",
+    description: "Kunci umum cadangan untuk seluruh pipeline Google Gemini",
+    quotaRule: "15 RPM • 1,000,000 TPM • 1,500 RPD",
+  },
+
+  // Groq
+  {
+    name: "GROQ_API_KEY_PRIMARY",
+    label: "Groq Whisper (Utama)",
+    type: "groq",
+    role: "primary",
+    description: "Transkripsi acoustic kata-per-kata ultra-cepat (216x real-time)",
+    quotaRule: "20 RPM • 2,000 RPD • 30k TPM",
+  },
+  {
+    name: "GROQ_API_KEY_BACKUP",
+    label: "Groq Whisper (Cadangan)",
+    type: "groq",
+    role: "backup",
+    description: "Failover otomatis saat limit request Whisper utama habis",
+    quotaRule: "20 RPM • 2,000 RPD • 30k TPM",
+  },
 ];
 
 function ProfilePage() {
-  const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
+  // 1. Profile State
   const [sessionUser, setSessionUser] = useState<StoredSessionUser>(DEFAULT_DEMO_USER);
-  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState<string>(
+  const [profileName, setProfileName] = useState<string>(DEFAULT_DEMO_USER.name);
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string>(
     DEFAULT_DEMO_USER.avatarUrl || "/images/michael_avatar.png"
   );
-  const [customAvatarInput, setCustomAvatarInput] = useState<string>("");
-  const [fullName, setFullName] = useState<string>(DEFAULT_DEMO_USER.name);
-  const [badge, setBadge] = useState<string>(DEFAULT_DEMO_USER.badge || "Content Creator");
-  const [bio, setBio] = useState<string>(
-    "Kreator video pendek fokus YouTube Shorts & TikTok viral. Menggunakan preset THEO 5-FIX."
-  );
+  const [isSavingProfile, setIsSavingProfile] = useState<boolean>(false);
 
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [avatarError, setAvatarError] = useState<string | null>(null);
-  const [isSavedAlert, setIsSavedAlert] = useState<boolean>(false);
-  const [isResettingQuota, setIsResettingQuota] = useState<boolean>(false);
+  // 2. API Keys State
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [keyStatuses, setKeyStatuses] = useState<Record<string, ApiKeyStatusItem>>({});
+  const [visibleKeyNames, setVisibleKeyNames] = useState<Record<string, boolean>>({});
+  const [activeFilter, setActiveFilter] = useState<"all" | "gemini_primary" | "gemini_backup" | "groq">("all");
+  const [isLoadingKeys, setIsLoadingKeys] = useState<boolean>(true);
+  const [isSavingKeys, setIsSavingKeys] = useState<boolean>(false);
+  const [isCheckingKeys, setIsCheckingKeys] = useState<boolean>(false);
+  const [testingKeyName, setTestingKeyName] = useState<string | null>(null);
 
+  // Notifications
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const envFileInputRef = useRef<HTMLInputElement>(null);
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // Load Session and API Keys on mount
   useEffect(() => {
+    // 1. Load local profile session
     const current = getPersistentSession();
     if (current) {
       setSessionUser(current);
+      setProfileName(current.name);
       if (current.avatarUrl) {
-        setSelectedAvatarUrl(current.avatarUrl);
-      }
-      setFullName(current.name);
-      if (current.badge) {
-        setBadge(current.badge);
+        setProfileAvatarUrl(current.avatarUrl);
       }
     }
+
+    // 2. Load API keys from backend
+    fetchApiKeys();
   }, []);
 
-  const isDirty =
-    fullName.trim() !== sessionUser.name ||
-    selectedAvatarUrl !== sessionUser.avatarUrl ||
-    badge !== (sessionUser.badge || "Content Creator");
-
-  const handleNameChange = (val: string) => {
-    setFullName(val);
-    if (!val.trim()) {
-      setNameError("Nama tampilan tidak boleh kosong.");
-    } else if (val.trim().length < 2) {
-      setNameError("Nama minimal 2 karakter.");
-    } else if (val.trim().length > 40) {
-      setNameError("Nama maksimal 40 karakter.");
-    } else {
-      setNameError(null);
+  const fetchApiKeys = async () => {
+    setIsLoadingKeys(true);
+    try {
+      const res = await fetch(`${API_URL}/api/settings/api-keys`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setApiKeys(json.data);
+          // Initial background check
+          runKeysCheck(json.data);
+        }
+      }
+    } catch {
+      showToast("Gagal memuat API Keys dari server.");
+    } finally {
+      setIsLoadingKeys(false);
     }
   };
 
-  const handleSelectDefaultAvatar = (avatar: DefaultAvatarOption) => {
-    setSelectedAvatarUrl(avatar.url);
-    setAvatarError(null);
-  };
-
-  const handleApplyCustomAvatar = () => {
-    const trimmed = customAvatarInput.trim();
-    if (!trimmed) {
-      setAvatarError("Masukkan URL gambar yang valid terlebih dahulu.");
-      return;
+  const runKeysCheck = async (keysToCheck: Record<string, string>) => {
+    setIsCheckingKeys(true);
+    try {
+      const res = await fetch(`${API_URL}/api/settings/check-keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keys: keysToCheck }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          const statusMap: Record<string, ApiKeyStatusItem> = {};
+          for (const item of json.data) {
+            statusMap[item.name] = item;
+          }
+          setKeyStatuses(statusMap);
+        }
+      }
+    } catch {}
+    finally {
+      setIsCheckingKeys(false);
     }
-    if (!/^https?:\/\/.+/i.test(trimmed)) {
-      setAvatarError("URL harus dimulai dengan http:// atau https://");
-      return;
-    }
-    setSelectedAvatarUrl(trimmed);
-    setAvatarError(null);
   };
 
-  const handleRevertChanges = () => {
-    setFullName(sessionUser.name);
-    setSelectedAvatarUrl(sessionUser.avatarUrl || "/images/michael_avatar.png");
-    setBadge(sessionUser.badge || "Content Creator");
-    setNameError(null);
-    setAvatarError(null);
-    setCustomAvatarInput("");
+  // Handle local avatar file upload from browser
+  const handleAvatarFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setProfileAvatarUrl(result);
+      showToast("Foto profil baru dipilih!");
+    };
+    reader.readAsDataURL(file);
   };
 
+  // Save profile changes
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || nameError) {
-      setNameError("Silakan masukkan nama tampilan yang valid.");
+    if (!profileName.trim()) {
+      showToast("Nama profil tidak boleh kosong.");
       return;
     }
 
+    setIsSavingProfile(true);
     const updated = savePersistentSession({
-      ...sessionUser,
-      name: fullName.trim(),
-      avatarUrl: selectedAvatarUrl,
-      badge,
+      name: profileName.trim(),
+      avatarUrl: profileAvatarUrl,
     });
     setSessionUser(updated);
-    setIsSavedAlert(true);
-    setTimeout(() => setIsSavedAlert(false), 3500);
+
+    // Sync across tabs & header
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("storage"));
+    }
+
+    setIsSavingProfile(false);
+    showToast("Profil berhasil disimpan!");
   };
 
-  const handleResetQuota = () => {
-    setIsResettingQuota(true);
-    setTimeout(() => {
-      const reset = resetPersistentUserQuota();
-      setSessionUser(reset);
-      setIsResettingQuota(false);
-      setIsSavedAlert(true);
-      setTimeout(() => setIsSavedAlert(false), 3000);
-    }, 400);
+  // Handle Key Input Changes
+  const handleKeyChange = (keyName: string, val: string) => {
+    setApiKeys((prev) => ({ ...prev, [keyName]: val }));
   };
 
-  const remainingQuota = Math.max(0, sessionUser.dailyQuota - sessionUser.usedQuota);
-  const percentUsed = Math.min(
-    100,
-    Math.round((sessionUser.usedQuota / sessionUser.dailyQuota) * 100)
-  );
+  // Toggle Visibility of an API Key
+  const toggleVisibility = (keyName: string) => {
+    setVisibleKeyNames((prev) => ({ ...prev, [keyName]: !prev[keyName] }));
+  };
+
+  // Save all keys to all directory .env files and runtime environment
+  const handleSaveAllKeys = async () => {
+    setIsSavingKeys(true);
+    try {
+      const res = await fetch(`${API_URL}/api/settings/api-keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keys: apiKeys }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        showToast(json.message || "Semua API Keys berhasil diperbarui ke sistem!");
+        // Re-check keys health
+        runKeysCheck(apiKeys);
+      } else {
+        showToast(json.message || "Gagal menyimpan kunci ke sistem.");
+      }
+    } catch {
+      showToast("Gagal menghubungi server untuk menyimpan kunci.");
+    } finally {
+      setIsSavingKeys(false);
+    }
+  };
+
+  // Upload and parse .env or text file
+  const handleUploadEnvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = reader.result as string;
+      const lines = content.split(/\r?\n/);
+      const extracted: Record<string, string> = { ...apiKeys };
+      let count = 0;
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx === -1) continue;
+
+        const rawKey = trimmed.slice(0, eqIdx).trim();
+        const rawVal = trimmed.slice(eqIdx + 1).replace(/^["']|["']$/g, "").trim();
+
+        if (KEY_DEFINITIONS.some((k) => k.name === rawKey)) {
+          extracted[rawKey] = rawVal;
+          count++;
+        }
+      }
+
+      setApiKeys(extracted);
+      showToast(`${count} kunci API berhasil diimpor dari file! Klik 'Simpan ke Sistem' untuk menerapkan.`);
+      runKeysCheck(extracted);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  // Test single key directly
+  const handleTestSingleKey = async (keyName: string) => {
+    setTestingKeyName(keyName);
+    const keyVal = apiKeys[keyName] || "";
+    try {
+      const res = await fetch(`${API_URL}/api/settings/check-keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keys: { [keyName]: keyVal } }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const item = json.data[0];
+          setKeyStatuses((prev) => ({ ...prev, [keyName]: item }));
+          showToast(`Kunci ${item.label}: ${item.details}`);
+        }
+      }
+    } catch {
+      showToast("Gagal melakukan pengetesan kunci.");
+    } finally {
+      setTestingKeyName(null);
+    }
+  };
+
+  // Filtered keys
+  const filteredKeys = KEY_DEFINITIONS.filter((k) => {
+    if (activeFilter === "gemini_primary") return k.type === "gemini" && k.role === "primary";
+    if (activeFilter === "gemini_backup") return k.type === "gemini" && k.role === "backup";
+    if (activeFilter === "groq") return k.type === "groq";
+    return true;
+  });
 
   return (
-    <div className="w-full text-slate-100 max-w-6xl mx-auto pb-12">
-      {/* Top Breadcrumb */}
-      <div className="flex items-center justify-between py-2 px-1 mb-6">
-        <div className="flex items-center gap-2 text-sm">
-          <Link to="/app" className="text-[#6d868c] hover:text-[#2cd3c6] transition">
-            Dashboard
-          </Link>
-          <span className="text-[#3c565d]">/</span>
-          <span className="text-[#6d868c]">Akun & Kuota</span>
-          <span className="text-[#3c565d]">/</span>
-          <span className="text-white font-medium tracking-wide">
-            Ubah Profil & Pratinjau
-          </span>
+    <div className="w-full flex flex-col gap-8 animate-fadeIn text-slate-100 pb-16">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-16 right-6 z-50 px-4 py-2.5 rounded-xl bg-[#0f2a30] border border-[#2cd3c6] text-teal-200 text-xs font-semibold shadow-[0_0_20px_rgba(44,211,198,0.35)] flex items-center gap-2 animate-fadeIn">
+          <Sparkles className="w-4 h-4 text-[#2cd3c6] shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Hidden inputs */}
+      <input
+        ref={envFileInputRef}
+        type="file"
+        accept=".env,.txt"
+        className="hidden"
+        onChange={handleUploadEnvFile}
+      />
+      <input
+        ref={avatarFileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAvatarFileSelected}
+      />
+
+      {/* Top Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#1b343b] pb-4 gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs text-[#6e8e95] mb-1">
+            <span>Dashboard</span>
+            <span>/</span>
+            <span className="text-[#2cd3c6] font-semibold">Pengaturan Akun & API Keys</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-wide flex items-center gap-2.5">
+            <span>Pengaturan Akun & Manajemen API Keys</span>
+            <Sparkles className="w-5 h-5 text-[#2cd3c6]" />
+          </h1>
+          <p className="text-xs text-[#7e9ca2] mt-0.5">
+            Pilih profil mandiri dari browser, kelola seluruh direktori kunci Google Gemini & Groq, serta pantau limit penggunaan token secara real-time.
+          </p>
         </div>
 
         <Link
           to="/app"
-          className="px-3 py-1.5 rounded-xl bg-[#142f36] hover:bg-[#1b3e47] border border-[#20b2aa]/40 text-[#2cd3c6] text-xs font-semibold flex items-center gap-1.5 transition"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#122e35] hover:bg-[#194049] border border-[#2cd3c6]/40 text-[#2cd3c6] text-xs font-bold transition shadow-sm shrink-0 self-start sm:self-auto cursor-pointer"
         >
-          <Film className="w-3.5 h-3.5" />
+          <ArrowLeft className="w-4 h-4" />
           <span>Kembali ke Studio</span>
         </Link>
       </div>
 
-      {/* Save Success Alert Banner */}
-      {isSavedAlert && (
-        <div className="mb-6 p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs sm:text-sm flex items-center gap-2.5 animate-in fade-in slide-in-from-top-2 duration-300">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          <span className="font-medium">
-            Perubahan profil berhasil disimpan! Foto profil dan nama tampilan langsung diperbarui di seluruh aplikasi.
-          </span>
+      {/* BAGIAN 1: PROFIL PENGGUNA (BROWSER PROFILE STYLE) */}
+      <section className="bg-[#0b1b1e] border border-[#1d3d44] rounded-2xl p-5 sm:p-6 shadow-lg">
+        <div className="flex items-center justify-between pb-4 border-b border-[#163036] mb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#14353d] border border-[#2cd3c6]/40 flex items-center justify-center text-[#2cd3c6]">
+              <User className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-white">Profil Pengguna</h2>
+              <p className="text-[11px] text-[#719096]">
+                Pilih avatar langsung dari file browser perangkat Anda atau pilih avatar siap pakai.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSaveProfile}
+            disabled={isSavingProfile}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#17858c] to-[#20b2aa] hover:from-[#1da3ab] hover:to-[#2cd3c6] text-[#071316] font-bold text-xs transition shadow-[0_0_15px_rgba(44,211,198,0.3)] active:scale-95 disabled:opacity-50 cursor-pointer"
+          >
+            {isSavingProfile ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Check className="w-3.5 h-3.5 stroke-[3]" />
+            )}
+            <span>Simpan Profil</span>
+          </button>
         </div>
-      )}
 
-      {/* Main Grid: Left 2 Cols (Edit Form & Avatars), Right 1 Col (Live Preview & Quota) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left 2 Cols: Form Ubah Nama & Foto Profil / Ubah Kata Sandi */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          {/* Navigation Tabs */}
-          <div className="flex items-center gap-2 p-1 rounded-xl bg-[#0a171b] border border-[#16353d]">
-            <button
-              type="button"
-              onClick={() => setActiveTab("profile")}
-              className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer ${
-                activeTab === "profile"
-                  ? "bg-[#133037] text-[#2cd3c6] border border-[#2cd3c6]/40 shadow-sm"
-                  : "text-[#8ca4aa] hover:text-white hover:bg-[#0f2125]"
-              }`}
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>Data Profil & Avatar</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("password")}
-              className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer ${
-                activeTab === "password"
-                  ? "bg-[#133037] text-[#2cd3c6] border border-[#2cd3c6]/40 shadow-sm"
-                  : "text-[#8ca4aa] hover:text-white hover:bg-[#0f2125]"
-              }`}
-            >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>Ubah Kata Sandi</span>
-            </button>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+          {/* Avatar Picker & Preview */}
+          <div className="md:col-span-4 flex flex-col items-center sm:items-start gap-3">
+            <div className="relative group">
+              <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#2cd3c6] shadow-[0_0_20px_rgba(44,211,198,0.25)] bg-[#12282e]">
+                <img
+                  src={profileAvatarUrl}
+                  alt={profileName}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => avatarFileInputRef.current?.click()}
+                className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center text-[#2cd3c6] text-[10px] font-bold gap-1 cursor-pointer"
+                title="Pilih foto profil dari browser/perangkat"
+              >
+                <Camera className="w-5 h-5" />
+                <span>Ganti Foto</span>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1 text-center sm:text-left">
+              <button
+                type="button"
+                onClick={() => avatarFileInputRef.current?.click()}
+                className="text-xs font-semibold text-[#2cd3c6] hover:underline flex items-center gap-1.5 cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Pilih Foto dari Perangkat (Browser)</span>
+              </button>
+              <span className="text-[10px] text-[#6d8a90]">Format PNG, JPG, WebP (otomatis tersimpan lokal)</span>
+            </div>
           </div>
 
-          {activeTab === "password" ? (
-            <ChangePasswordCard />
-          ) : (
-            <>
-              {/* Section: Form Ubah Profil */}
-              <div className="rounded-2xl border border-[#1a363d] bg-[#0c1a1e]/90 p-5 sm:p-6 shadow-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                    <User className="w-5 h-5 text-[#2cd3c6]" />
-                    <span>Form Ubah Nama & Foto Profil</span>
-                  </h2>
-              {isDirty && (
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-medium">
-                  Perubahan Belum Disimpan
-                </span>
-              )}
+          {/* Profile Name & Quick Avatar Presets */}
+          <div className="md:col-span-8 flex flex-col gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1.5">
+                Nama Tampilan Profil
+              </label>
+              <input
+                type="text"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                placeholder="Masukkan nama tampilan..."
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#081518] border border-[#1b3b42] focus:border-[#2cd3c6] text-sm text-white placeholder-gray-500 outline-none transition"
+              />
             </div>
-            <p className="text-xs text-[#8ca4aa] mb-5">
-              Setiap ketikan pada nama atau pemilihan avatar langsung terlihat pada kotak pratinjau di sebelah kanan.
-            </p>
 
-            <form onSubmit={handleSaveProfile} className="space-y-5">
-              {/* Nama Tampilan */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-[#8ca4aa]">
-                    Nama Tampilan Kreator
-                  </label>
-                  <span className="text-[10px] text-[#718b91] font-mono">
-                    {fullName.length}/40 karakter
-                  </span>
-                </div>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  placeholder="Contoh: Sonia Evangelyn"
-                  className={`w-full px-3.5 py-2.5 rounded-xl bg-[#0a171b] border text-white text-sm focus:outline-none transition ${
-                    nameError
-                      ? "border-red-500/60 focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                      : "border-[#1c3c44] focus:border-[#2cd3c6] focus:ring-1 focus:ring-[#2cd3c6]"
-                  }`}
-                  required
-                />
-                {nameError && (
-                  <div className="flex items-center gap-1.5 text-xs text-red-400 mt-1.5">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{nameError}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Role / Persona Badge Selector */}
-              <div>
-                <label className="block text-xs font-semibold text-[#8ca4aa] mb-1.5">
-                  Peran / Persona Akun
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {ROLE_BADGES.map((b) => {
-                    const isSelected = badge === b;
-                    return (
-                      <button
-                        key={b}
-                        type="button"
-                        onClick={() => setBadge(b)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                          isSelected
-                            ? "bg-[#20b2aa] text-slate-950 shadow-[0_0_12px_rgba(32,178,170,0.4)]"
-                            : "bg-[#0f2125] text-slate-300 border border-[#1b373e] hover:bg-[#142d33] hover:text-white"
-                        }`}
-                      >
-                        {b}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* URL Foto Profil Kustom (Opsional) */}
-              <div>
-                <label className="block text-xs font-semibold text-[#8ca4aa] mb-1.5">
-                  Tautan Foto Profil Kustom (Opsional)
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type="url"
-                      value={customAvatarInput}
-                      onChange={(e) => {
-                        setCustomAvatarInput(e.target.value);
-                        if (avatarError) setAvatarError(null);
-                      }}
-                      placeholder="https://images.unsplash.com/photo-..."
-                      className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#0a171b] border border-[#1c3c44] text-white text-xs sm:text-sm focus:outline-none focus:border-[#2cd3c6] focus:ring-1 focus:ring-[#2cd3c6] transition"
-                    />
-                    <Link2 className="w-4 h-4 text-[#718b91] absolute left-3 top-3" />
-                  </div>
+            {/* Browser Avatar Presets */}
+            <div>
+              <label className="block text-[11px] font-semibold text-[#7e9ca2] mb-2">
+                Atau Pilih Avatar Browser Bawaan:
+              </label>
+              <div className="flex items-center gap-3 overflow-x-auto pb-1">
+                {DEFAULT_AVATARS.slice(0, 6).map((av) => (
                   <button
+                    key={av.id}
                     type="button"
-                    onClick={handleApplyCustomAvatar}
-                    className="px-3.5 py-2.5 rounded-xl bg-[#14282e] hover:bg-[#1d3d46] border border-[#20b2aa]/30 text-xs font-semibold text-[#2cd3c6] hover:text-white transition cursor-pointer shrink-0"
+                    onClick={() => setProfileAvatarUrl(av.url)}
+                    className={`w-10 h-10 rounded-full overflow-hidden border-2 transition shrink-0 cursor-pointer ${
+                      profileAvatarUrl === av.url
+                        ? "border-[#2cd3c6] scale-110 shadow-[0_0_12px_rgba(44,211,198,0.5)]"
+                        : "border-[#1e3c43] opacity-60 hover:opacity-100 hover:border-gray-400"
+                    }`}
+                    title={av.name}
                   >
-                    Terapkan URL
+                    <img src={av.url} alt={av.name} className="w-full h-full object-cover" />
                   </button>
-                </div>
-                {avatarError && (
-                  <div className="flex items-center gap-1.5 text-xs text-red-400 mt-1.5">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{avatarError}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Bio Singkat */}
-              <div>
-                <label className="block text-xs font-semibold text-[#8ca4aa] mb-1.5">
-                  Bio / Catatan Kreator
-                </label>
-                <textarea
-                  rows={2}
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  placeholder="Catatan fokus gaya video atau kanal YouTube..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0a171b] border border-[#1c3c44] text-white text-xs sm:text-sm focus:outline-none focus:border-[#2cd3c6] focus:ring-1 focus:ring-[#2cd3c6] transition"
-                />
-              </div>
-
-              {/* Action Buttons: Simpan & Batal */}
-              <div className="pt-3 border-t border-[#16353d] flex flex-wrap items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={handleRevertChanges}
-                  disabled={!isDirty}
-                  className="px-4 py-2 rounded-xl bg-[#122328] hover:bg-[#1a333b] border border-[#1c3c44] text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Undo2 className="w-3.5 h-3.5" />
-                  <span>Batal / Kembalikan</span>
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={!isDirty || !!nameError}
-                  className="px-6 py-2.5 rounded-xl bg-[#20b2aa] hover:bg-[#28c5bc] text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-2 transition shadow-[0_0_15px_rgba(32,178,170,0.3)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Simpan Perubahan Profil</span>
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Section: Galeri Avatar Bawaan Cepat */}
-          <div className="rounded-2xl border border-[#1a363d] bg-[#0c1a1e]/90 p-5 sm:p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                  <Camera className="w-4 h-4 text-[#2cd3c6]" />
-                  <span>Pilihan Avatar Bawaan (Klik untuk Pratinjau)</span>
-                </h3>
-                <p className="text-xs text-[#8ca4aa] mt-0.5">
-                  Klik avatar mana saja di bawah ini untuk melihat pratinjaunya secara langsung di sebelah kanan.
-                </p>
+                ))}
               </div>
             </div>
+          </div>
+        </div>
+      </section>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {DEFAULT_AVATARS.map((avatar) => {
-                const isSelected = selectedAvatarUrl === avatar.url;
+      {/* BAGIAN 2: MULTI-COLUMN API KEY DIRECTORY (GEMINI & GROQ SAJA) */}
+      <section className="bg-[#0b1b1e] border border-[#1d3d44] rounded-2xl p-5 sm:p-6 shadow-lg">
+        {/* Header Actions */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between pb-4 border-b border-[#163036] gap-4 mb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#14353d] border border-[#2cd3c6]/40 flex items-center justify-center text-[#2cd3c6]">
+              <Key className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                <span>Manajemen API Key & Monitoring Kuota</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#14373e] border border-[#20b2aa]/40 text-[#2cd3c6]">
+                  Gemini & Groq Saja
+                </span>
+              </h2>
+              <p className="text-[11px] text-[#719096]">
+                Paste kunci langsung, upload file .env, serta pantau limit rate & token usage secara real-time.
+              </p>
+            </div>
+          </div>
 
-                return (
-                  <div
-                    key={avatar.id}
-                    onClick={() => handleSelectDefaultAvatar(avatar)}
-                    className={`p-3 rounded-xl border transition-all duration-200 cursor-pointer flex flex-col items-center text-center ${
-                      isSelected
-                        ? "bg-[#13323a]/90 border-[#2cd3c6] shadow-[0_0_15px_rgba(44,211,198,0.25)] ring-1 ring-[#2cd3c6]"
-                        : "bg-[#0f2125]/70 border-[#1a373e] hover:bg-[#142d33] hover:border-[#20b2aa]/40"
-                    }`}
-                  >
-                    <div className="relative mb-2">
-                      <div className="w-14 h-14 rounded-xl overflow-hidden border border-[#234b55] bg-[#12282e]">
-                        <img
-                          src={avatar.url}
-                          alt={avatar.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      {isSelected && (
-                        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#2cd3c6] text-black flex items-center justify-center font-bold text-[10px] shadow">
-                          ✓
-                        </div>
-                      )}
+          {/* Action Buttons Toolbar */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Upload .env Button */}
+            <button
+              type="button"
+              onClick={() => envFileInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#112a30] hover:bg-[#16373f] border border-[#20b2aa]/40 text-[#2cd3c6] text-xs font-semibold transition active:scale-95 cursor-pointer"
+              title="Upload file .env untuk mengisi semua kolom kunci secara otomatis"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Upload File .env</span>
+            </button>
+
+            {/* Live Refresh Status Button */}
+            <button
+              type="button"
+              onClick={() => runKeysCheck(apiKeys)}
+              disabled={isCheckingKeys}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#112a30] hover:bg-[#16373f] border border-[#2cd3c6]/40 text-teal-200 text-xs font-semibold transition active:scale-95 disabled:opacity-50 cursor-pointer"
+              title="Cek koneksi dan sisa kuota semua kunci ke Google & Groq"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isCheckingKeys ? "animate-spin text-[#2cd3c6]" : ""}`} />
+              <span>{isCheckingKeys ? "Mengecek Kuota..." : "Refresh Status Limit"}</span>
+            </button>
+
+            {/* Save All Keys to System Button */}
+            <button
+              type="button"
+              onClick={handleSaveAllKeys}
+              disabled={isSavingKeys}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#17858c] to-[#20b2aa] hover:from-[#1da3ab] hover:to-[#2cd3c6] text-[#071316] font-bold text-xs transition shadow-[0_0_15px_rgba(44,211,198,0.3)] active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              {isSavingKeys ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              <span>Simpan ke Sistem</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-5 border-b border-[#142d33]">
+          <button
+            type="button"
+            onClick={() => setActiveFilter("all")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
+              activeFilter === "all"
+                ? "bg-[#163c45] border border-[#2cd3c6]/60 text-[#2cd3c6] shadow-sm"
+                : "text-[#7a99a0] hover:text-white hover:bg-[#11252a]"
+            }`}
+          >
+            Semua Kunci ({KEY_DEFINITIONS.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFilter("gemini_primary")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
+              activeFilter === "gemini_primary"
+                ? "bg-[#163c45] border border-[#2cd3c6]/60 text-[#2cd3c6] shadow-sm"
+                : "text-[#7a99a0] hover:text-white hover:bg-[#11252a]"
+            }`}
+          >
+            Gemini Kunci Utama (5)
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFilter("gemini_backup")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
+              activeFilter === "gemini_backup"
+                ? "bg-[#163c45] border border-[#2cd3c6]/60 text-[#2cd3c6] shadow-sm"
+                : "text-[#7a99a0] hover:text-white hover:bg-[#11252a]"
+            }`}
+          >
+            Gemini Kunci Cadangan (5)
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFilter("groq")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
+              activeFilter === "groq"
+                ? "bg-[#163c45] border border-[#2cd3c6]/60 text-[#2cd3c6] shadow-sm"
+                : "text-[#7a99a0] hover:text-white hover:bg-[#11252a]"
+            }`}
+          >
+            Groq Whisper (2)
+          </button>
+        </div>
+
+        {/* Multi-Column Key Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filteredKeys.map((def) => {
+            const currentVal = apiKeys[def.name] || "";
+            const isVisible = visibleKeyNames[def.name] || false;
+            const statusInfo = keyStatuses[def.name];
+            const isTesting = testingKeyName === def.name;
+
+            // Status Badge Colors & Icons
+            let badgeBg = "bg-gray-800/60 border-gray-700 text-gray-400";
+            let badgeDot = "bg-gray-400";
+            let badgeText = "Belum Diisi";
+
+            if (statusInfo) {
+              if (statusInfo.status === "active") {
+                badgeBg = "bg-emerald-950/50 border-emerald-500/40 text-emerald-300";
+                badgeDot = "bg-emerald-400";
+                badgeText = "Aktif & Aman";
+              } else if (statusInfo.status === "warning") {
+                badgeBg = "bg-amber-950/50 border-amber-500/40 text-amber-300";
+                badgeDot = "bg-amber-400";
+                badgeText = "Mendekati Limit";
+              } else if (statusInfo.status === "rate_limited") {
+                badgeBg = "bg-rose-950/50 border-rose-500/40 text-rose-300";
+                badgeDot = "bg-rose-400";
+                badgeText = "Limit Tercapai (429)";
+              } else if (statusInfo.status === "invalid") {
+                badgeBg = "bg-rose-950/50 border-rose-500/40 text-rose-300";
+                badgeDot = "bg-rose-400";
+                badgeText = "Kunci Tidak Valid";
+              } else if (statusInfo.status === "unconfigured") {
+                badgeBg = "bg-gray-800/60 border-gray-700 text-gray-400";
+                badgeDot = "bg-gray-400";
+                badgeText = "Belum Diisi";
+              } else {
+                badgeBg = "bg-amber-950/50 border-amber-500/40 text-amber-300";
+                badgeDot = "bg-amber-400";
+                badgeText = "Status Error";
+              }
+            } else if (currentVal && currentVal.length > 8) {
+              badgeBg = "bg-[#14353d] border-[#2cd3c6]/40 text-[#2cd3c6]";
+              badgeDot = "bg-[#2cd3c6]";
+              badgeText = "Siap Divalidasi";
+            }
+
+            return (
+              <div
+                key={def.name}
+                className="bg-[#081518] border border-[#18343b] rounded-xl p-4 flex flex-col justify-between gap-3 shadow-md hover:border-[#20b2aa]/40 transition group"
+              >
+                {/* Header Card: Title, Badge, Status */}
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <div>
+                      <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-[#2cd3c6] transition">
+                        {def.label}
+                      </h3>
+                      <p className="font-mono text-[10px] text-[#5e7c82] truncate">
+                        {def.name}
+                      </p>
                     </div>
 
-                    <span className="text-xs font-bold text-white truncate max-w-full">
-                      {avatar.name}
-                    </span>
-                    <span className="text-[10px] text-[#2cd3c6] font-mono mt-0.5">
-                      {avatar.tag}
-                    </span>
+                    {/* Status Badge */}
+                    <div
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0 ${badgeBg}`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${badgeDot}`} />
+                      <span>{badgeText}</span>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
+
+                  <p className="text-[11px] text-[#719096] leading-tight mb-2">
+                    {def.description}
+                  </p>
+
+                  {/* Quota & Token Telemetry Box */}
+                  <div className="bg-[#0b1c20] border border-[#16333a] rounded-lg p-2.5 text-[10px] space-y-1 mb-2">
+                    <div className="flex items-center justify-between text-[#7d9b9f]">
+                      <span>Aturan Limit:</span>
+                      <span className="font-mono font-bold text-[#2cd3c6]">{def.quotaRule}</span>
+                    </div>
+
+                    {/* Groq Live Requests Telemetry */}
+                    {statusInfo?.remainingRequests && (
+                      <div className="flex items-center justify-between text-[#8aa8ae] border-t border-[#12282d] pt-1 mt-1">
+                        <span>Sisa Request:</span>
+                        <span className="font-mono font-bold text-emerald-300">
+                          {statusInfo.remainingRequests}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Latency & Diagnosis */}
+                    {statusInfo && statusInfo.status !== "unconfigured" && (
+                      <div className="flex items-center justify-between text-[#759398] border-t border-[#12282d] pt-1 mt-1">
+                        <span>Status Diagnostik:</span>
+                        <span className="truncate max-w-[170px]" title={statusInfo.details}>
+                          {statusInfo.latencyMs ? `${statusInfo.latencyMs}ms • ` : ""}
+                          {statusInfo.label}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Input Field & Test Action */}
+                <div className="space-y-2">
+                  <div className="relative flex items-center">
+                    <input
+                      type={isVisible ? "text" : "password"}
+                      value={currentVal}
+                      onChange={(e) => handleKeyChange(def.name, e.target.value)}
+                      placeholder={`Paste nilai ${def.name}...`}
+                      className="w-full pl-3 pr-10 py-2 rounded-lg bg-[#050e10] border border-[#1b3a41] focus:border-[#2cd3c6] text-xs font-mono text-gray-200 placeholder-gray-600 outline-none transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => toggleVisibility(def.name)}
+                      className="absolute right-2 text-gray-500 hover:text-[#2cd3c6] p-1 transition cursor-pointer"
+                      title={isVisible ? "Sembunyikan" : "Tampilkan teks kunci"}
+                    >
+                      {isVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="text-[#567379]">
+                      {currentVal ? `${currentVal.length} karakter` : "Kosong"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleTestSingleKey(def.name)}
+                      disabled={isTesting || !currentVal}
+                      className="text-[#2cd3c6] hover:underline font-semibold disabled:opacity-40 transition cursor-pointer flex items-center gap-1"
+                    >
+                      {isTesting ? (
+                        <>
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          <span>Menguji...</span>
+                        </>
+                      ) : (
+                        <span>Uji Kunci Ini</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer Info */}
+        <div className="mt-6 pt-4 border-t border-[#16333a] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#6e8e95]">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-[#2cd3c6]" />
+            <span>Kunci otomatis tersinkronisasi ke seluruh direktori (.env, backend, dan runtime) tanpa restart manual.</span>
           </div>
-        </>
-      )}
-    </div>
 
-        {/* Right Col: Live Preview Component & Daily Quota Status */}
-        <div className="flex flex-col gap-6">
-          {/* Dedicated Live Preview Card Component */}
-          <ProfileLivePreviewCard
-            name={fullName}
-            avatarUrl={selectedAvatarUrl}
-            badge={badge}
-            email={sessionUser.email}
-            isDirty={isDirty}
-          />
-
-          {/* Daily Quota Status Card */}
-          <div className="rounded-2xl border border-[#1a363d] bg-gradient-to-b from-[#0f2429] to-[#0a181c] p-5 sm:p-6 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                <Zap className="w-4 h-4 text-[#2cd3c6]" />
-                <span>Status Kuota Klip</span>
-              </h3>
-              <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
-                Aktif
-              </span>
-            </div>
-
-            <div className="p-4 rounded-xl bg-[#071316] border border-[#142d33] flex flex-col items-center text-center">
-              <span className="text-[11px] text-[#8ca4aa] font-medium uppercase tracking-wider">
-                Sisa Kuota Hari Ini
-              </span>
-              <div className="my-2 flex items-baseline gap-1">
-                <span className="text-3xl font-black text-[#2cd3c6] font-mono">
-                  {remainingQuota}
-                </span>
-                <span className="text-sm text-[#59787f] font-mono">
-                  / {sessionUser.dailyQuota}
-                </span>
-              </div>
-              <span className="text-xs text-[#7d979d]">
-                Maks. 10 klip per satu kali proses potong
-              </span>
-            </div>
-
-            <div className="space-y-2 text-xs text-[#8ca4aa]">
-              <div className="flex items-center justify-between py-1 border-b border-[#132c32]">
-                <span className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-[#2cd3c6]" />
-                  <span>Jadwal Reset:</span>
-                </span>
-                <strong className="text-white">00:00 WIB</strong>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-[#132c32]">
-                <span>Alokasi Harian:</span>
-                <strong className="text-white">50 Klip / Hari</strong>
-              </div>
-            </div>
-
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={handleResetQuota}
-              disabled={isResettingQuota}
-              className="w-full mt-1 py-2 rounded-xl bg-[#122e35] hover:bg-[#1a3d46] border border-[#20b2aa]/30 text-xs font-semibold text-[#2cd3c6] flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
+              onClick={handleSaveAllKeys}
+              disabled={isSavingKeys}
+              className="text-[#2cd3c6] font-bold hover:underline cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isResettingQuota ? "animate-spin" : ""}`} />
-              <span>Simulasi Reset Kuota (00:00 WIB)</span>
+              Simpan Perubahan
             </button>
           </div>
-
-          {/* Quick Navigation Card */}
-          <div className="rounded-2xl border border-[#1a363d] bg-[#0c1a1e]/90 p-5 flex flex-col gap-3">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-              Akses Cepat Fitur
-            </h3>
-            <Link
-              to="/app"
-              className="p-3 rounded-xl bg-[#0f2125] hover:bg-[#152e34] border border-[#183940] flex items-center justify-between text-xs font-medium text-slate-200 transition group"
-            >
-              <span>🎬 Studio Potong Video</span>
-              <ArrowRight className="w-3.5 h-3.5 text-[#2cd3c6] group-hover:translate-x-0.5 transition" />
-            </Link>
-            <Link
-              to="/project-history"
-              className="p-3 rounded-xl bg-[#0f2125] hover:bg-[#152e34] border border-[#183940] flex items-center justify-between text-xs font-medium text-slate-200 transition group"
-            >
-              <span>📁 Riwayat Proyek Klip</span>
-              <ArrowRight className="w-3.5 h-3.5 text-[#2cd3c6] group-hover:translate-x-0.5 transition" />
-            </Link>
-          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

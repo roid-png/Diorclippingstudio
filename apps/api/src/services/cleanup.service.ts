@@ -37,26 +37,60 @@ export function cleanupTempFiles(maxAgeMinutes = 10): { deletedCount: number } {
 }
 
 /**
- * Removes rendered MP4 files in outputs directory older than maxAgeHours (default: 2 hours).
+ * Removes rendered MP4 files in outputs directory older than maxAgeHours (default: 24 hours).
  */
-export function cleanupOutputsOlderThan(maxAgeHours = 2): { deletedCount: number } {
-  const outputsDir = getOutputsDir();
+export function cleanupOutputsOlderThan(maxAgeHours = 24): { deletedCount: number } {
+  const outputsDirs = [
+    getOutputsDir(),
+    path.resolve(process.cwd(), "../../backend/outputs"),
+    path.resolve(process.cwd(), "../backend/outputs"),
+  ];
   let deletedCount = 0;
   const now = Date.now();
   const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
 
-  if (fs.existsSync(outputsDir)) {
-    const files = fs.readdirSync(outputsDir);
-    for (const file of files) {
-      if (file.endsWith(".mp4") || file.endsWith(".tmp")) {
-        const fullPath = path.join(outputsDir, file);
-        try {
-          const stat = fs.statSync(fullPath);
-          if (now - stat.mtimeMs > maxAgeMs) {
-            fs.unlinkSync(fullPath);
+  for (const dir of outputsDirs) {
+    if (fs.existsSync(dir)) {
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        if (file.endsWith(".mp4") || file.endsWith(".tmp") || file.endsWith(".mov")) {
+          const fullPath = path.join(dir, file);
+          try {
+            const stat = fs.statSync(fullPath);
+            if (now - stat.mtimeMs > maxAgeMs) {
+              fs.unlinkSync(fullPath);
+              deletedCount++;
+            }
+          } catch {}
+        }
+      }
+    }
+  }
+
+  return { deletedCount };
+}
+
+/**
+ * Permanently deletes all rendered output video files across all output directories.
+ */
+export function deleteAllOutputVideos(): { deletedCount: number } {
+  const outputsDirs = [
+    getOutputsDir(),
+    path.resolve(process.cwd(), "../../backend/outputs"),
+    path.resolve(process.cwd(), "../backend/outputs"),
+  ];
+  let deletedCount = 0;
+
+  for (const dir of outputsDirs) {
+    if (fs.existsSync(dir)) {
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        if (file.endsWith(".mp4") || file.endsWith(".tmp") || file.endsWith(".mov")) {
+          try {
+            fs.unlinkSync(path.join(dir, file));
             deletedCount++;
-          }
-        } catch {}
+          } catch {}
+        }
       }
     }
   }
@@ -67,7 +101,7 @@ export function cleanupOutputsOlderThan(maxAgeHours = 2): { deletedCount: number
 /**
  * Resets all active clips, temporary audio/video chunks, and clears the current queue.
  */
-export async function resetAllActiveClipsAndTemp() {
+export async function resetAllActiveClipsAndTemp(deleteAllOutputs = false) {
   // 1. Clean temp directory immediately
   const tempBase = getTempDir("temp");
   let tempDeleted = 0;
@@ -88,6 +122,17 @@ export async function resetAllActiveClipsAndTemp() {
   }
   removeAllInDir(tempBase);
 
+  // Clean temp_uploads directory
+  const tempUploads = path.resolve(process.cwd(), "temp_uploads");
+  removeAllInDir(tempUploads);
+
+  // Clean outputs if requested
+  let outputsDeleted = 0;
+  if (deleteAllOutputs) {
+    const outRes = deleteAllOutputVideos();
+    outputsDeleted = outRes.deletedCount;
+  }
+
   // 2. Clear or reset processing database projects/clips
   try {
     await db.delete(renderJobs);
@@ -101,6 +146,7 @@ export async function resetAllActiveClipsAndTemp() {
     success: true,
     message: "Seluruh antrean klip dan file sementara berhasil dibersihkan.",
     cleanedTempFiles: tempDeleted,
+    deletedOutputs: outputsDeleted,
     timestamp: new Date().toISOString(),
   };
 }
@@ -108,19 +154,25 @@ export async function resetAllActiveClipsAndTemp() {
 let schedulerTimer: NodeJS.Timeout | null = null;
 
 /**
- * Starts background scheduler running every 30 minutes to clean old temp files and 2h+ output videos.
+ * Starts background scheduler running every 30 minutes to clean old temp files and 24h+ output videos.
  */
 export function startAutoCleanupScheduler() {
   if (schedulerTimer) return;
 
+  // Run initial cleanup on startup
+  try {
+    cleanupTempFiles(30);
+    cleanupOutputsOlderThan(24);
+  } catch {}
+
   const intervalMs = 30 * 60 * 1000; // 30 mins
   schedulerTimer = setInterval(() => {
     try {
-      const tempRes = cleanupTempFiles(15);
-      const outRes = cleanupOutputsOlderThan(2);
+      const tempRes = cleanupTempFiles(30);
+      const outRes = cleanupOutputsOlderThan(24);
       if (tempRes.deletedCount > 0 || outRes.deletedCount > 0) {
         console.log(
-          `[Auto-Cleanup] Berhasil membersihkan ${tempRes.deletedCount} file temp dan ${outRes.deletedCount} file output kedaluwarsa (>2 jam).`
+          `[Auto-Cleanup] Berhasil membersihkan ${tempRes.deletedCount} file temp dan ${outRes.deletedCount} file output kedaluwarsa (>24 jam).`
         );
       }
     } catch (err: any) {

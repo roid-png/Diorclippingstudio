@@ -32,6 +32,12 @@ const server = app.listen(env.PORT, env.HOST, async (error) => {
   } catch {}
 });
 
+// Configure 30-minute server timeouts for long-running 50+ min video uploads and rendering
+server.setTimeout(1800000);
+server.keepAliveTimeout = 1800000;
+server.headersTimeout = 1805000;
+server.requestTimeout = 1800000;
+
 // Graceful shutdown. `pnpm dev` (tsx watch) restarts on every file change;
 // closing the server and the pool here frees the port and the PostgreSQL
 // connections immediately, so reloads never hit EADDRINUSE or leak sessions.

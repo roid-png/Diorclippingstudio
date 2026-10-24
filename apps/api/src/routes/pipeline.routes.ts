@@ -1,6 +1,6 @@
 import express, { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import { executeRealPipeline } from "../services/full-pipeline.service";
+import { executeRealPipeline, reStyleClip } from "../services/full-pipeline.service";
 import { extractSessionToken } from "../middleware/auth";
 import { verifySessionToken } from "../services/account.service";
 
@@ -14,6 +14,16 @@ const generateSchema = z.object({
   clipDuration: z.coerce.number().int().refine((v) => [30, 45, 60].includes(v)).default(45),
   presetId: z.string().optional().default("viral-motion"),
   enableMotionGraphic: z.boolean().optional().default(true),
+  fontFamily: z.string().optional(),
+  font_family: z.string().optional(),
+});
+
+const reStyleSchema = z.object({
+  clipId: z.string().min(1, "clipId wajib diisi."),
+  presetId: z.string().min(1, "presetId wajib diisi."),
+  enableMotionGraphic: z.boolean().optional(),
+  fontFamily: z.string().optional(),
+  font_family: z.string().optional(),
 });
 
 /**
@@ -58,6 +68,39 @@ pipelineRouter.post("/generate", async (req: Request, res: Response) => {
       success: false,
       error: err?.code || "PIPELINE_FAILED",
       message: err?.message || "Gagal memproses klip video dari YouTube.",
+    });
+  }
+});
+
+/**
+ * POST /api/pipeline/re-style
+ * Instantly re-renders an existing clip with a new preset style without re-downloading or re-transcribing.
+ */
+pipelineRouter.post("/re-style", async (req: Request, res: Response) => {
+  const parsed = reStyleSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    res.status(400).json({
+      success: false,
+      error: "VALIDATION_ERROR",
+      message: firstIssue?.message || "Parameter re-style tidak valid.",
+    });
+    return;
+  }
+
+  try {
+    const updatedClip = await reStyleClip(parsed.data);
+    res.status(200).json({
+      success: true,
+      message: `Gaya klip berhasil diubah ke ${updatedClip.presetName}!`,
+      data: updatedClip,
+    });
+  } catch (err: any) {
+    const status = typeof err?.status === "number" ? err.status : 500;
+    res.status(status).json({
+      success: false,
+      error: err?.code || "RESTYLE_FAILED",
+      message: err?.message || "Gagal mengubah gaya klip video.",
     });
   }
 });

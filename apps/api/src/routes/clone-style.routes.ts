@@ -1,35 +1,66 @@
 import express, { Router, type Request, type Response } from "express";
 import fs from "node:fs";
 import path from "node:path";
-import { cloneStyleFromVideo } from "../services/ai-style-cloner.service";
 import { getTempDir } from "../services/downloader";
+import {
+  analyzeReferenceVideoToBlueprint,
+  getActiveTempCloneBlueprint,
+  clearActiveTempCloneBlueprint,
+} from "../services/clone_engine/universal_style_analyzer";
 
 export const cloneStyleRouter = Router();
 
 cloneStyleRouter.use(express.json({ limit: "50mb" }));
 
 /**
- * POST /api/clone-style (and /api/presets/clone-style)
- * Accepts a reference video (5-15s), extracts frames, analyzes styles with Gemini 2.5 Flash,
- * and saves to ai-cloned.json preset.
+ * GET /api/clone-style/active
+ * Mengecek apakah terdapat sesi temporary clone blueprint yang aktif.
+ */
+cloneStyleRouter.get("/active", (_req: Request, res: Response) => {
+  const activeBp = getActiveTempCloneBlueprint();
+  res.status(200).json({
+    success: true,
+    hasActiveClone: Boolean(activeBp),
+    data: activeBp,
+  });
+});
+
+/**
+ * DELETE /api/clone-style/active
+ * Membatalkan sesi temporary clone blueprint (tombol [X Batal Clone]).
+ */
+cloneStyleRouter.delete("/active", (_req: Request, res: Response) => {
+  clearActiveTempCloneBlueprint();
+  res.status(200).json({
+    success: true,
+    message: "Sesi temporary clone berhasil dibatalkan.",
+  });
+});
+
+/**
+ * POST /api/clone-style
+ * [FASE 4: SISTEM TEMP CLONE SESSION - NO AUTO-SAVE TO PRESETS]
+ * Menerima video referensi, mengekstrak UniversalParametricBlueprint,
+ * dan HANYA menyimpannya di sesi sementara (temp/active_temp_clone.json).
+ * DILARANG langsung menyimpan ke daftar Preset permanen!
  */
 cloneStyleRouter.post("/", async (req: Request, res: Response) => {
   const body = req.body ?? {};
-  const presetName = body.presetName || body.name || "AI Cloned Style 🪄";
+  const presetName = body.presetName || body.name || "Universal Cloned Style 🪄";
 
   let videoBuffer: Buffer | null = null;
 
   if (typeof body.videoBase64 === "string" && body.videoBase64.length > 0) {
-    const raw = body.videoBase64.replace(/^data:video\/[a-zA-Z0-9]+;base64,/, "");
+    const raw = body.videoBase64.replace(/^data:[^;]+;base64,/, "");
     videoBuffer = Buffer.from(raw, "base64");
   } else if (typeof body.videoDataUrl === "string" && body.videoDataUrl.length > 0) {
-    const raw = body.videoDataUrl.replace(/^data:video\/[a-zA-Z0-9]+;base64,/, "");
+    const raw = body.videoDataUrl.replace(/^data:[^;]+;base64,/, "");
     videoBuffer = Buffer.from(raw, "base64");
   } else if (typeof body.videoPath === "string" && fs.existsSync(body.videoPath)) {
     videoBuffer = fs.readFileSync(body.videoPath);
   }
 
-  // If no uploaded video binary, create a sample reference video to clone
+  // Jika tidak ada video yang dikirim, gunakan placeholder sample
   if (!videoBuffer) {
     const tempDir = getTempDir("temp/clone_uploads");
     const demoRefPath = path.join(tempDir, "demo_ref.mp4");
@@ -40,15 +71,15 @@ cloneStyleRouter.post("/", async (req: Request, res: Response) => {
   }
 
   try {
-    const clonedPreset = await cloneStyleFromVideo({
+    const blueprint = await analyzeReferenceVideoToBlueprint({
       videoBuffer,
       presetName,
     });
 
     res.status(200).json({
       success: true,
-      message: `Gaya video berhasil dikloning dan disimpan ke preset "${clonedPreset.name}"!`,
-      data: clonedPreset,
+      message: `Gaya video berhasil dianalisis ke Universal Blueprint (${blueprint.detected_style_summary})! Sesi clone aktif siap diaplikasikan ke video utama.`,
+      data: blueprint,
     });
   } catch (err: any) {
     const status = typeof err?.status === "number" ? err.status : 500;
@@ -59,4 +90,3 @@ cloneStyleRouter.post("/", async (req: Request, res: Response) => {
     });
   }
 });
-

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Download,
   Loader2,
@@ -8,9 +8,14 @@ import {
   VolumeX,
   Maximize2,
   Sparkles,
+  Palette,
+  ChevronDown,
+  Check,
+  BookmarkPlus,
 } from "lucide-react";
 import { API_URL } from "@/lib/env";
 import type { ClipItem } from "../types";
+import type { DynamicPresetItem } from "./StudioControlPanel";
 
 function resolveMediaUrl(rawUrl?: string): string | undefined {
   if (!rawUrl) return undefined;
@@ -23,33 +28,89 @@ function resolveMediaUrl(rawUrl?: string): string | undefined {
 
 interface ClipCardProps {
   clip: ClipItem;
+  isModalOpen?: boolean;
   isPlayingInline?: boolean;
   onTogglePlayInline?: (clipId: string) => void;
   onSelectClip: (clip: ClipItem) => void;
   onDownloadNotice?: (msg: string) => void;
+  availablePresets?: DynamicPresetItem[];
+  onReStyle?: (clipId: string, presetId: string) => Promise<void>;
+  isRestyling?: boolean;
+  onSaveToPreset?: (clip: ClipItem) => void;
 }
 
 export function ClipCard({
   clip,
+  isModalOpen = false,
   isPlayingInline = false,
   onTogglePlayInline,
   onSelectClip,
   onDownloadNotice,
+  availablePresets = [],
+  onReStyle,
+  isRestyling = false,
+  onSaveToPreset,
 }: ClipCardProps) {
   const [localPlaying, setLocalPlaying] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(true);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [downloadSuccess, setDownloadSuccess] = useState<boolean>(false);
+  const [showPresetMenu, setShowPresetMenu] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowPresetMenu(false);
+      }
+    };
+    if (showPresetMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showPresetMenu]);
 
   const isPlaying =
-    onTogglePlayInline !== undefined ? isPlayingInline : localPlaying;
+    !isModalOpen && (onTogglePlayInline !== undefined ? isPlayingInline : localPlaying);
+
+  // Auto-pause background video if modal is opened or playback is toggled off
+  useEffect(() => {
+    if (!videoRef.current) return;
+    if (isModalOpen || !isPlaying) {
+      videoRef.current.pause();
+    } else if (isPlaying) {
+      videoRef.current.play().catch(() => {});
+    }
+  }, [isPlaying, isModalOpen]);
 
   const rawScore = parseInt(clip.viralScore.replace(/\D/g, ""), 10) || 95;
   const scoreBadgeText = `🔥 Skor Viral: ${rawScore}/100`;
 
+  const handleOpenZoom = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    // Immediately pause this video and all other videos
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+    document.querySelectorAll("video").forEach((vid) => {
+      try {
+        vid.pause();
+      } catch {}
+    });
+
+    onSelectClip(clip);
+  };
+
   const handleTogglePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isModalOpen) return;
+
     if (onTogglePlayInline) {
       onTogglePlayInline(clip.id);
     } else {
@@ -100,7 +161,20 @@ export function ClipCard({
   const resolvedVideoSrc = resolveMediaUrl(clip.videoUrl || clip.videoSrc);
 
   return (
-    <div className="bg-[#0e2125]/85 backdrop-blur-md border border-[#1e3c43] rounded-2xl p-3 flex flex-col gap-2.5 shadow-xl hover:border-[#2cd3c6]/40 transition-all duration-200 group text-slate-100">
+    <div className="relative bg-[#0e2125] border border-[#1e3c43] rounded-2xl p-3 flex flex-col gap-2.5 shadow-md hover:border-[#2cd3c6]/50 transition-colors duration-150 group text-slate-100">
+      {/* Re-Styling Glassmorphism Overlay */}
+      {isRestyling && (
+        <div className="absolute inset-0 bg-[#071518]/95 rounded-2xl z-40 flex flex-col items-center justify-center gap-2.5 p-4 text-center">
+          <div className="w-10 h-10 rounded-full bg-[#13353b] border border-[#2cd3c6] flex items-center justify-center shadow-md">
+            <Loader2 className="w-5 h-5 text-[#2cd3c6] animate-spin" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-bold text-white tracking-wide">Merender Ulang Gaya...</p>
+            <p className="text-[10px] text-[#7ea3aa] leading-tight">Menerapkan color grading & subtitle .ass baru</p>
+          </div>
+        </div>
+      )}
+
       {/* 9:16 Video Player Container */}
       <div
         onClick={handleTogglePlay}
@@ -112,25 +186,21 @@ export function ClipCard({
             ref={videoRef}
             src={resolvedVideoSrc}
             poster={clip.imageSrc}
-            muted={isMuted}
+            muted={isMuted || isModalOpen}
             loop
             playsInline
-            className="w-full h-full object-cover"
+            preload="auto"
+            className="w-full h-full object-contain bg-black"
           />
         ) : (
           <>
-            {/* Ambient blurred backdrop */}
-            <img
-              src={clip.imageSrc}
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 w-full h-full object-cover blur-lg opacity-40 scale-125 pointer-events-none"
-            />
+            {/* Ambient backdrop */}
+            <div className="absolute inset-0 bg-[#061214] opacity-80" />
             {/* Video Frame */}
             <img
               src={clip.imageSrc}
               alt={clip.title}
-              className={`relative z-10 w-full h-full object-contain pointer-events-none transition-transform duration-700 ${
+              className={`relative z-10 w-full h-full object-contain pointer-events-none transition-transform duration-300 ${
                 isPlaying ? "scale-105" : "scale-100"
               }`}
             />
@@ -140,11 +210,11 @@ export function ClipCard({
         {/* Top Badges Overlay */}
         <div className="absolute top-2 left-2 right-2 flex items-center justify-between z-20 pointer-events-none">
           {/* Viral Score Badge: 🔥 Skor Viral: XX/100 */}
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-black/75 backdrop-blur-md text-amber-300 border border-amber-400/40 flex items-center gap-1 shadow-sm">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-black/85 text-amber-300 border border-amber-400/40 flex items-center gap-1 shadow-sm">
             <span>{scoreBadgeText}</span>
           </span>
 
-          <span className="px-2 py-0.5 rounded text-[9px] font-mono font-semibold text-white/90 bg-black/60 backdrop-blur-xs">
+          <span className="px-2 py-0.5 rounded text-[9px] font-mono font-semibold text-white/90 bg-black/75">
             {clip.duration}
           </span>
         </div>
@@ -152,7 +222,7 @@ export function ClipCard({
         {/* Subtitle Preview Overlay */}
         {clip.subtitles && clip.subtitles.length > 0 && (
           <div className="absolute bottom-8 left-2 right-2 z-20 flex flex-col items-center pointer-events-none">
-            <div className="bg-black/85 backdrop-blur-md border border-white/10 rounded-xl px-2.5 py-1 text-center shadow-2xl max-w-[95%]">
+            <div className="bg-black/90 border border-white/10 rounded-xl px-2.5 py-1 text-center shadow-lg max-w-[95%]">
               <p className="text-white font-bold text-[11px] leading-snug tracking-normal font-sans">
                 {clip.subtitles[0]?.text || clip.title}
               </p>
@@ -163,7 +233,7 @@ export function ClipCard({
         {/* Play / Pause Overlay Icon */}
         {!isPlaying && (
           <div className="absolute inset-0 bg-black/25 group-hover:bg-black/15 transition-colors flex items-center justify-center z-20">
-            <div className="w-11 h-11 rounded-full bg-[#20b2aa]/90 hover:bg-[#2cd3c6] backdrop-blur-md flex items-center justify-center border border-white/40 text-white shadow-[0_0_18px_rgba(44,211,198,0.5)] group-hover:scale-110 transition-transform">
+            <div className="w-11 h-11 rounded-full bg-[#20b2aa] hover:bg-[#2cd3c6] flex items-center justify-center border border-white/40 text-white shadow-md group-hover:scale-110 transition-transform">
               <Play className="w-4 h-4 ml-0.5 fill-white" />
             </div>
           </div>
@@ -173,7 +243,7 @@ export function ClipCard({
         {isPlaying && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="absolute top-2 right-2 z-30 flex items-center gap-1 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-lg text-white/80"
+            className="absolute top-2 right-2 z-30 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 rounded-lg text-white/80"
           >
             <button
               type="button"
@@ -185,9 +255,9 @@ export function ClipCard({
             </button>
             <button
               type="button"
-              onClick={() => onSelectClip(clip)}
-              className="p-1 hover:text-[#2cd3c6] transition"
-              title="Perbesar Preview"
+              onClick={handleOpenZoom}
+              className="p-1 hover:text-[#2cd3c6] transition cursor-pointer"
+              title="Perbesar Preview (Zoom)"
             >
               <Maximize2 className="w-3 h-3" />
             </button>
@@ -195,8 +265,12 @@ export function ClipCard({
         )}
       </div>
 
-      {/* Title */}
-      <h4 className="text-xs font-semibold text-gray-200 line-clamp-1 group-hover:text-white transition">
+      {/* Title (Clicking opens Zoom cleanly) */}
+      <h4
+        onClick={handleOpenZoom}
+        className="text-xs font-semibold text-gray-200 line-clamp-1 group-hover:text-[#2cd3c6] transition cursor-pointer"
+        title="Klik untuk perbesar preview"
+      >
         {clip.title}
       </h4>
 
@@ -210,30 +284,47 @@ export function ClipCard({
         </div>
       </div>
 
-      {/* ONLY ONE ACTION BUTTON: ⬇️ Unduh MP4 */}
-      <button
-        type="button"
-        onClick={handleDownload}
-        disabled={isDownloading}
-        className="w-full h-9 rounded-xl bg-gradient-to-r from-[#1a858c] via-[#21a6a3] to-[#2cd3c6] text-white text-xs font-bold tracking-wide flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(44,211,198,0.25)] hover:shadow-[0_0_20px_rgba(44,211,198,0.5)] hover:brightness-110 active:scale-[0.98] transition-all select-none cursor-pointer"
-      >
-        {isDownloading ? (
-          <>
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            <span>Mengunduh MP4...</span>
-          </>
-        ) : downloadSuccess ? (
-          <>
-            <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
-            <span>Tersimpan! 📥</span>
-          </>
-        ) : (
-          <>
-            <Download className="w-3.5 h-3.5" />
-            <span>⬇️ Unduh MP4</span>
-          </>
+      {/* Tombol Utama: Unduh MP4 & Bookmark / Simpan ke Preset */}
+      <div className="pt-0.5 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={isDownloading || isRestyling}
+          className="flex-1 h-9 rounded-xl bg-gradient-to-r from-[#1a858c] via-[#21a6a3] to-[#2cd3c6] text-white text-xs font-bold tracking-wide flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(44,211,198,0.25)] hover:shadow-[0_0_20px_rgba(44,211,198,0.5)] hover:brightness-110 active:scale-[0.98] transition-all select-none cursor-pointer"
+        >
+          {isDownloading ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>Mengunduh...</span>
+            </>
+          ) : downloadSuccess ? (
+            <>
+              <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+              <span>Tersimpan! 📥</span>
+            </>
+          ) : (
+            <>
+              <Download className="w-3.5 h-3.5" />
+              <span>⬇️ Unduh MP4</span>
+            </>
+          )}
+        </button>
+
+        {onSaveToPreset && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onSaveToPreset(clip);
+            }}
+            title="Bookmark / Simpan Gaya ke Preset"
+            className="h-9 px-3 rounded-xl bg-[#14282e] hover:bg-[#1a3840] border border-[#1f3e46] hover:border-[#2cd3c6]/50 text-gray-300 hover:text-[#2cd3c6] flex items-center justify-center transition cursor-pointer shrink-0"
+          >
+            <BookmarkPlus className="w-4 h-4" />
+          </button>
         )}
-      </button>
+      </div>
     </div>
   );
 }

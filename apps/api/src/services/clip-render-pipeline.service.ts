@@ -110,10 +110,7 @@ export async function buildClipRenderPipelineSpec(
     editingPreset.id === "theo-podcast" || editingPreset.id === "netflix-doc"
       ? "eq=contrast=1.18:brightness=-0.03:saturation=0.90,vignette=PI/4"
       : "eq=contrast=1.10:saturation=1.12";
-  const hudFilter =
-    motionPreset.id !== "none"
-      ? `,drawbox=x=40:y=80:w=460:h=64:color=${motionPreset.accentColor}@0.85:t=fill`
-      : "";
+  const hudFilter = "";
   const subtitleBurnFilter = settings.subtitleEnabled
     ? `subtitles=storage/subtitles/${clipId}.ass:force_style='FontName=Montserrat,Bold=1,PrimaryColour=&H00FFFFFF,BackColour=&H80000000'`
     : null;

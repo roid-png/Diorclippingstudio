@@ -12,7 +12,7 @@ export function ErrorClipsState({
   onReset,
 }: ErrorClipsStateProps) {
   return (
-    <div className="w-full bg-gradient-to-b from-red-950/40 to-[#0e2125]/90 backdrop-blur-md border border-red-500/40 rounded-2xl p-6 sm:p-10 text-center flex flex-col items-center justify-center min-h-[300px] shadow-xl text-slate-100 my-4 animate-shake">
+    <div className="w-full bg-[#160c0f] border border-red-500/40 rounded-2xl p-6 sm:p-10 text-center flex flex-col items-center justify-center min-h-[300px] shadow-md text-slate-100 my-4">
       {/* Visual Error Icon */}
       <div className="w-14 h-14 rounded-2xl bg-red-900/40 border border-red-500/50 flex items-center justify-center text-red-400 mb-4 shadow-[0_0_20px_rgba(239,68,68,0.25)]">
         <AlertTriangle className="w-7 h-7" />

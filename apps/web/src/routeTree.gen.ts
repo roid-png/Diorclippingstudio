@@ -16,12 +16,9 @@ import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as ProtectedAdminRouteImport } from './routes/_protected/admin'
 import { Route as ProtectedAppRouteImport } from './routes/_protected/app'
-import { Route as ProtectedAutoEditRouteImport } from './routes/_protected/auto-edit'
 import { Route as ProtectedNotesRouteImport } from './routes/_protected/notes'
+import { Route as ProtectedPresetsRouteImport } from './routes/_protected/presets'
 import { Route as ProtectedProfileRouteImport } from './routes/_protected/profile'
-import { Route as ProtectedProjectHistoryRouteImport } from './routes/_protected/project-history'
-import { Route as ProtectedRenderRouteImport } from './routes/_protected/render'
-import { Route as ProtectedViralClipsRouteImport } from './routes/_protected/viral-clips'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -56,34 +53,19 @@ const ProtectedAppRoute = ProtectedAppRouteImport.update({
   path: '/app',
   getParentRoute: () => ProtectedRoute,
 } as any)
-const ProtectedAutoEditRoute = ProtectedAutoEditRouteImport.update({
-  id: '/auto-edit',
-  path: '/auto-edit',
-  getParentRoute: () => ProtectedRoute,
-} as any)
 const ProtectedNotesRoute = ProtectedNotesRouteImport.update({
   id: '/notes',
   path: '/notes',
   getParentRoute: () => ProtectedRoute,
 } as any)
+const ProtectedPresetsRoute = ProtectedPresetsRouteImport.update({
+  id: '/presets',
+  path: '/presets',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 const ProtectedProfileRoute = ProtectedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
-  getParentRoute: () => ProtectedRoute,
-} as any)
-const ProtectedProjectHistoryRoute = ProtectedProjectHistoryRouteImport.update({
-  id: '/project-history',
-  path: '/project-history',
-  getParentRoute: () => ProtectedRoute,
-} as any)
-const ProtectedRenderRoute = ProtectedRenderRouteImport.update({
-  id: '/render',
-  path: '/render',
-  getParentRoute: () => ProtectedRoute,
-} as any)
-const ProtectedViralClipsRoute = ProtectedViralClipsRouteImport.update({
-  id: '/viral-clips',
-  path: '/viral-clips',
   getParentRoute: () => ProtectedRoute,
 } as any)
 
@@ -93,12 +75,9 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof AuthSignUpRoute
   '/admin': typeof ProtectedAdminRoute
   '/app': typeof ProtectedAppRoute
-  '/auto-edit': typeof ProtectedAutoEditRoute
   '/notes': typeof ProtectedNotesRoute
+  '/presets': typeof ProtectedPresetsRoute
   '/profile': typeof ProtectedProfileRoute
-  '/project-history': typeof ProtectedProjectHistoryRoute
-  '/render': typeof ProtectedRenderRoute
-  '/viral-clips': typeof ProtectedViralClipsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -106,12 +85,9 @@ export interface FileRoutesByTo {
   '/sign-up': typeof AuthSignUpRoute
   '/admin': typeof ProtectedAdminRoute
   '/app': typeof ProtectedAppRoute
-  '/auto-edit': typeof ProtectedAutoEditRoute
   '/notes': typeof ProtectedNotesRoute
+  '/presets': typeof ProtectedPresetsRoute
   '/profile': typeof ProtectedProfileRoute
-  '/project-history': typeof ProtectedProjectHistoryRoute
-  '/render': typeof ProtectedRenderRoute
-  '/viral-clips': typeof ProtectedViralClipsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -122,12 +98,9 @@ export interface FileRoutesById {
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/_protected/admin': typeof ProtectedAdminRoute
   '/_protected/app': typeof ProtectedAppRoute
-  '/_protected/auto-edit': typeof ProtectedAutoEditRoute
   '/_protected/notes': typeof ProtectedNotesRoute
+  '/_protected/presets': typeof ProtectedPresetsRoute
   '/_protected/profile': typeof ProtectedProfileRoute
-  '/_protected/project-history': typeof ProtectedProjectHistoryRoute
-  '/_protected/render': typeof ProtectedRenderRoute
-  '/_protected/viral-clips': typeof ProtectedViralClipsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -137,12 +110,9 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/admin'
     | '/app'
-    | '/auto-edit'
     | '/notes'
+    | '/presets'
     | '/profile'
-    | '/project-history'
-    | '/render'
-    | '/viral-clips'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -150,12 +120,9 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/admin'
     | '/app'
-    | '/auto-edit'
     | '/notes'
+    | '/presets'
     | '/profile'
-    | '/project-history'
-    | '/render'
-    | '/viral-clips'
   id:
     | '__root__'
     | '/'
@@ -165,12 +132,9 @@ export interface FileRouteTypes {
     | '/_auth/sign-up'
     | '/_protected/admin'
     | '/_protected/app'
-    | '/_protected/auto-edit'
     | '/_protected/notes'
+    | '/_protected/presets'
     | '/_protected/profile'
-    | '/_protected/project-history'
-    | '/_protected/render'
-    | '/_protected/viral-clips'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -230,13 +194,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedAppRouteImport
       parentRoute: typeof ProtectedRoute
     }
-    '/_protected/auto-edit': {
-      id: '/_protected/auto-edit'
-      path: '/auto-edit'
-      fullPath: '/auto-edit'
-      preLoaderRoute: typeof ProtectedAutoEditRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
     '/_protected/notes': {
       id: '/_protected/notes'
       path: '/notes'
@@ -244,32 +201,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedNotesRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/presets': {
+      id: '/_protected/presets'
+      path: '/presets'
+      fullPath: '/presets'
+      preLoaderRoute: typeof ProtectedPresetsRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/profile': {
       id: '/_protected/profile'
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProtectedProfileRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/project-history': {
-      id: '/_protected/project-history'
-      path: '/project-history'
-      fullPath: '/project-history'
-      preLoaderRoute: typeof ProtectedProjectHistoryRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/render': {
-      id: '/_protected/render'
-      path: '/render'
-      fullPath: '/render'
-      preLoaderRoute: typeof ProtectedRenderRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/viral-clips': {
-      id: '/_protected/viral-clips'
-      path: '/viral-clips'
-      fullPath: '/viral-clips'
-      preLoaderRoute: typeof ProtectedViralClipsRouteImport
       parentRoute: typeof ProtectedRoute
     }
   }
@@ -290,23 +233,17 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 interface ProtectedRouteChildren {
   ProtectedAdminRoute: typeof ProtectedAdminRoute
   ProtectedAppRoute: typeof ProtectedAppRoute
-  ProtectedAutoEditRoute: typeof ProtectedAutoEditRoute
   ProtectedNotesRoute: typeof ProtectedNotesRoute
+  ProtectedPresetsRoute: typeof ProtectedPresetsRoute
   ProtectedProfileRoute: typeof ProtectedProfileRoute
-  ProtectedProjectHistoryRoute: typeof ProtectedProjectHistoryRoute
-  ProtectedRenderRoute: typeof ProtectedRenderRoute
-  ProtectedViralClipsRoute: typeof ProtectedViralClipsRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedAdminRoute: ProtectedAdminRoute,
   ProtectedAppRoute: ProtectedAppRoute,
-  ProtectedAutoEditRoute: ProtectedAutoEditRoute,
   ProtectedNotesRoute: ProtectedNotesRoute,
+  ProtectedPresetsRoute: ProtectedPresetsRoute,
   ProtectedProfileRoute: ProtectedProfileRoute,
-  ProtectedProjectHistoryRoute: ProtectedProjectHistoryRoute,
-  ProtectedRenderRoute: ProtectedRenderRoute,
-  ProtectedViralClipsRoute: ProtectedViralClipsRoute,
 }
 
 const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(

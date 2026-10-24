@@ -13,6 +13,7 @@ export interface ClipItem {
   rank: number;
   highlightMoment: string;
   preset: string;
+  presetId?: string;
   imageSrc: string;
   videoSrc?: string;
   videoUrl?: string;

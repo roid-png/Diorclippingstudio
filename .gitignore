@@ -25,7 +25,18 @@ coverage/
 .codex/config.local.toml
 temp/
 outputs/
+temp_jobs/
+**/temp_jobs/**
+benchmark_temp/
+**/benchmark_temp/**
 *.mp4
 *.m4a
+*.mov
+*.wav
+*.mp3
+*.webm
 *.ass
+test_*.ts
+test_*.mov
+test_*.mp4
 

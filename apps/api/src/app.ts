@@ -11,6 +11,7 @@ import { requestContext } from "./lib/request-context";
 import { limitAuthBody } from "./middleware/body";
 import { errorHandler, notFound } from "./middleware/error-handler";
 import { apiRouter } from "./routes";
+import { videoRouter } from "./routes/video.routes";
 
 const SENSITIVE_QUERY = /token|code|secret|password|signature|key/i;
 
@@ -38,8 +39,8 @@ export function createApp({
 
   app.use(
     helmet({
-      // The web app is a different origin on the same site.
-      crossOriginResourcePolicy: { policy: "same-site" },
+      // Allow media assets, video canvas, and fonts to load across origins & ports in Codespaces
+      crossOriginResourcePolicy: { policy: "cross-origin" },
     }),
   );
 
@@ -74,11 +75,22 @@ export function createApp({
     }),
   );
 
-  // The browser calls the API from WEB_URL (plus TRUSTED_ORIGINS) with
-  // cookies. Other origins get no CORS headers, so browsers block them.
+  // Allow GitHub Codespaces forward domains (*.app.github.dev), localhost, and configured trusted origins
   app.use(
     cors({
-      origin: env.trustedOrigins,
+      origin: (requestOrigin, callback) => {
+        if (!requestOrigin) return callback(null, true);
+        if (
+          requestOrigin.endsWith(".app.github.dev") ||
+          requestOrigin.endsWith(".githubpreview.dev") ||
+          requestOrigin.includes("localhost") ||
+          requestOrigin.includes("127.0.0.1") ||
+          env.trustedOrigins.includes(requestOrigin)
+        ) {
+          return callback(null, true);
+        }
+        return callback(null, false);
+      },
       credentials: true,
       methods: ["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"],
       exposedHeaders: ["X-Request-Id", "Location"],
@@ -100,6 +112,9 @@ export function createApp({
   app.all("/api/auth/*splat", limitAuthBody, toNodeHandler(auth));
 
   app.use("/api", apiRouter);
+
+  // Stream rendered output videos directly for /outputs as well as /api/video
+  app.use("/outputs", videoRouter);
 
   app.use(notFound);
   app.use(errorHandler);

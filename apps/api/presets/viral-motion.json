@@ -1,7 +1,7 @@
 {
   "id": "viral-motion",
   "name": "Viral Motion",
-  "description": "Animated progress bar di bagian bawah, punch-zoom 1.15x tiap pergantian kalimat, subtitle animasi bounce pop-up (scale 120%) dengan highlight warna kuning stabilo pada kata aktif.",
+  "description": "Subtitle animasi pop-up kinetik dengan highlight warna kuning stabilo pada kata aktif, bersih tanpa label narasumber/host.",
   "format": "9:16",
   "width": 1080,
   "height": 1920,
@@ -11,19 +11,21 @@
     "fontName": "Impact",
     "fontSize": 28,
     "primaryColor": "&H00FFFFFF",
-    "highlightColor": "&H0000FFFF",
+    "highlightColor": "#FACC15",
     "outlineColor": "&H00000000",
     "outlineWidth": 3,
     "alignment": 2,
-    "marginV": 90,
+    "marginV": 370,
     "bold": true,
     "animation": "bounce-popup",
-    "bounceScale": 1.2
+    "bounceScale": 1.2,
+    "showSpeakerTag": false
   },
   "motionGraphic": {
-    "progressBar": true,
+    "progressBar": false,
     "punchZoom": true,
     "punchZoomScale": 1.15
-  }
+  },
+  "accentColor": "#FACC15",
+  "primaryAccentHex": "#FACC15"
 }
-

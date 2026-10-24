@@ -3,12 +3,12 @@ import type { SubtitleStylePreset } from "./types";
 export const defaultSubtitleStyles: SubtitleStylePreset[] = [
   {
     id: "theo-red-pill",
-    name: "Red Pill Highlight (Theo Style)",
-    description: "Font sans-serif bold, badge speaker NARASUMBER/HOST, kata kunci kotak merah menyala",
+    name: "Red Pill Highlight (Clean Subtitle)",
+    description: "Font sans-serif bold, highlight kata kunci kotak merah menyala tanpa badge pembicara/host",
     icon: "🔴",
     badge: "Matching Reference",
     fontFamily: "Inter, Helvetica Neue, sans-serif",
-    speakerBadge: true,
+    speakerBadge: false,
     highlightStyle: "red-pill",
   },
   {

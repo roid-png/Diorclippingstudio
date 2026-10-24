@@ -14,7 +14,7 @@ function AuthLayout() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#051114] via-[#08181d] to-[#0d2228] text-slate-100 flex flex-col justify-between selection:bg-cyan-500 selection:text-black">
       {/* Top Header */}
-      <header className="border-b border-[#12252a]/70 bg-[#071418]/80 backdrop-blur-md sticky top-0 z-40">
+      <header className="border-b border-[#12252a]/70 bg-[#071418] sticky top-0 z-40">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-8">
           <Link to="/" className="flex items-center gap-2.5 group">
             <div className="w-8 h-8 relative shrink-0">

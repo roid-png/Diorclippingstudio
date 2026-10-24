@@ -2,7 +2,7 @@ import { Scissors, Video, Sparkles } from "lucide-react";
 
 export function EmptyClipsState() {
   return (
-    <div className="w-full bg-[#0e2125]/80 backdrop-blur-md border border-[#1e3c43] rounded-2xl p-8 sm:p-14 text-center flex flex-col items-center justify-center min-h-[340px] shadow-2xl text-slate-100 my-4 animate-fadeIn">
+    <div className="w-full bg-[#0e2125] border border-[#1e3c43] rounded-2xl p-8 sm:p-14 text-center flex flex-col items-center justify-center min-h-[340px] shadow-md text-slate-100 my-4">
       {/* Visual Icon with Teal Glow */}
       <div className="relative mb-5">
         <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#0d2a30] via-[#13434c] to-[#1e616d] border border-[#2cd3c6]/40 flex items-center justify-center text-[#2cd3c6] shadow-[0_0_30px_rgba(44,211,198,0.3)]">
@@ -21,7 +21,7 @@ export function EmptyClipsState() {
       </h3>
 
       <p className="text-xs sm:text-sm text-[#7e9ca2] max-w-lg leading-relaxed font-sans">
-        Tempel link YouTube di atas lalu klik <span className="text-[#2cd3c6] font-semibold">Auto-Cut & Generate 🚀</span> untuk memulai!
+        Belum ada klip yang dibuat. Masukkan link atau upload video di atas untuk mulai!
       </p>
     </div>
   );

@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "jsx": "react-jsx",
+    "paths": {
+      "@starter/shared": ["../packages/shared/src"],
+      "@starter/shared/*": ["../packages/shared/src/*"]
+    }
+  },
+  "include": ["server.ts", "services", "db", "lib", "presets", "assets", "culori.d.ts"]
+}
+

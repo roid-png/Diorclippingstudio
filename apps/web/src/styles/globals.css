@@ -63,8 +63,14 @@
   * {
     @apply border-border;
   }
-  body {
+  html, body {
     @apply bg-background text-foreground font-sans antialiased;
+    text-rendering: optimizeSpeed;
+    scroll-behavior: smooth;
+  }
+  section {
+    transform: translateZ(0);
+    contain: paint;
   }
   button,
   a,

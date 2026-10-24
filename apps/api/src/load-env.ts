@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 // for application settings and API keys.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
-for (const name of [".env", ".env.local"]) {
+for (const name of [".env", ".env.local", "backend/.env", "apps/api/.env"]) {
   const filePath = resolve(root, name);
   try {
     if (fs.existsSync(filePath)) {

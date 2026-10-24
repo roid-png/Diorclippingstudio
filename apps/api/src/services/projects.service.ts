@@ -64,6 +64,9 @@ export async function createProjectJob(userId: string, input: CreateProjectInput
         clipDuration: input.clipDuration,
         maxClips: input.maxClips,
         status: "processing",
+        editStyle: input.editStyle || "netflix-cinematic",
+        motionGraphicStyle: input.motionGraphicStyle || "frameless-cinematic",
+        subtitleStyle: input.subtitleStyle || "Montserrat ExtraBold",
       })
       .returning();
 
@@ -88,20 +91,37 @@ export async function createProjectJob(userId: string, input: CreateProjectInput
 
 function getEditingStyleName(id?: string | null) {
   switch (id) {
+    case "netflix-cinematic":
+      return "Netflix Cinematic";
+    case "viral-motion":
+      return "Viral Motion";
+    case "aesthetic-soft-film":
+      return "Aesthetic Soft Film";
+    case "theo-podcast":
+      return "THEO Podcast Dark";
     case "mrbeast-hyper":
       return "MrBeast Fast Pacing";
     case "netflix-doc":
       return "Netflix Documentary Style";
     case "ali-abdaal-clean":
       return "Clean Minimalist Studio";
-    case "theo-podcast":
     default:
-      return "THEO 5-FIX (Podcast Dark)";
+      if (id?.startsWith("cloned-") || id === "ai-cloned") {
+        return "AI Cloned Style 🪄";
+      }
+      return id ? id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Netflix Cinematic";
   }
 }
 
 function getMotionGraphicName(id?: string | null) {
   switch (id) {
+    case "frameless-cinematic":
+    case "FLOW_NODES":
+    case "BIG_METRIC_BAR":
+    case "KEY_TAKEAWAYS_LIST":
+    case "SPLIT_VERSUS":
+    case "QUOTE_IMPACT":
+      return "Frameless Cinematic Motion";
     case "vox-explainer":
       return "VOX Split Screen & Kinetic Text";
     case "tiktok-pop":
@@ -110,12 +130,27 @@ function getMotionGraphicName(id?: string | null) {
       return "Cinematic Minimal Lower Third";
     case "theo-infographics":
     default:
-      return "THEO Neon Infographics & Counter";
+      return "Multi-Beat Motion Graphic";
   }
 }
 
 function getSubtitleStyleName(id?: string | null) {
   switch (id) {
+    case "Montserrat ExtraBold":
+    case "montserrat-extrabold":
+      return "Montserrat ExtraBold (Studio Kinetic)";
+    case "Plus Jakarta Sans":
+    case "plus-jakarta-sans":
+      return "Plus Jakarta Sans (Modern Editorial)";
+    case "Poppins Black":
+    case "poppins-black":
+      return "Poppins Black (High Impact)";
+    case "Anton":
+    case "anton":
+      return "Anton (Bold Vertical)";
+    case "Bebas Neue":
+    case "bebas-neue":
+      return "Bebas Neue (Punchy Headline)";
     case "hormozi-green":
       return "Alex Hormozi Impact Green";
     case "netflix-yellow":
@@ -124,7 +159,7 @@ function getSubtitleStyleName(id?: string | null) {
       return "Clean White Minimal Sans";
     case "theo-red-pill":
     default:
-      return "THEO Neon Red & Yellow Highlight";
+      return id || "Montserrat ExtraBold (Studio Kinetic)";
   }
 }
 

@@ -2,6 +2,15 @@ import type { EditingStylePreset } from "./types";
 
 export const defaultEditingStyles: EditingStylePreset[] = [
   {
+    id: "renx-viral-clipper",
+    name: "Renx Viral Clipper (1-Word Pop + Glow Hook)",
+    description: "Gaya viral TikTok/Reels ala @renxclip tanpa banner atas, font glowing hook di awal, dan subtitle 1 kata per 1 kata.",
+    icon: "🔥",
+    badge: "Viral Clipper",
+    layout: "talking-head",
+    aspectRatio: "9:16",
+  },
+  {
     id: "theo-podcast",
     name: "Theo Podcast (Ambient Blur)",
     description: "Framing tengah 9:16 dengan ambient blur atas-bawah & lower third podcast",

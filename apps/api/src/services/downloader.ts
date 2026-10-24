@@ -16,6 +16,13 @@ export interface YoutubeVideoMetadata {
   url: string;
 }
 
+export const YTDLP_ANTIBOT_ARGS = [
+  "--extractor-args",
+  "youtube:player_client=android,web",
+  "--user-agent",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+];
+
 export function getTempDir(subDir = "temp"): string {
   const dir = path.resolve(process.cwd(), subDir);
   if (!fs.existsSync(dir)) {
@@ -50,6 +57,9 @@ export async function getYoutubeMetadata(youtubeUrl: string): Promise<YoutubeVid
 
   try {
     const { stdout } = await execFileAsync("yt-dlp", [
+      "--js-runtimes",
+      "node",
+      ...YTDLP_ANTIBOT_ARGS,
       "--print",
       "%(id)s___DIOR___%(duration)s___DIOR___%(uploader)s___DIOR___%(thumbnail)s___DIOR___%(title)s",
       "--no-playlist",
@@ -88,7 +98,7 @@ export async function getYoutubeMetadata(youtubeUrl: string): Promise<YoutubeVid
 }
 
 /**
- * Downloads ONLY a lightweight audio stream to temporary folder for Groq Whisper transcription.
+ * Downloads ONLY a lightweight audio stream to temporary folder for Gemini Speech-to-Text transcription.
  */
 export async function downloadAudioOnly(
   youtubeUrl: string,
@@ -102,10 +112,9 @@ export async function downloadAudioOnly(
   const ytdlpArgs = [
     "--js-runtimes",
     "node",
+    ...YTDLP_ANTIBOT_ARGS,
     "-f",
     "ba[ext=m4a]/ba/b",
-    "--download-sections",
-    "*00:00-01:30", // Fast download: first 90s (~300 words, optimal for Groq Whisper and quick viral curation)
     "--extract-audio",
     "--audio-format",
     "mp3",
@@ -127,20 +136,88 @@ export async function downloadAudioOnly(
       return outputPath;
     }
   } catch (err: any) {
-    console.error("[Downloader] Gagal mengunduh audio dengan yt-dlp:", err?.message);
+    console.warn("[Downloader] Gagal unduh audio dengan --download-sections, mencoba full audio:", err?.message);
   }
 
-  // If specific .mp3 is missing, check if yt-dlp created an m4a/opus/mp3 file with prefix
-  const files = fs.readdirSync(audioDir);
-  const match = files.find((f) => f.startsWith(fileName) && !f.endsWith(".part"));
-  if (match) {
-    return path.join(audioDir, match);
+  // Fallback: try downloading full audio if sections failed
+  try {
+    const fallbackAudioArgs = [
+      "--js-runtimes",
+      "node",
+      ...YTDLP_ANTIBOT_ARGS,
+      "-f",
+      "ba/b",
+      "--extract-audio",
+      "--audio-format",
+      "mp3",
+      "--audio-quality",
+      "5",
+      "--no-playlist",
+    ];
+    if (ffmpegExe && ffmpegExe !== "ffmpeg") {
+      fallbackAudioArgs.push("--ffmpeg-location", ffmpegExe);
+    }
+    fallbackAudioArgs.push("-o", outputPath, youtubeUrl);
+    await execFileAsync("yt-dlp", fallbackAudioArgs, { timeout: 240000 });
+    if (fs.existsSync(outputPath)) {
+      return outputPath;
+    }
+  } catch (fbErr: any) {
+    console.warn("[Downloader] Fallback full audio juga gagal:", fbErr?.message);
+  }
+
+  // Resolve downloaded audio file
+  const resolvedRawPath = fs.existsSync(outputPath)
+    ? outputPath
+    : (() => {
+        const files = fs.readdirSync(audioDir);
+        const match = files.find((f) => f.startsWith(fileName) && !f.endsWith(".part"));
+        return match ? path.join(audioDir, match) : null;
+      })();
+
+  if (resolvedRawPath && fs.existsSync(resolvedRawPath)) {
+    const speechMp3Path = path.join(audioDir, `speech_${fileName}.mp3`);
+    try {
+      await execFileAsync(
+        ffmpegExe,
+        [
+          "-y",
+          "-i",
+          resolvedRawPath,
+          "-vn",
+          "-map",
+          "0:a:0?",
+          "-ar",
+          "16000",
+          "-ac",
+          "1",
+          "-b:a",
+          "32k",
+          "-f",
+          "mp3",
+          speechMp3Path,
+        ],
+        { timeout: 90000 }
+      );
+
+      if (fs.existsSync(speechMp3Path) && fs.statSync(speechMp3Path).size > 500) {
+        if (resolvedRawPath !== speechMp3Path) {
+          try {
+            fs.unlinkSync(resolvedRawPath);
+          } catch {}
+        }
+        return speechMp3Path;
+      }
+    } catch (compressErr: any) {
+      console.warn("[Downloader] Gagal kompresi 32k pada audio YouTube, memakai file asli:", compressErr?.message);
+    }
+    return resolvedRawPath;
   }
 
   throw new HttpError(
-    500,
+    400,
     "AUDIO_DOWNLOAD_FAILED",
-    "Gagal mengekstrak audio dari link YouTube. Pastikan link dapat diakses publik."
+    "Gagal mengunduh link YouTube, silakan gunakan opsi Upload Video."
   );
 }
 
@@ -160,8 +237,55 @@ export function hasVideoStream(filePath: string): boolean {
 }
 
 /**
+ * Downloads full video (720p/1080p) to temp/full_videos/ cached by video ID
+ * so multiple clips from the same YouTube URL do not re-download repeatedly.
+ */
+export async function downloadFullVideo(youtubeUrl: string): Promise<string> {
+  const fullDir = getTempDir("temp/full_videos");
+  const match = youtubeUrl.match(/(?:v=|\/embed\/|youtu\.be\/|\/v\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+  const videoId = match?.[1] || `video_${Date.now()}`;
+  const fullFilePath = path.join(fullDir, `full_${videoId}.mp4`);
+
+  if (fs.existsSync(fullFilePath) && hasVideoStream(fullFilePath)) {
+    return fullFilePath;
+  }
+
+  const ffmpegExe = getFfmpegPath();
+  const args = [
+    "--js-runtimes",
+    "node",
+    ...YTDLP_ANTIBOT_ARGS,
+    "-f",
+    "bv*[height<=1080][ext=mp4]+ba*[ext=m4a]/b[height<=1080][ext=mp4]/bv*+ba/best",
+    "--merge-output-format",
+    "mp4",
+    "--no-playlist",
+  ];
+  if (ffmpegExe && ffmpegExe !== "ffmpeg") {
+    args.push("--ffmpeg-location", ffmpegExe);
+  }
+  args.push("-o", fullFilePath, youtubeUrl);
+
+  try {
+    await execFileAsync("yt-dlp", args, { timeout: 360000 });
+    if (fs.existsSync(fullFilePath) && hasVideoStream(fullFilePath)) {
+      return fullFilePath;
+    }
+  } catch (err: any) {
+    console.warn("[Downloader] Download full video fallback gagal:", err?.message);
+  }
+
+  throw new HttpError(
+    400,
+    "YOUTUBE_DOWNLOAD_FAILED",
+    "Gagal mengunduh link YouTube, silakan gunakan opsi Upload Video."
+  );
+}
+
+/**
  * Downloads ONLY the exact time section (*start_time-end_time) selected by AI
  * ensuring BOTH video and audio streams are merged into the target MP4 file.
+ * If --download-sections fails, falls back automatically to full video download + local FFmpeg cut.
  */
 export async function downloadPrecisionSection(input: {
   youtubeUrl: string;
@@ -177,13 +301,15 @@ export async function downloadPrecisionSection(input: {
     fs.mkdirSync(tempClipDir, { recursive: true });
   }
 
+  // 1. Attempt precision section download with anti-bot and flexible format
   const ytdlpArgs = [
     "--js-runtimes",
     "node",
+    ...YTDLP_ANTIBOT_ARGS,
     "--download-sections",
     sectionArg,
     "-f",
-    "bestvideo[format_note!*=Premium]+bestaudio[ext=m4a]/bestvideo[format_note!*=Premium]+bestaudio/bestvideo+bestaudio/best",
+    "bv*[ext=mp4]+ba*[ext=m4a]/b[ext=mp4]/best",
     "--merge-output-format",
     "mp4",
     "--force-keyframes-at-cuts",
@@ -205,37 +331,47 @@ export async function downloadPrecisionSection(input: {
     console.warn(`[Downloader] Precision section download gagal untuk ${sectionArg}:`, err?.message);
   }
 
-  // If first attempt failed or lacked video, try with any available video codec excluding Premium
-  if (!fs.existsSync(input.outputFilePath) || !hasVideoStream(input.outputFilePath)) {
-    try {
-      const fallbackArgs = [
-        "--js-runtimes",
-        "node",
-        "--download-sections",
-        sectionArg,
-        "-f",
-        "bv*[format_note!*=Premium]+ba/b",
-        "--merge-output-format",
-        "mp4",
-        "--force-keyframes-at-cuts",
-      ];
-      if (ffmpegExe && ffmpegExe !== "ffmpeg") {
-        fallbackArgs.push("--ffmpeg-location", ffmpegExe);
-      }
-      fallbackArgs.push("-o", input.outputFilePath, input.youtubeUrl);
-      await execFileAsync("yt-dlp", fallbackArgs, { timeout: 240000 });
-    } catch (retryErr: any) {
-      console.warn(`[Downloader] Retry precision download gagal:`, retryErr?.message);
-    }
-  }
+  // 2. Fallback Mekanisme Otomatis: Unduh video utuh 720p/1080p lalu potong rentang detik secara lokal menggunakan FFmpeg
+  console.log(`[Downloader] Mengaktifkan mekanisme fallback: unduh video utuh & potong lokal dengan FFmpeg...`);
+  try {
+    const fullVideoPath = await downloadFullVideo(input.youtubeUrl);
+    // Cut locally using frame-accurate FFmpeg re-encoding: ffmpeg -ss {start} -to {end} -i input.mp4 ...
+    const safeDur = Math.max(5, Math.round(input.endTimeSec - input.startTimeSec));
+    await execFileAsync(
+      ffmpegExe,
+      [
+        "-y",
+        "-ss",
+        String(input.startTimeSec),
+        "-t",
+        String(safeDur),
+        "-i",
+        fullVideoPath,
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-crf",
+        "23",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        input.outputFilePath,
+      ],
+      { timeout: 120000 }
+    );
 
-  if (fs.existsSync(input.outputFilePath) && hasVideoStream(input.outputFilePath)) {
-    return input.outputFilePath;
+    if (fs.existsSync(input.outputFilePath) && hasVideoStream(input.outputFilePath)) {
+      return input.outputFilePath;
+    }
+  } catch (fallbackErr: any) {
+    console.error("[Downloader] Fallback download & cut FFmpeg juga gagal:", fallbackErr?.message);
   }
 
   throw new HttpError(
-    500,
-    "SECTION_DOWNLOAD_FAILED",
-    `Gagal mengunduh segmen video pada detik ${input.startTimeSec}s - ${input.endTimeSec}s.`
+    400,
+    "YOUTUBE_DOWNLOAD_FAILED",
+    "Gagal mengunduh link YouTube, silakan gunakan opsi Upload Video."
   );
 }

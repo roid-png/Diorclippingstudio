@@ -14,7 +14,14 @@ export default defineConfig({
   splitting: true,
   noExternal: [/.*/],
   // Optional native bindings and dev-only transports are never loaded in production.
-  external: ["pg-native", "pino-pretty"],
+  external: [
+    "pg-native",
+    "pino-pretty",
+    "@napi-rs/canvas",
+    "@resvg/resvg-js",
+    "groq-sdk",
+    "@google/generative-ai",
+  ],
   // Some CommonJS dependencies call require() at runtime.
   banner: {
     js: "import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);",

@@ -12,9 +12,12 @@ import { notificationsRouter } from "./notifications.routes";
 import { accountRouter } from "./account.routes";
 import { presetsRouter } from "./presets.routes";
 import { downloadRouter } from "./download.routes";
+import { videoRouter } from "./video.routes";
 import { cloneStyleRouter } from "./clone-style.routes";
 import { resetRouter } from "./reset.routes";
 import { pipelineRouter } from "./pipeline.routes";
+import { processVideoRouter } from "./process-video.routes";
+import { settingsRouter } from "./settings.routes";
 
 // Mounted at /api. Add a router per resource and register it here.
 export const apiRouter = Router();
@@ -34,9 +37,13 @@ apiRouter.use("/users", accountRouter);
 apiRouter.use("/quotas", accountRouter);
 apiRouter.use("/presets", presetsRouter);
 apiRouter.use("/download", downloadRouter);
+apiRouter.use("/video", videoRouter);
 apiRouter.use("/clone-style", cloneStyleRouter);
 apiRouter.use("/reset", resetRouter);
 apiRouter.use("/pipeline", pipelineRouter);
+apiRouter.use("/process-video", processVideoRouter);
+apiRouter.use("/render-direct-upload", processVideoRouter);
+apiRouter.use("/settings", settingsRouter);
 
 
 

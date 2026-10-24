@@ -451,3 +451,62 @@ clipsRouter.get("/:id/download", async (req, res) => {
 
   createReadStream(filePath).pipe(res);
 });
+
+// DELETE /api/clips/all - Clears all clips, temp jobs, and output videos
+clipsRouter.delete("/all", async (_req, res) => {
+  try {
+    const { resetAllActiveClipsAndTemp } = await import("../services/cleanup.service");
+    const resetRes = await resetAllActiveClipsAndTemp(true);
+    res.json({
+      success: true,
+      message: "Semua klip video dan file sementara berhasil dihapus.",
+      data: resetRes,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: "DELETE_FAILED",
+      message: err?.message || "Gagal menghapus semua klip.",
+    });
+  }
+});
+
+// DELETE /api/clips/:id - Deletes a specific clip file and database record
+clipsRouter.delete("/:id", async (req, res) => {
+  const clipId = req.params.id;
+  try {
+    const { getOutputsDir } = await import("../services/downloader");
+    const outputsDir = getOutputsDir();
+    const possibleFiles = [
+      resolve(outputsDir, `dior_${clipId}.mp4`),
+      resolve(outputsDir, `${clipId}.mp4`),
+      resolve(process.cwd(), `../../backend/outputs/dior_${clipId}.mp4`),
+    ];
+    for (const f of possibleFiles) {
+      if (existsSync(f)) {
+        try {
+          const { unlinkSync } = await import("node:fs");
+          unlinkSync(f);
+        } catch {}
+      }
+    }
+
+    try {
+      const { renderJobs } = await import("../db/schema");
+      await db.delete(renderJobs).where(eq(renderJobs.clipId, clipId));
+      await db.delete(clips).where(eq(clips.id, clipId));
+    } catch {}
+
+    res.json({
+      success: true,
+      message: `Klip #${clipId} berhasil dihapus.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: "DELETE_FAILED",
+      message: err?.message || "Gagal menghapus klip.",
+    });
+  }
+});
+

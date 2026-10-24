@@ -9,6 +9,9 @@
   },
   "scripts": {
     "setup": "node scripts/setup.mjs",
+    "dev:all": "concurrently -n backend,frontend -c green,cyan \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "tsx watch backend/server.ts",
+    "dev:frontend": "turbo run dev --filter=@starter/web",
     "dev:prepare": "node scripts/prepare.mjs",
     "dev": "node scripts/prepare.mjs && turbo run dev",
     "dev:api": "node scripts/prepare.mjs && turbo run dev --filter=@starter/api",
@@ -39,11 +42,13 @@
     "@playwright/test": "1.63.0",
     "@types/node": "catalog:",
     "@types/pg": "catalog:",
+    "concurrently": "^10.0.6",
     "eslint": "9.39.5",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.12.0",
     "pg": "catalog:",
     "prettier": "3.9.6",
+    "tsx": "4.23.15",
     "turbo": "2.11.7",
     "typescript": "catalog:",
     "typescript-eslint": "8.70.0"

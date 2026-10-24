@@ -151,10 +151,10 @@ export function StudioQuotaBanner({
             )}
 
             <Link
-              to="/project-history"
+              to="/presets"
               className="px-3 py-1.5 rounded-xl bg-[#136f7c]/50 hover:bg-[#136f7c] border border-[#2cd3c6]/40 text-xs font-semibold text-[#2cd3c6] hover:text-white flex items-center gap-1.5 transition cursor-pointer"
             >
-              <span>Riwayat Proyek</span>
+              <span>Preset Studio</span>
             </Link>
           </div>
         </div>

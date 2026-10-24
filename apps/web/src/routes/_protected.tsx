@@ -74,14 +74,28 @@ function ProtectedLayout() {
     getPersistentSession()
   );
   const [showNotificationPopup, setShowNotificationPopup] = useState<boolean>(false);
+  const [hasActiveRenderJob, setHasActiveRenderJob] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return Boolean(localStorage.getItem("dior_active_render_job"));
+  });
 
   useEffect(() => {
     const handleSync = () => {
       setHeaderSession(getPersistentSession());
+      setHasActiveRenderJob(Boolean(localStorage.getItem("dior_active_render_job")));
     };
+    const interval = setInterval(() => {
+      if (typeof window !== "undefined") {
+        setHasActiveRenderJob(Boolean(localStorage.getItem("dior_active_render_job")));
+      }
+    }, 2000);
+
     if (typeof window !== "undefined") {
       window.addEventListener("storage", handleSync);
-      return () => window.removeEventListener("storage", handleSync);
+      return () => {
+        window.removeEventListener("storage", handleSync);
+        clearInterval(interval);
+      };
     }
   }, []);
 
@@ -95,10 +109,7 @@ function ProtectedLayout() {
   // Determine current active section for breadcrumb
   const pathname = location.pathname;
   let currentSection = "Auto Video Clipper";
-  if (pathname.includes("viral-clips")) currentSection = "Deteksi Momen Viral";
-  else if (pathname.includes("auto-edit")) currentSection = "Edit Otomatis & Presets";
-  else if (pathname.includes("render")) currentSection = "Render & Unduh";
-  else if (pathname.includes("project-history")) currentSection = "Riwayat Proyek";
+  if (pathname.includes("presets")) currentSection = "Preset Management";
   else if (pathname.includes("profile")) currentSection = "Pengaturan Akun";
   else if (pathname.includes("admin")) currentSection = "API & Developer Panel";
 
@@ -110,29 +121,10 @@ function ProtectedLayout() {
       isActive: pathname === "/app" || pathname === "/",
     },
     {
-      to: "/viral-clips",
-      label: "My Project",
-      icon: Video,
-      isActive: pathname.includes("viral-clips"),
-    },
-    {
-      to: "/auto-edit",
+      to: "/presets",
       label: "Presets",
       icon: Palette,
-      isActive: pathname.includes("auto-edit"),
-    },
-    {
-      to: "/project-history",
-      label: "History",
-      icon: History,
-      isActive: pathname.includes("project-history"),
-    },
-    {
-      to: "/admin",
-      label: "API",
-      icon: Code2,
-      isActive: pathname.includes("admin"),
-      hidden: !canAdmin,
+      isActive: pathname.includes("presets"),
     },
     {
       to: "/profile",
@@ -144,8 +136,8 @@ function ProtectedLayout() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#071518] via-[#0b1b1f] to-[#12282e] text-slate-100 flex">
-      {/* Sidebar kiri navigasi lengkap (Dark Teal Glassmorphism) */}
-      <aside className="w-60 shrink-0 hidden md:flex flex-col bg-[#09171b]/95 backdrop-blur-md border-r border-[#18333a] sticky top-0 h-screen z-30 select-none">
+      {/* Sidebar kiri navigasi lengkap (Dark Teal solid, ultra-smooth) */}
+      <aside className="w-60 shrink-0 hidden md:flex flex-col bg-[#09171b] border-r border-[#18333a] sticky top-0 h-screen z-30 select-none">
         {/* Logo Dior Clipping */}
         <div className="p-4 border-b border-[#142e34] flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#13434c] to-[#20a3a7] p-1.5 flex items-center justify-center border border-[#2cd3c6]/40 shadow-[0_0_15px_rgba(44,211,198,0.3)]">
@@ -171,26 +163,32 @@ function ProtectedLayout() {
 
         {/* Sidebar Nav Links */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems
-            .filter((item) => !item.hidden)
-            .map((item) => {
-              const Icon = item.icon;
-              return (
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                     item.isActive
                       ? "bg-gradient-to-r from-[#14373e] to-[#18464f] text-[#2cd3c6] border border-[#20b2aa]/40 shadow-[0_0_15px_rgba(44,211,198,0.15)]"
                       : "text-[#7a959c] hover:text-white hover:bg-[#11272d]"
                   }`}
                 >
-                  <Icon
-                    className={`w-4 h-4 shrink-0 ${
-                      item.isActive ? "text-[#2cd3c6]" : "text-[#627e84]"
-                    }`}
-                  />
-                  <span>{item.label}</span>
+                  <div className="flex items-center gap-3">
+                    <Icon
+                      className={`w-4 h-4 shrink-0 ${
+                        item.isActive ? "text-[#2cd3c6]" : "text-[#627e84]"
+                      }`}
+                    />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.to === "/app" && hasActiveRenderJob && (
+                    <span className="flex items-center gap-1 text-[9px] font-bold text-[#2cd3c6] bg-[#0c2227] px-2 py-0.5 rounded-full border border-[#2cd3c6]/40 shadow-sm animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#2cd3c6] animate-ping" />
+                      <span>Proses ⚡</span>
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -224,7 +222,7 @@ function ProtectedLayout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar dengan breadcrumb "Dashboard / Auto Video Clipper", lonceng notifikasi, dan avatar profil pengguna */}
-        <header className="h-14 border-b border-[#18333a] bg-[#09171b]/90 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-6 flex items-center justify-between">
+        <header className="h-14 border-b border-[#18333a] bg-[#09171b] sticky top-0 z-40 px-4 sm:px-6 flex items-center justify-between">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-xs sm:text-sm font-medium">
             <Link
@@ -264,7 +262,7 @@ function ProtectedLayout() {
                       <CheckCircle2 className="w-4 h-4 text-[#2cd3c6] shrink-0 mt-0.5" />
                       <div>
                         <strong className="text-white block">Sistem Siap Digunakan</strong>
-                        Pipeline yt-dlp, Groq Whisper, dan FFmpeg render aktif.
+                        Pipeline yt-dlp, Dual Gemini STT & Curation, dan FFmpeg render aktif.
                       </div>
                     </div>
                     <div className="p-2 rounded-xl bg-[#142a30] text-[#93adb3] text-[11px] flex items-start gap-2">
