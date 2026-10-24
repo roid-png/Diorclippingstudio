@@ -12,6 +12,7 @@ import {
   ChevronDown,
   Check,
   BookmarkPlus,
+  BookmarkCheck,
 } from "lucide-react";
 import { API_URL } from "@/lib/env";
 import type { ClipItem } from "../types";
@@ -318,10 +319,11 @@ export function ClipCard({
               e.preventDefault();
               onSaveToPreset(clip);
             }}
-            title="Bookmark / Simpan Gaya ke Preset"
-            className="h-9 px-3 rounded-xl bg-[#14282e] hover:bg-[#1a3840] border border-[#1f3e46] hover:border-[#2cd3c6]/50 text-gray-300 hover:text-[#2cd3c6] flex items-center justify-center transition cursor-pointer shrink-0"
+            title="Jadikan Gaya Ini Sebagai Preset"
+            className="h-9 px-2.5 rounded-xl bg-[#14282e] hover:bg-[#1a3840] border border-[#1f3e46] hover:border-[#2cd3c6]/60 text-gray-200 hover:text-[#2cd3c6] flex items-center justify-center gap-1.5 transition cursor-pointer shrink-0 text-xs font-semibold"
           >
-            <BookmarkPlus className="w-4 h-4" />
+            <BookmarkCheck className="w-4 h-4 text-[#2cd3c6]" />
+            <span className="hidden sm:inline">+ Jadikan Preset</span>
           </button>
         )}
       </div>

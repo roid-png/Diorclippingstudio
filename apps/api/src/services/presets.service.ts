@@ -58,6 +58,8 @@ export interface VideoPreset {
   isCustom?: boolean;
   isCloned?: boolean;
   isUniversalClone?: boolean;
+  isHolistic?: boolean;
+  holistic_dna?: any;
   blueprint?: any;
   createdAt?: string;
 

@@ -53,6 +53,13 @@ const server = app.listen(PORT, HOST, async (error) => {
     );
     startAutoCleanupScheduler();
   } catch {}
+
+  try {
+    const { registerAllCreatorFonts } = await import(
+      "./services/clone_engine/font_registry"
+    );
+    registerAllCreatorFonts();
+  } catch {}
 });
 
 // Configure 30-minute server timeouts for heavy 50+ min video processing and streaming

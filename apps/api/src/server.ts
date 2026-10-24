@@ -30,6 +30,10 @@ const server = app.listen(env.PORT, env.HOST, async (error) => {
     const { startAutoCleanupScheduler } = await import("./services/cleanup.service");
     startAutoCleanupScheduler();
   } catch {}
+  try {
+    const { registerAllCreatorFonts } = await import("./services/clone_engine/font_registry");
+    registerAllCreatorFonts();
+  } catch {}
 });
 
 // Configure 30-minute server timeouts for long-running 50+ min video uploads and rendering

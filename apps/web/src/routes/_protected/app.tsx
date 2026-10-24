@@ -765,10 +765,10 @@ function StudioPotongVideoPage() {
       if (inputMode === "upload" && uploadedVideoFile) {
         let uploadIdToUse: string | null = null;
 
-        // Jika ukuran file > 20MB, potong menjadi pecahan 20MB per request
-        // untuk melewati batasan Nginx Codespaces 100MB (Bebas Error 413)
-        if (uploadedVideoFile.size > 20 * 1024 * 1024) {
-          const CHUNK_SIZE = 20 * 1024 * 1024; // 20 MB
+        // Jika ukuran file > 5MB, potong menjadi pecahan 5MB per request
+        // untuk melewati batasan Nginx/Envoy Codespaces (Anti Error 413 Payload Too Large)
+        if (uploadedVideoFile.size > 5 * 1024 * 1024) {
+          const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB per chunk (aman 100% dari batasan proxy Codespaces/Cloudflare)
           const totalChunks = Math.ceil(uploadedVideoFile.size / CHUNK_SIZE);
           const uploadId = `upl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -787,14 +787,35 @@ function StudioPotongVideoPage() {
             const pct = Math.round(((i + 1) / totalChunks) * 100);
             setStatusMessage(`Mengunggah video ke cloud (${pct}% - Bagian ${i + 1}/${totalChunks})...`);
 
-            const chunkRes = await fetch(`${API_URL}/api/process-video/upload-chunk`, {
-              method: "POST",
-              body: chunkFormData,
-            });
+            let uploadSuccess = false;
+            let lastErrMessage = "";
 
-            if (!chunkRes.ok) {
-              const errData = await chunkRes.json().catch(() => ({}));
-              throw new Error(errData.message || `Gagal mengunggah potongan video ke-${i + 1} (Status ${chunkRes.status})`);
+            // Retry otomatis hingga 3x jika ada gangguan jaringan sementara
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              try {
+                const chunkRes = await fetch(`${API_URL}/api/process-video/upload-chunk`, {
+                  method: "POST",
+                  body: chunkFormData,
+                });
+
+                if (chunkRes.ok) {
+                  uploadSuccess = true;
+                  break;
+                }
+
+                const errData = await chunkRes.json().catch(() => ({}));
+                lastErrMessage = errData.message || `Status ${chunkRes.status}`;
+              } catch (retryErr: any) {
+                lastErrMessage = retryErr?.message || "Koneksi terputus";
+              }
+
+              if (attempt < 3) {
+                await new Promise((r) => setTimeout(r, 1000));
+              }
+            }
+
+            if (!uploadSuccess) {
+              throw new Error(`Gagal mengunggah potongan video ke-${i + 1} (${lastErrMessage})`);
             }
           }
 
@@ -926,6 +947,8 @@ function StudioPotongVideoPage() {
         throw new Error(
           response.status === 404
             ? "Layanan API tidak ditemukan pada port 4000."
+            : response.status === 413
+            ? "File video terlalu besar untuk proxy (Status 413). Fitur pemecahan chunk otomatis 5MB telah aktif, silakan muat ulang halaman (F5) lalu coba klik Generate Clips kembali."
             : `Gagal membaca respons server (Status ${response.status})`
         );
       }

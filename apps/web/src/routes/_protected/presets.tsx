@@ -66,6 +66,8 @@ export interface PresetItem {
   badge?: string;
   isCustom?: boolean;
   isCloned?: boolean;
+  isHolistic?: boolean;
+  holistic_dna?: any;
   layoutArchitecture?: string;
   subtitleBehavior?: string;
   hookTypographyStyle?: string;
@@ -384,7 +386,12 @@ export function PresetsManagementPage() {
 
                     <div className="flex items-center gap-1.5 shrink-0">
                       {/* Badge Tipe Preset */}
-                      {isCloned ? (
+                      {preset.isHolistic || preset.badge === "Holistic Preset" ? (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-teal-300 border border-teal-500/40 flex items-center gap-1 shadow-sm">
+                          <Sparkles className="w-2.5 h-2.5 text-teal-400" />
+                          <span>Holistic Preset</span>
+                        </span>
+                      ) : isCloned ? (
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1">
                           <Wand2 className="w-2.5 h-2.5 text-pink-400" />
                           <span>AI Cloned</span>

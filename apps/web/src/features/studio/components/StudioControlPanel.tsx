@@ -42,6 +42,8 @@ export interface DynamicPresetItem {
   enablePolish?: boolean;
   badge?: string;
   isCloned?: boolean;
+  isHolistic?: boolean;
+  holistic_dna?: any;
   layoutArchitecture?: string;
   subtitleBehavior?: string;
   hookTypographyStyle?: string;

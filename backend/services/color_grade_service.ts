@@ -17,6 +17,7 @@ export interface ColorGradeParameters {
   gamma_r: number; // e.g. 0.95 to 1.05
   gamma_g: number; // e.g. 0.95 to 1.05
   gamma_b: number; // e.g. 0.95 to 1.05
+  filmGrainIntensity?: number; // 0.0 s/d 1.0
   lutPath?: string;
   presetName?: string;
 }
@@ -39,6 +40,44 @@ const PRESET_COLOR_GRADES: Record<string, ColorGradeParameters> = {
     gamma_g: 0.99,
     gamma_b: 1.03,
     presetName: "Moody Sinematik",
+  },
+  moody_film: {
+    brightness: -0.02,
+    contrast: 1.08,
+    saturation: 0.92,
+    gamma_r: 0.98,
+    gamma_g: 0.99,
+    gamma_b: 1.04,
+    filmGrainIntensity: 0.08,
+    presetName: "Deep Moody Film",
+  },
+  contrast_pop: {
+    brightness: 0.01,
+    contrast: 1.10,
+    saturation: 1.15,
+    gamma_r: 1.02,
+    gamma_g: 1.01,
+    gamma_b: 0.98,
+    presetName: "High Contrast Pop",
+  },
+  vintage_warm: {
+    brightness: 0.03,
+    contrast: 1.04,
+    saturation: 1.08,
+    gamma_r: 1.06,
+    gamma_g: 1.01,
+    gamma_b: 0.92,
+    filmGrainIntensity: 0.06,
+    presetName: "Vintage Warm",
+  },
+  clean_crisp: {
+    brightness: 0.02,
+    contrast: 1.03,
+    saturation: 1.05,
+    gamma_r: 1.00,
+    gamma_g: 1.00,
+    gamma_b: 1.00,
+    presetName: "Clean Crisp Natural",
   },
   warm_glow: {
     brightness: 0.03,
@@ -89,6 +128,11 @@ export function buildFfmpegColorFilter(params: ColorGradeParameters): string {
   const balanceFilter = `colorbalance=rs=${rs.toFixed(3)}:gs=${gs.toFixed(3)}:bs=${bs.toFixed(3)}`;
 
   let finalFilter = `${eqFilter},${balanceFilter}`;
+
+  if (params.filmGrainIntensity && params.filmGrainIntensity > 0) {
+    const grainStrength = Math.max(4, Math.min(24, Math.round(params.filmGrainIntensity * 20)));
+    finalFilter += `,noise=alls=${grainStrength}:allf=t`;
+  }
 
   if (params.lutPath && fs.existsSync(params.lutPath)) {
     const escapedLut = params.lutPath.replace(/\\/g, "/").replace(/:/g, "\\:");

@@ -494,3 +494,67 @@ export function getDefaultUniversalBlueprint(
   };
 }
 
+/**
+ * [FASE 4: HOLISTIC DNA SCHEMA - COMPREHENSIVE STYLE BLUEPRINT PRESET]
+ * Menyimpan DNA editing secara menyeluruh (framing kanvas, kurva kamera, gaya hook kinetik,
+ * subtitle, color grade, tekstur film, hingga parameter ducking audio).
+ */
+export const HolisticDnaSchema = z.object({
+  framing: z.object({
+    mode: z.enum([
+      "LETTERBOX_FEATHER_CINEMATIC",
+      "DYNAMIC_9_16_SPEAKER_TRACK",
+      "DUAL_LAYER_BLUR_ACCENT",
+      "SPLIT_SCREEN_VERTICAL",
+    ]).default("LETTERBOX_FEATHER_CINEMATIC"),
+    aspect_ratio: z.string().default("16:9"),
+    pos_y_ratio: z.number().default(0.48),
+    feather_px: z.number().default(35),
+    backdrop_hex: z.string().default("#000000"),
+  }),
+  camera: z.object({
+    tracking_mode: z.string().default("ACTIVE_SPEAKER_AUDIO_VISUAL"),
+    pan_duration_sec: z.number().default(0.45),
+    easing_curve: z.string().default("cubic-bezier(0.25, 1, 0.5, 1)"),
+    idle_drift_zoom: z.number().default(1.03),
+  }),
+  hook_typography: z.object({
+    enabled: z.boolean().default(true),
+    presentation_style: z.string().default("IN_SCENE_BLUR_KINETIC"),
+    font_family: z.string().default("League Spartan"),
+    font_weight: z.string().default("900"),
+    accent_color_hex: z.string().default("#FF7A00"),
+    render_mode: z.string().default("MULTI_PASS_GLOW"),
+    duration_sec: z.number().default(4.5),
+  }),
+  subtitles: z.object({
+    display_cadence: z.string().default("SINGLE_WORD_POP"),
+    font_family: z.string().default("Montserrat ExtraBold"),
+    font_size_px: z.number().default(54),
+    base_color_hex: z.string().default("#FFFFFF"),
+    highlight_color_hex: z.string().default("#FF7A00"),
+    outline_width_px: z.number().default(3.5),
+    outline_color_hex: z.string().default("#000000"),
+    margin_vertical_px: z.number().default(380),
+    motion: z.string().default("POP_SCALE_SNAP"),
+    progress_bar: z.boolean().default(true),
+  }),
+  color_grading: z.object({
+    preset_name: z.string().default("Moody Warm Film"),
+    contrast: z.number().default(1.08),
+    brightness: z.number().default(-0.01),
+    saturation: z.number().default(1.10),
+    gamma_r: z.number().default(1.02),
+    gamma_b: z.number().default(0.97),
+    film_grain_intensity: z.number().default(0.08),
+  }),
+  audio: z.object({
+    bgm_base_volume: z.number().default(0.15),
+    ducking_depth_db: z.number().default(-20),
+    hook_delay_sec: z.number().default(4.5),
+  }),
+});
+
+export type HolisticDna = z.infer<typeof HolisticDnaSchema>;
+
+

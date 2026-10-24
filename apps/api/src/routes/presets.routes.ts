@@ -27,6 +27,8 @@ const createPresetSchema = z.object({
   badge: z.string().optional(),
   isCustom: z.boolean().optional(),
   isCloned: z.boolean().optional(),
+  isHolistic: z.boolean().optional(),
+  holistic_dna: z.any().optional(),
   subtitleStyle: z
     .object({
       fontName: z.string().default("Montserrat ExtraBold"),

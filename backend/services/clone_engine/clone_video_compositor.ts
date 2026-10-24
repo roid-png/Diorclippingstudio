@@ -169,6 +169,7 @@ export async function runUniversalCloneCompositor(
     gamma_r: Number(blueprint?.color_grade?.gamma_r ?? 1.02),
     gamma_g: Number(blueprint?.color_grade?.gamma_g ?? 1.00),
     gamma_b: Number(blueprint?.color_grade?.gamma_b ?? 0.98),
+    filmGrainIntensity: Number(blueprint?.color_science_and_atmosphere?.texture_overlays?.film_grain_intensity ?? blueprint?.color_grade?.film_grain_intensity ?? 0),
     lutPath: blueprint?.color_grade?.lut_file_path || blueprint?.color_science_and_atmosphere?.lut_file_path,
   };
   const colorGradingFilter = buildFfmpegColorFilter(gradeParams);

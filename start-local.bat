@@ -26,3 +26,4 @@ echo.
 
 npm run dev:all
 pause
+

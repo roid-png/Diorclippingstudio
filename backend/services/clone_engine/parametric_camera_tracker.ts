@@ -334,23 +334,29 @@ export async function trackParametricCamera(
 
     // Bangun komposit filter sesuai scale mode dan background
     let ffmpegCompositeFilter = "";
-    if (framing.video_scale_mode === "FULL_BLEED_9_16") {
+    const framingMode =
+      input.blueprint?.canvas_and_framing?.framing_mode ||
+      input.blueprint?.holistic_dna?.framing?.mode ||
+      (framing.video_scale_mode === "FULL_BLEED_9_16" ? "DYNAMIC_9_16_SPEAKER_TRACK" : "LETTERBOX_FEATHER_CINEMATIC");
+
+    if (framingMode === "DYNAMIC_9_16_SPEAKER_TRACK" || framing.video_scale_mode === "FULL_BLEED_9_16") {
       const slowZoom =
         framing.camera_tracking === "SLOW_ZOOM_IN" || framing.camera_tracking === "ACTIVE_SPEAKER_SMOOTH"
           ? ",zoompan=z='min(1.000+0.000037*on,1.05)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30"
           : "";
       ffmpegCompositeFilter = `${ffmpegCropFilter}${slowZoom}`;
-    } else {
-      // CENTER_FIT_WITH_BG / SPLIT_TOP_BOTTOM
+    } else if (framingMode === "SPLIT_SCREEN_VERTICAL") {
+      // Split 2 pembicara vertikal (Top Host, Bottom Guest)
+      ffmpegCompositeFilter = `split=2[v_top_raw][v_bot_raw];[v_top_raw]scale=-2:960,crop=1080:960:x=0:y=0[v_top];[v_bot_raw]scale=-2:960,crop=1080:960:x='max(0,in_w-1080)':y=0[v_bot];[v_top][v_bot]vstack=inputs=2`;
+    } else if (framingMode === "DUAL_LAYER_BLUR_ACCENT" || framing.background_fill === "BLURRED_VIDEO") {
       const targetH = Math.round(1920 * (framing.video_height_ratio || 0.55));
       const targetY = Math.round(1920 * (framing.video_y_position_ratio || 0.5) - targetH / 2);
-
-      if (framing.background_fill === "BLURRED_VIDEO") {
-        ffmpegCompositeFilter = `split=2[v_orig1][v_orig2];[v_orig1]scale=180:320,boxblur=12:2,scale=1080:1920:flags=fast_bilinear[bg];[v_orig2]scale=1080:${targetH}:force_original_aspect_ratio=decrease,pad=1080:${targetH}:(1080-iw)/2:(${targetH}-ih)/2:color=${framing.background_hex}[fg];[bg][fg]overlay=x=0:y=${targetY}`;
-      } else {
-        // SOLID_COLOR / NONE
-        ffmpegCompositeFilter = `scale=1080:${targetH}:force_original_aspect_ratio=decrease,pad=1080:1920:(1080-iw)/2:${targetY}:color=${framing.background_hex}`;
-      }
+      ffmpegCompositeFilter = `split=2[v_orig1][v_orig2];[v_orig1]scale=180:320,boxblur=20:2,scale=1080:1920:flags=fast_bilinear,eq=brightness=-0.12:saturation=1.10[bg];[v_orig2]scale=1080:${targetH}:force_original_aspect_ratio=decrease,pad=1080:${targetH}:(1080-iw)/2:(${targetH}-ih)/2:color=${framing.background_hex}[fg];[bg][fg]overlay=x=0:y=${targetY}`;
+    } else {
+      // LETTERBOX_FEATHER_CINEMATIC (Default letterbox 16:9 / 4:3 dengan background solid pekat)
+      const targetH = Math.round(1920 * (framing.video_height_ratio || 0.55));
+      const targetY = Math.round(1920 * (framing.video_y_position_ratio || 0.5) - targetH / 2);
+      ffmpegCompositeFilter = `scale=1080:${targetH}:force_original_aspect_ratio=decrease,pad=1080:1920:(1080-iw)/2:${targetY}:color=${framing.background_hex}`;
     }
 
     console.log(

@@ -712,10 +712,11 @@ export async function executeRealPipeline(input: PipelineGenerateInput): Promise
       }
 
       // 5. Render Vertical 9:16 Video (Router: Universal Clone Engine vs Regular Pipeline)
-      const activeBlueprint = input.tempCloneBlueprint || getActiveTempCloneBlueprint();
+      const activeBlueprint = input.tempCloneBlueprint || preset.blueprint || preset.holistic_dna || getActiveTempCloneBlueprint();
       const isUniversalCloneMode =
         Boolean(input.useTempCloneBlueprint) ||
         Boolean(preset.isUniversalClone) ||
+        Boolean(preset.isHolistic) ||
         (Boolean(activeBlueprint) && (pipelineMode === "clone_only" || preset.isCloned || preset.id.startsWith("cloned-") || preset.id === "ai-cloned"));
 
       let renderRes: RenderResult;
@@ -1605,10 +1606,11 @@ export async function executeDirectVideoUploadPipeline(
       }
 
       // Render 9:16 vertical clip (Router: Universal Clone Engine vs Regular Pipeline)
-      const activeBlueprint = input.tempCloneBlueprint || getActiveTempCloneBlueprint();
+      const activeBlueprint = input.tempCloneBlueprint || preset.blueprint || preset.holistic_dna || getActiveTempCloneBlueprint();
       const isUniversalCloneMode =
         Boolean(input.useTempCloneBlueprint) ||
         Boolean(preset.isUniversalClone) ||
+        Boolean(preset.isHolistic) ||
         (Boolean(activeBlueprint) && (pipelineMode === "clone_only" || preset.isCloned || preset.id.startsWith("cloned-") || preset.id === "ai-cloned"));
 
       let renderRes: RenderResult;
@@ -1937,9 +1939,10 @@ export async function reStyleClip(input: {
     } catch {}
   }
 
-  const activeBlueprint = getActiveTempCloneBlueprint();
+  const activeBlueprint = preset.blueprint || preset.holistic_dna || getActiveTempCloneBlueprint();
   const isUniversalClone =
     Boolean(preset.isUniversalClone) ||
+    Boolean(preset.isHolistic) ||
     (Boolean(activeBlueprint) && (preset.isCloned || preset.id.startsWith("cloned-") || preset.id === "ai-cloned"));
 
   let renderRes: RenderResult;

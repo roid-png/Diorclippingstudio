@@ -55,6 +55,8 @@ export const TypographyStyleSchema = z.object({
       "NEON_GLOW",
       "SOLID_BOX",
       "HARD_SHADOW",
+      "HIGHLIGHT_PILL",
+      "PILL",
     ])
     .default("SHADOW"),
   effect_color_hex: z.string().default("#000000"),
@@ -238,12 +240,16 @@ async function extractReferenceFrames(
   } catch {}
 
   const timestamps: Array<{ sec: number; isOpening: boolean }> = [
-    { sec: 0.8, isOpening: true },
-    { sec: 2.0, isOpening: true },
-    { sec: 4.0, isOpening: true },
-    { sec: Math.max(4.5, duration * 0.35), isOpening: false },
-    { sec: Math.max(5.5, duration * 0.60), isOpening: false },
-    { sec: Math.max(6.5, duration * 0.85), isOpening: false },
+    // 4 Frame Hook / Pembuka
+    { sec: 0.5, isOpening: true },
+    { sec: 1.5, isOpening: true },
+    { sec: 3.0, isOpening: true },
+    { sec: 5.0, isOpening: true },
+    // 4 Frame Badan Video
+    { sec: Math.max(5.5, Number((duration * 0.25).toFixed(1))), isOpening: false },
+    { sec: Math.max(6.5, Number((duration * 0.50).toFixed(1))), isOpening: false },
+    { sec: Math.max(7.5, Number((duration * 0.75).toFixed(1))), isOpening: false },
+    { sec: Math.max(8.0, Number((duration * 0.90).toFixed(1))), isOpening: false },
   ];
 
   const extracted: Array<{ timestampSec: number; filePath: string; isOpening: boolean }> = [];
@@ -720,10 +726,64 @@ export async function saveBlueprintAsPreset(
 
   const accentColor = hook.line_2_style?.color_hex || "#FF7A00";
 
+  // [FASE 4: ONE-CLICK HOLISTIC PRESET SYSTEM - COMPREHENSIVE EDITING DNA]
+  const holisticDna = {
+    framing: {
+      mode:
+        blueprint.canvas_and_framing?.framing_mode ||
+        (framing.video_scale_mode === "FULL_BLEED_9_16" ? "DYNAMIC_9_16_SPEAKER_TRACK" : "LETTERBOX_FEATHER_CINEMATIC"),
+      aspect_ratio: blueprint.canvas_and_framing?.inner_video_container?.aspect_ratio || "16:9",
+      pos_y_ratio: blueprint.canvas_and_framing?.inner_video_container?.pos_y_ratio || 0.48,
+      feather_px: blueprint.canvas_and_framing?.backdrop_composition?.edge_feather_mask?.top_feather_px || 35,
+      backdrop_hex: blueprint.canvas_and_framing?.backdrop_composition?.solid_hex || "#000000",
+    },
+    camera: {
+      tracking_mode: blueprint.camera_choreography?.tracking_engine || "ACTIVE_SPEAKER_AUDIO_VISUAL",
+      pan_duration_sec: blueprint.camera_choreography?.pan_physics?.pan_duration_sec || 0.45,
+      easing_curve: blueprint.camera_choreography?.pan_physics?.easing_curve || "cubic-bezier(0.25, 1, 0.5, 1)",
+      idle_drift_zoom: blueprint.camera_choreography?.pan_physics?.idle_camera_drift?.end_scale || 1.03,
+    },
+    hook_typography: {
+      enabled: Boolean(hook.has_special_opening_text),
+      presentation_style: blueprint.opening_hook_engine?.hook_presentation_style || "IN_SCENE_BLUR_KINETIC",
+      font_family: hook.line_2_style?.font_family || sub.font_family,
+      font_weight: hook.line_2_style?.font_weight || "Black",
+      accent_color_hex: accentColor,
+      render_mode: "MULTI_PASS_GLOW",
+      duration_sec: hook.active_end_sec || 4.5,
+    },
+    subtitles: {
+      display_cadence: sub.words_per_screen === 1 ? "SINGLE_WORD_POP" : "PHRASE_HIGHLIGHT_BOX",
+      font_family: sub.font_family,
+      font_size_px: sub.font_size_px,
+      base_color_hex: sub.base_text_hex,
+      highlight_color_hex: sub.highlight_hex,
+      outline_width_px: sub.stroke_width_px,
+      outline_color_hex: sub.stroke_hex,
+      margin_vertical_px: Math.round(1920 * (1 - (sub.position_y_ratio || 0.74))),
+      motion: "POP_SCALE_SNAP",
+      progress_bar: true,
+    },
+    color_grading: {
+      preset_name: "Holistic Cloned Color",
+      contrast: Number(colorGrade.contrast),
+      brightness: Number(colorGrade.brightness),
+      saturation: Number(colorGrade.saturation),
+      gamma_r: 1.02,
+      gamma_b: 0.98,
+      film_grain_intensity: Number(blueprint.color_science_and_atmosphere?.texture_overlays?.film_grain_intensity || 0.08),
+    },
+    audio: {
+      bgm_base_volume: 0.15,
+      ducking_depth_db: Number(blueprint.audio_sfx_cues?.bg_music_ducking?.ducking_depth_db || -20),
+      hook_delay_sec: 4.5,
+    },
+  };
+
   const presetData: Partial<VideoPreset> = {
     id: safeId,
     name: presetName,
-    description: `Preset permanen hasil kloning gaya: ${summary}`,
+    description: `Preset holistik hasil kloning gaya: ${summary}`,
     format: "9:16",
     width: 1080,
     height: 1920,
@@ -746,10 +806,12 @@ export async function saveBlueprintAsPreset(
       ? "IN_SCENE_KINETIC_HOOK"
       : "NONE",
     enableTopMotion: Boolean(blueprint.upper_graphics?.has_persistent_top_card || blueprint.upper_context_graphics?.enabled),
-    badge: "AI Cloned",
+    badge: "Holistic Preset",
     isCloned: true,
     isCustom: true,
     isUniversalClone: true,
+    isHolistic: true,
+    holistic_dna: holisticDna,
     blueprint,
     subtitleStyle: {
       fontName: sub.font_family,

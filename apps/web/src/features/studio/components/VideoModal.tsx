@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { X, Download, Sparkles, BookmarkPlus } from "lucide-react";
+import { X, Download, Sparkles, BookmarkPlus, BookmarkCheck } from "lucide-react";
 import type { ClipItem } from "../types";
 
 interface VideoModalProps {
@@ -187,10 +187,10 @@ export function VideoModal({ clip, onClose, onDownloadNotice, onSaveToPreset }: 
                 type="button"
                 onClick={() => onSaveToPreset(clip)}
                 className="h-9 px-3.5 rounded-xl bg-[#14282e] hover:bg-[#1f3d46] border border-[#23454d] hover:border-[#2cd3c6]/60 text-gray-200 hover:text-[#2cd3c6] text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shrink-0"
-                title="Bookmark / Simpan Gaya ke Preset"
+                title="Jadikan Gaya Ini Sebagai Preset"
               >
-                <BookmarkPlus className="w-4 h-4 text-[#2cd3c6]" />
-                <span className="hidden sm:inline">Simpan ke Preset</span>
+                <BookmarkCheck className="w-4 h-4 text-[#2cd3c6]" />
+                <span className="hidden sm:inline">+ Jadikan Preset</span>
               </button>
             )}
           </div>

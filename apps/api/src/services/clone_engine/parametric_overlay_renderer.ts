@@ -6,6 +6,7 @@ import { getFfmpegPath } from "../../utils/ffmpeg-path";
 import type { UniversalParametricBlueprint, TypographyStyleSchema } from "./universal_style_analyzer";
 import type { WordTimestamp } from "./clone_subtitle_generator";
 import { CLONE_POP_EASING } from "./easing_engine";
+import { getClosestFont, resolveCanvasFontString } from "./font_registry";
 import { z } from "zod";
 
 type TypographyStyle = z.infer<typeof TypographyStyleSchema>;
@@ -178,10 +179,12 @@ export async function renderParametricOpeningHook(
   const line1Text = applyCasing(line1Raw, hookConfig.line_1_style?.casing || "UPPERCASE");
   const line2Text = applyCasing(line2Raw, hookConfig.line_2_style?.casing || "UPPERCASE");
 
-  const fontName =
+  const rawFontName =
     input.blueprint?.subtitle_system?.font_family ||
     input.blueprint?.body_subtitle_engine?.typography?.font_family ||
+    input.blueprint?.holistic_dna?.hook_typography?.font_family ||
     "Montserrat ExtraBold";
+  const fontName = getClosestFont(rawFontName);
 
   // SELALU gunakan centerX = 540 (Dead center layar 1080x1920)
   const centerX = Math.round(width * 0.5);
@@ -252,16 +255,21 @@ export async function renderParametricOpeningHook(
     const fontStyle = `${style.font_weight} ${style.size_px}px "${fontName}", sans-serif`;
     c.font = fontStyle;
 
-    // Optional solid backdrop box if requested
-    if (style.visual_effect === "SOLID_BOX" || style.visual_effect === "BOX") {
+    // Optional Highlight Pill Box (Skill Tipografi & Efek Kinetik)
+    if (
+      style.visual_effect === "SOLID_BOX" ||
+      style.visual_effect === "BOX" ||
+      style.visual_effect === "HIGHLIGHT_PILL" ||
+      style.visual_effect === "PILL"
+    ) {
       const metrics = c.measureText(text);
-      const boxW = metrics.width + 48;
-      const boxH = Math.round(lineHeight * 0.95);
+      const boxW = metrics.width + 44;
+      const boxH = Math.round(lineHeight * 0.94);
       const boxX = -boxW / 2;
       const boxY = -boxH / 2;
-      c.fillStyle = style.effect_color_hex;
+      c.fillStyle = style.effect_color_hex || "#E50914";
       c.beginPath();
-      c.roundRect(boxX, boxY, boxW, boxH, 14);
+      c.roundRect(boxX, boxY, boxW, boxH, 18);
       c.fill();
     }
 
@@ -379,6 +387,20 @@ export async function renderParametricOpeningHook(
           scale2,
           alpha2 * exitAlpha
         );
+      }
+
+      // Optional Kinetic Progress Bar (Skill Tipografi & Motion)
+      const showProgress =
+        input.blueprint?.holistic_dna?.subtitles?.progress_bar ||
+        input.blueprint?.motion_graphic?.progressBar;
+      if (showProgress) {
+        const barH = 6;
+        const progress = Math.min(1.0, curTime / durationSec);
+        const barW = Math.round(width * progress);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.fillRect(0, height - barH, width, barH);
+        ctx.fillStyle = hookConfig.line_2_style?.color_hex || "#2cd3c6";
+        ctx.fillRect(0, height - barH, barW, barH);
       }
 
       const imgData = ctx.getImageData(0, 0, width, height);
