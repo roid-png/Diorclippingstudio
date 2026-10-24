@@ -733,32 +733,101 @@ function StudioPotongVideoPage() {
       let response: Response;
 
       if (inputMode === "upload" && uploadedVideoFile) {
-        const formData = new FormData();
-        formData.append("jobId", jobId);
-        formData.append("video", uploadedVideoFile);
-        formData.append("clipCount", String(clipCount));
-        formData.append("maxClips", String(clipCount));
-        formData.append("targetDuration", String(targetDuration));
-        formData.append("clipDuration", String(targetDuration));
-        formData.append("pipelineMode", pipelineMode);
-        formData.append("presetId", selectedPresetId);
-        formData.append("subtitleFont", subtitleFont);
-        formData.append("fontFamily", subtitleFont);
-        formData.append("enableHook", String(enableHook));
-        formData.append("enableCinematicHook", String(enableHook));
-        formData.append("enablePolish", String(enablePolish));
-        formData.append("colorPolish", String(enablePolish));
-        formData.append("enableCloneTopMotion", String(enableCloneTopMotion));
-        formData.append("enableCloneBottomMotion", String(enableCloneBottomMotion));
-        if (tempCloneBlueprint) {
-          formData.append("useTempCloneBlueprint", "true");
-          formData.append("tempCloneBlueprint", JSON.stringify(tempCloneBlueprint));
+        let uploadIdToUse: string | null = null;
+
+        // Jika ukuran file > 20MB, potong menjadi pecahan 20MB per request
+        // untuk melewati batasan Nginx Codespaces 100MB (Bebas Error 413)
+        if (uploadedVideoFile.size > 20 * 1024 * 1024) {
+          const CHUNK_SIZE = 20 * 1024 * 1024; // 20 MB
+          const totalChunks = Math.ceil(uploadedVideoFile.size / CHUNK_SIZE);
+          const uploadId = `upl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+          for (let i = 0; i < totalChunks; i++) {
+            const start = i * CHUNK_SIZE;
+            const end = Math.min(start + CHUNK_SIZE, uploadedVideoFile.size);
+            const chunkBlob = uploadedVideoFile.slice(start, end);
+
+            const chunkFormData = new FormData();
+            chunkFormData.append("uploadId", uploadId);
+            chunkFormData.append("chunkIndex", String(i));
+            chunkFormData.append("totalChunks", String(totalChunks));
+            chunkFormData.append("originalFileName", uploadedVideoFile.name);
+            chunkFormData.append("chunk", chunkBlob, uploadedVideoFile.name);
+
+            const pct = Math.round(((i + 1) / totalChunks) * 100);
+            setStatusMessage(`Mengunggah video ke cloud (${pct}% - Bagian ${i + 1}/${totalChunks})...`);
+
+            const chunkRes = await fetch(`${API_URL}/api/process-video/upload-chunk`, {
+              method: "POST",
+              body: chunkFormData,
+            });
+
+            if (!chunkRes.ok) {
+              const errData = await chunkRes.json().catch(() => ({}));
+              throw new Error(errData.message || `Gagal mengunggah potongan video ke-${i + 1} (Status ${chunkRes.status})`);
+            }
+          }
+
+          uploadIdToUse = uploadId;
         }
 
-        response = await fetch(`${API_URL}/api/process-video`, {
-          method: "POST",
-          body: formData,
-        });
+        if (uploadIdToUse) {
+          // File video besar sudah selesai diunggah via chunk, kirim perintah potong via JSON
+          setStatusMessage("File video lengkap terunggah! Memulai pipeline clipping...");
+          response = await fetch(`${API_URL}/api/process-video`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              jobId,
+              uploadId: uploadIdToUse,
+              originalFileName: uploadedVideoFile.name,
+              clipCount,
+              maxClips: clipCount,
+              targetDuration,
+              clipDuration: targetDuration,
+              pipelineMode,
+              presetId: selectedPresetId,
+              subtitleFont,
+              fontFamily: subtitleFont,
+              enableHook,
+              enableCinematicHook: enableHook,
+              enablePolish,
+              colorPolish: enablePolish,
+              enableCloneTopMotion,
+              enableCloneBottomMotion,
+              useTempCloneBlueprint: Boolean(tempCloneBlueprint) || pipelineMode === "clone_only",
+              tempCloneBlueprint: tempCloneBlueprint || undefined,
+            }),
+          });
+        } else {
+          // File video kecil (<= 20MB) dikirim langsung via FormData
+          const formData = new FormData();
+          formData.append("jobId", jobId);
+          formData.append("video", uploadedVideoFile);
+          formData.append("clipCount", String(clipCount));
+          formData.append("maxClips", String(clipCount));
+          formData.append("targetDuration", String(targetDuration));
+          formData.append("clipDuration", String(targetDuration));
+          formData.append("pipelineMode", pipelineMode);
+          formData.append("presetId", selectedPresetId);
+          formData.append("subtitleFont", subtitleFont);
+          formData.append("fontFamily", subtitleFont);
+          formData.append("enableHook", String(enableHook));
+          formData.append("enableCinematicHook", String(enableHook));
+          formData.append("enablePolish", String(enablePolish));
+          formData.append("colorPolish", String(enablePolish));
+          formData.append("enableCloneTopMotion", String(enableCloneTopMotion));
+          formData.append("enableCloneBottomMotion", String(enableCloneBottomMotion));
+          if (tempCloneBlueprint) {
+            formData.append("useTempCloneBlueprint", "true");
+            formData.append("tempCloneBlueprint", JSON.stringify(tempCloneBlueprint));
+          }
+
+          response = await fetch(`${API_URL}/api/process-video`, {
+            method: "POST",
+            body: formData,
+          });
+        }
       } else {
         response = await fetch(`${API_URL}/api/process-video`, {
           method: "POST",

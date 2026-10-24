@@ -120,6 +120,14 @@ const KEY_DEFINITIONS: KeyDefinition[] = [
     quotaRule: "15 RPM • 1,000,000 TPM • 1,500 RPD",
   },
   {
+    name: "GEMINI_API_KEY_CURATOR_BACKUP",
+    label: "Gemini Kurator AI (Cadangan)",
+    type: "gemini",
+    role: "backup",
+    description: "Failover otomatis kurasi momen viral saat kuota utama mencapai limit",
+    quotaRule: "15 RPM • 1,000,000 TPM • 1,500 RPD",
+  },
+  {
     name: "GEMINI_API_KEY_ART_DIRECTOR_BACKUP",
     label: "Gemini Art Director (Cadangan)",
     type: "gemini",
@@ -329,7 +337,14 @@ function ProfilePage() {
 
   // Handle Key Input Changes
   const handleKeyChange = (keyName: string, val: string) => {
-    setApiKeys((prev) => ({ ...prev, [keyName]: val }));
+    setApiKeys((prev) => {
+      const next = { ...prev, [keyName]: val };
+      if (keyName === "GEMINI_API_KEY_CURATION") next["GEMINI_API_KEY_CURATOR"] = val;
+      if (keyName === "GEMINI_API_KEY_CURATOR") next["GEMINI_API_KEY_CURATION"] = val;
+      if (keyName === "GEMINI_API_KEY_CURATION_BACKUP") next["GEMINI_API_KEY_CURATOR_BACKUP"] = val;
+      if (keyName === "GEMINI_API_KEY_CURATOR_BACKUP") next["GEMINI_API_KEY_CURATION_BACKUP"] = val;
+      return next;
+    });
   };
 
   // Toggle Visibility of an API Key
@@ -735,7 +750,7 @@ function ProfilePage() {
                 : "text-[#7a99a0] hover:text-white hover:bg-[#11252a]"
             }`}
           >
-            Gemini Kunci Utama (5)
+            Gemini Kunci Utama ({KEY_DEFINITIONS.filter((k) => k.type === "gemini" && k.role === "primary").length})
           </button>
           <button
             type="button"
@@ -746,7 +761,7 @@ function ProfilePage() {
                 : "text-[#7a99a0] hover:text-white hover:bg-[#11252a]"
             }`}
           >
-            Gemini Kunci Cadangan (5)
+            Gemini Kunci Cadangan ({KEY_DEFINITIONS.filter((k) => k.type === "gemini" && k.role === "backup").length})
           </button>
           <button
             type="button"
@@ -757,7 +772,7 @@ function ProfilePage() {
                 : "text-[#7a99a0] hover:text-white hover:bg-[#11252a]"
             }`}
           >
-            Groq Whisper (2)
+            Groq Whisper ({KEY_DEFINITIONS.filter((k) => k.type === "groq").length})
           </button>
         </div>
 

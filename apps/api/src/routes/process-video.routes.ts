@@ -55,6 +55,73 @@ const upload = multer({
 processVideoRouter.use(express.json({ limit: "2gb" }));
 processVideoRouter.use(express.urlencoded({ extended: true, limit: "2gb" }));
 
+const chunkStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const chunkDir = path.resolve(tempUploadsDir, "chunks");
+    if (!fs.existsSync(chunkDir)) {
+      fs.mkdirSync(chunkDir, { recursive: true });
+    }
+    cb(null, chunkDir);
+  },
+  filename: (_req, file, cb) => {
+    cb(null, `part_${Date.now()}_${randomUUID().slice(0, 6)}_${file.originalname}`);
+  },
+});
+
+const chunkUpload = multer({
+  storage: chunkStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB per chunk limit (well within Codespaces limits)
+});
+
+/**
+ * POST /api/process-video/upload-chunk
+ * Menerima potongan video (chunk) untuk melewati batas payload Nginx Codespaces (Status 413).
+ */
+processVideoRouter.post("/upload-chunk", chunkUpload.single("chunk"), async (req: Request, res: Response) => {
+  try {
+    const uploadId = String(req.body.uploadId || "").replace(/[^a-zA-Z0-9_-]/g, "");
+    const chunkIndex = parseInt(req.body.chunkIndex, 10);
+    const totalChunks = parseInt(req.body.totalChunks, 10);
+    const originalFileName = String(req.body.originalFileName || "video.mp4");
+
+    if (!uploadId || isNaN(chunkIndex) || isNaN(totalChunks) || !req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Data potongan video (chunk) tidak lengkap.",
+      });
+    }
+
+    const ext = path.extname(originalFileName).toLowerCase() || ".mp4";
+    const mergedTargetFile = path.resolve(tempUploadsDir, `chunked_${uploadId}${ext}`);
+
+    // Read chunk and append to merged file
+    const chunkBytes = fs.readFileSync(req.file.path);
+    fs.appendFileSync(mergedTargetFile, chunkBytes);
+
+    // Delete temp chunk piece
+    try {
+      fs.unlinkSync(req.file.path);
+    } catch {}
+
+    const isCompleted = chunkIndex + 1 >= totalChunks;
+    console.log(`[ChunkUpload] [${uploadId}] Chunk ${chunkIndex + 1}/${totalChunks} diterima (${(chunkBytes.length / 1024 / 1024).toFixed(1)}MB)${isCompleted ? " -> SELESAI DIGABUNG" : ""}`);
+
+    return res.status(200).json({
+      success: true,
+      uploadId,
+      chunkIndex,
+      totalChunks,
+      isCompleted,
+    });
+  } catch (err: any) {
+    console.error("[ChunkUpload] Gagal memproses potongan video:", err);
+    return res.status(500).json({
+      success: false,
+      message: err?.message || "Gagal menyimpan potongan video.",
+    });
+  }
+});
+
 const uploadMiddleware = upload.fields([
   { name: "video", maxCount: 1 },
   { name: "file", maxCount: 1 },
@@ -126,9 +193,29 @@ processVideoRouter.post("/", (req: Request, res: Response, next) => {
     }
   }
 
-  // Check uploaded file
+  // Check uploaded file or chunked uploaded file
   const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
-  const uploadedFile = files?.["video"]?.[0] || files?.["file"]?.[0];
+  const directUploadedFile = files?.["video"]?.[0] || files?.["file"]?.[0];
+
+  let localVideoPath: string | null = null;
+  let originalVideoName = "Uploaded Video";
+  let videoFileSize = 0;
+
+  if (directUploadedFile) {
+    localVideoPath = directUploadedFile.path;
+    originalVideoName = directUploadedFile.originalname;
+    videoFileSize = directUploadedFile.size;
+  } else if (req.body?.uploadId) {
+    const safeUploadId = String(req.body.uploadId).replace(/[^a-zA-Z0-9_-]/g, "");
+    if (fs.existsSync(tempUploadsDir)) {
+      const matched = fs.readdirSync(tempUploadsDir).filter((f) => f.startsWith(`chunked_${safeUploadId}`));
+      if (matched.length > 0) {
+        localVideoPath = path.resolve(tempUploadsDir, matched[0]);
+        originalVideoName = req.body?.originalFileName || matched[0];
+        videoFileSize = fs.existsSync(localVideoPath) ? fs.statSync(localVideoPath).size : 0;
+      }
+    }
+  }
 
   // Check YouTube URL
   const rawYoutubeUrl = req.body?.youtube_url || req.body?.youtubeUrl;
@@ -215,7 +302,7 @@ processVideoRouter.post("/", (req: Request, res: Response, next) => {
     }
   }
 
-  if (!uploadedFile && !youtubeUrl) {
+  if (!localVideoPath && !youtubeUrl) {
     res.status(400).json({
       success: false,
       error: "INPUT_REQUIRED",
@@ -226,11 +313,11 @@ processVideoRouter.post("/", (req: Request, res: Response, next) => {
 
   try {
     let result;
-    if (uploadedFile) {
-      console.log(`[ProcessVideo] Memproses unggahan file lokal: ${uploadedFile.originalname} (${(uploadedFile.size / 1024 / 1024).toFixed(1)}MB, mode: ${pipelineMode}, font: ${subtitleFont})`);
+    if (localVideoPath) {
+      console.log(`[ProcessVideo] Memproses unggahan file video: ${originalVideoName} (${(videoFileSize / 1024 / 1024).toFixed(1)}MB, mode: ${pipelineMode}, font: ${subtitleFont})`);
       result = await executeDirectVideoUploadPipeline({
-        videoFilePath: uploadedFile.path,
-        originalFileName: uploadedFile.originalname,
+        videoFilePath: localVideoPath,
+        originalFileName: originalVideoName,
         clipCount,
         maxClips: clipCount,
         targetDuration,

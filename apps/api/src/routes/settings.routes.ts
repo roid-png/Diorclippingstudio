@@ -124,6 +124,23 @@ settingsRouter.post("/api-keys", (req: Request, res: Response) => {
     }
   }
 
+  // Sinkronisasi otomatis alias kurasi (CURATION <-> CURATOR)
+  if (sanitizedUpdates["GEMINI_API_KEY_CURATION"] && !sanitizedUpdates["GEMINI_API_KEY_CURATOR"]) {
+    sanitizedUpdates["GEMINI_API_KEY_CURATOR"] = sanitizedUpdates["GEMINI_API_KEY_CURATION"];
+    process.env["GEMINI_API_KEY_CURATOR"] = sanitizedUpdates["GEMINI_API_KEY_CURATION"];
+  } else if (sanitizedUpdates["GEMINI_API_KEY_CURATOR"] && !sanitizedUpdates["GEMINI_API_KEY_CURATION"]) {
+    sanitizedUpdates["GEMINI_API_KEY_CURATION"] = sanitizedUpdates["GEMINI_API_KEY_CURATOR"];
+    process.env["GEMINI_API_KEY_CURATION"] = sanitizedUpdates["GEMINI_API_KEY_CURATOR"];
+  }
+
+  if (sanitizedUpdates["GEMINI_API_KEY_CURATION_BACKUP"] && !sanitizedUpdates["GEMINI_API_KEY_CURATOR_BACKUP"]) {
+    sanitizedUpdates["GEMINI_API_KEY_CURATOR_BACKUP"] = sanitizedUpdates["GEMINI_API_KEY_CURATION_BACKUP"];
+    process.env["GEMINI_API_KEY_CURATOR_BACKUP"] = sanitizedUpdates["GEMINI_API_KEY_CURATION_BACKUP"];
+  } else if (sanitizedUpdates["GEMINI_API_KEY_CURATOR_BACKUP"] && !sanitizedUpdates["GEMINI_API_KEY_CURATION_BACKUP"]) {
+    sanitizedUpdates["GEMINI_API_KEY_CURATION_BACKUP"] = sanitizedUpdates["GEMINI_API_KEY_CURATOR_BACKUP"];
+    process.env["GEMINI_API_KEY_CURATION_BACKUP"] = sanitizedUpdates["GEMINI_API_KEY_CURATOR_BACKUP"];
+  }
+
   // Update .env files across all directories
   const envPaths = getEnvFilePaths();
   const writtenPaths: string[] = [];
