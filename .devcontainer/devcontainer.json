@@ -16,7 +16,7 @@
       "visibility": "public"
     }
   },
-  "postCreateCommand": "bash .devcontainer/setup.sh || true",
+  "postCreateCommand": "sed -i 's/\\r$//' .devcontainer/setup.sh && bash .devcontainer/setup.sh || true",
   "customizations": {
     "vscode": {
       "extensions": [
