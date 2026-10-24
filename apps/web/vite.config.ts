@@ -31,6 +31,8 @@ export default defineConfig(({ command, mode }) => {
       host: "0.0.0.0",
       port,
       strictPort: true,
+      allowedHosts: true,
+      cors: true,
       proxy: {
         "/api": {
           target: apiTarget,
@@ -42,6 +44,13 @@ export default defineConfig(({ command, mode }) => {
           changeOrigin: true,
         },
       },
+    },
+    preview: {
+      host: "0.0.0.0",
+      port,
+      strictPort: true,
+      allowedHosts: true,
+      cors: true,
     },
     // node-server emits .output/server/index.mjs, a portable Node server that
     // honors PORT and HOST. The Dockerfile ships only that folder.

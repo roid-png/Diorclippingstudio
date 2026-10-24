@@ -40,9 +40,11 @@ const server = app.listen(PORT, HOST, async (error) => {
 
   console.log("\n=======================================================");
   console.log("🎬 DIOR Clipping Studio - Backend API & Media Server");
-  console.log(`🚀 Server listening on: http://${HOST}:${PORT}`);
-  console.log("🌐 Codespaces Status: Host 0.0.0.0 (Port 5000 Public Forwarded)");
+  console.log(`🚀 Backend Port: ${PORT} (Host: ${HOST})`);
   console.log(`💾 Database status: ${database}`);
+  console.log("🌐 Akses Studio di Codespaces: Buka Port 3000 dari Tab PORTS");
+  console.log("💡 Catatan: Jangan ketik 'localhost' di browser laptop Anda,");
+  console.log("    klik link '.app.github.dev' dari Tab PORTS di VS Code!");
   console.log("=======================================================\n");
 
   try {
