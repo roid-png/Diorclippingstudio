@@ -1,7 +1,18 @@
 import "../apps/api/src/load-env";
+import fs from "node:fs";
+import path from "node:path";
 import { createApp } from "../apps/api/src/app";
 import { checkDatabase } from "../apps/api/src/db";
 import { logger } from "../apps/api/src/lib/logger";
+
+// Safeguard: Pastikan .env selalu ada dari .env.example
+const cwdEnv = path.resolve(process.cwd(), ".env");
+const cwdEnvEx = path.resolve(process.cwd(), ".env.example");
+if (!fs.existsSync(cwdEnv) && fs.existsSync(cwdEnvEx)) {
+  try {
+    fs.copyFileSync(cwdEnvEx, cwdEnv);
+  } catch {}
+}
 
 // Port configuration: Codespaces forwardPorts [3000, 5000]
 const PORT = Number(process.env.PORT || 5000);

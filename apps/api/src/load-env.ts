@@ -7,6 +7,15 @@ import { fileURLToPath } from "node:url";
 // for application settings and API keys.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
+// Pastikan file .env selalu ada dari .env.example jika belum ada
+const rootEnv = resolve(root, ".env");
+const rootExample = resolve(root, ".env.example");
+if (!fs.existsSync(rootEnv) && fs.existsSync(rootExample)) {
+  try {
+    fs.copyFileSync(rootExample, rootEnv);
+  } catch {}
+}
+
 for (const name of [".env", ".env.local", "backend/.env", "apps/api/.env"]) {
   const filePath = resolve(root, name);
   try {

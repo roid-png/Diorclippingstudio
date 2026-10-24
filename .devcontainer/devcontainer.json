@@ -1,8 +1,6 @@
 {
   "name": "Dior Clipping Studio (Codespaces)",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:22-bookworm",
-  "features": {},
-  "overrideCommand": false,
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
   "forwardPorts": [3000, 5000],
   "portsAttributes": {
     "3000": {
@@ -16,7 +14,7 @@
       "visibility": "public"
     }
   },
-  "postCreateCommand": "bash .devcontainer/setup.sh || true",
+  "postCreateCommand": "bash .devcontainer/setup.sh",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -26,4 +24,3 @@
     }
   }
 }
-

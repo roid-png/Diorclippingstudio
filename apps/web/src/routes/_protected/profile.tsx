@@ -10,6 +10,8 @@ import {
   AlertCircle,
   Key,
   Upload,
+  Download,
+  Copy,
   Eye,
   EyeOff,
   Activity,
@@ -207,20 +209,57 @@ function ProfilePage() {
     fetchApiKeys();
   }, []);
 
+  const STORAGE_KEY = "dior_clipping_api_keys";
+
   const fetchApiKeys = async () => {
     setIsLoadingKeys(true);
+    let localBackup: Record<string, string> = {};
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) localBackup = JSON.parse(raw);
+    } catch {}
+
     try {
       const res = await fetch(`${API_URL}/api/settings/api-keys`);
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
-          setApiKeys(json.data);
-          // Initial background check
-          runKeysCheck(json.data);
+          const serverKeys: Record<string, string> = json.data;
+          const serverHasKeys = Object.values(serverKeys).some((v) => v && v.length > 5);
+          const localHasKeys = Object.values(localBackup).some((v) => v && v.length > 5);
+
+          if (!serverHasKeys && localHasKeys) {
+            // Server kosong (misal Codespace baru dibuat atau restart), pulihkan otomatis dari browser!
+            setApiKeys(localBackup);
+            fetch(`${API_URL}/api/settings/api-keys`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ keys: localBackup }),
+            }).then(() => {
+              showToast("Kunci API otomatis dipulihkan dari browser lokal ke server .env!");
+              runKeysCheck(localBackup);
+            }).catch(() => {
+              runKeysCheck(localBackup);
+            });
+          } else {
+            const merged = { ...localBackup, ...serverKeys };
+            setApiKeys(merged);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+            runKeysCheck(merged);
+          }
         }
+      } else if (Object.keys(localBackup).length > 0) {
+        setApiKeys(localBackup);
+        runKeysCheck(localBackup);
       }
     } catch {
-      showToast("Gagal memuat API Keys dari server.");
+      if (Object.keys(localBackup).length > 0) {
+        setApiKeys(localBackup);
+        showToast("Server offline. Kunci API dimuat dari penyimpanan lokal browser.");
+        runKeysCheck(localBackup);
+      } else {
+        showToast("Gagal memuat API Keys dari server.");
+      }
     } finally {
       setIsLoadingKeys(false);
     }
@@ -301,6 +340,11 @@ function ProfilePage() {
   // Save all keys to all directory .env files and runtime environment
   const handleSaveAllKeys = async () => {
     setIsSavingKeys(true);
+    // Simpan ke localStorage browser seketika agar tidak pernah hilang
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(apiKeys));
+    } catch {}
+
     try {
       const res = await fetch(`${API_URL}/api/settings/api-keys`, {
         method: "POST",
@@ -309,14 +353,14 @@ function ProfilePage() {
       });
       const json = await res.json();
       if (res.ok && json.success) {
-        showToast(json.message || "Semua API Keys berhasil diperbarui ke sistem!");
+        showToast(json.message || "Semua API Keys berhasil disimpan ke sistem & browser!");
         // Re-check keys health
         runKeysCheck(apiKeys);
       } else {
-        showToast(json.message || "Gagal menyimpan kunci ke sistem.");
+        showToast(json.message || "Tersimpan di browser, tetapi gagal menulis ke server.");
       }
     } catch {
-      showToast("Gagal menghubungi server untuk menyimpan kunci.");
+      showToast("Tersimpan di browser lokal, server sedang offline.");
     } finally {
       setIsSavingKeys(false);
     }
@@ -351,11 +395,45 @@ function ProfilePage() {
       }
 
       setApiKeys(extracted);
-      showToast(`${count} kunci API berhasil diimpor dari file! Klik 'Simpan ke Sistem' untuk menerapkan.`);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(extracted));
+      } catch {}
+      showToast(`${count} kunci API berhasil diimpor! Klik 'Simpan ke Sistem' untuk menerapkan.`);
       runKeysCheck(extracted);
     };
     reader.readAsText(file);
     e.target.value = "";
+  };
+
+  // Download .env file to user computer
+  const handleDownloadEnvFile = () => {
+    const lines = [
+      "# ===================================================================",
+      "# DIOR CLIPPING STUDIO - CADANGAN KUNCI API (.ENV)",
+      "# ===================================================================",
+      "",
+    ];
+    for (const [k, v] of Object.entries(apiKeys)) {
+      if (v) lines.push(`${k}="${v}"`);
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = ".env";
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("File .env berhasil diunduh ke komputer Anda!");
+  };
+
+  // Copy .env format to clipboard
+  const handleCopyEnvToClipboard = () => {
+    const lines: string[] = [];
+    for (const [k, v] of Object.entries(apiKeys)) {
+      if (v) lines.push(`${k}="${v}"`);
+    }
+    navigator.clipboard.writeText(lines.join("\n"));
+    showToast("Format .env berhasil disalin ke clipboard!");
   };
 
   // Test single key directly
@@ -581,7 +659,29 @@ function ProfilePage() {
               title="Upload file .env untuk mengisi semua kolom kunci secara otomatis"
             >
               <Upload className="w-3.5 h-3.5" />
-              <span>Upload File .env</span>
+              <span>Import .env</span>
+            </button>
+
+            {/* Download Backup .env */}
+            <button
+              type="button"
+              onClick={handleDownloadEnvFile}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#112a30] hover:bg-[#16373f] border border-[#20b2aa]/40 text-[#2cd3c6] text-xs font-semibold transition active:scale-95 cursor-pointer"
+              title="Unduh cadangan .env ke komputer Anda"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download .env</span>
+            </button>
+
+            {/* Copy .env format to clipboard */}
+            <button
+              type="button"
+              onClick={handleCopyEnvToClipboard}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#112a30] hover:bg-[#16373f] border border-[#20b2aa]/40 text-[#2cd3c6] text-xs font-semibold transition active:scale-95 cursor-pointer"
+              title="Salin seluruh kunci dalam format .env ke clipboard"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              <span>Salin Teks</span>
             </button>
 
             {/* Live Refresh Status Button */}
