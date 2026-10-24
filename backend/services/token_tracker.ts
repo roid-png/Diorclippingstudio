@@ -139,3 +139,4 @@ class TokenTrackerService extends EventEmitter {
 }
 
 export const tokenTracker = new TokenTrackerService();
+

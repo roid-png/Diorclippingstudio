@@ -38,6 +38,20 @@ export default defineConfig(({ command, mode }) => {
           target: apiTarget,
           changeOrigin: true,
           ws: true,
+          configure: (proxy) => {
+            proxy.on("error", (_err, _req, res) => {
+              if (res && "writeHead" in res && !res.headersSent) {
+                res.writeHead(503, { "Content-Type": "application/json" });
+                res.end(
+                  JSON.stringify({
+                    success: false,
+                    error: "BACKEND_UNAVAILABLE",
+                    message: "Backend server belum aktif atau sedang memuat. Pastikan backend berjalan pada port 5000.",
+                  }),
+                );
+              }
+            });
+          },
         },
         "/outputs": {
           target: apiTarget,

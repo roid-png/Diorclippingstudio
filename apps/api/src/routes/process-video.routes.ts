@@ -38,14 +38,16 @@ const upload = multer({
   limits: { fileSize: 2 * 1024 * 1024 * 1024 }, // 2GB max
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if ([".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"].includes(ext)) {
+    const isVideo = [".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"].includes(ext);
+    const isAudio = [".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"].includes(ext);
+    if (isVideo || isAudio) {
       cb(null, true);
     } else {
       cb(
         new HttpError(
           400,
           "INVALID_FILE_TYPE",
-          "Format file tidak didukung. Harap upload video MP4 atau MOV (maksimal 2GB)."
+          "Format file tidak didukung. Harap upload video MP4/MOV atau audio MP3/WAV (maksimal 2GB)."
         )
       );
     }
@@ -122,9 +124,41 @@ processVideoRouter.post("/upload-chunk", chunkUpload.single("chunk"), async (req
   }
 });
 
+/**
+ * POST /api/process-video/upload-bgm
+ * Menerima file musik latar kustom (MP3, WAV, M4A) dari Dashboard Studio.
+ */
+processVideoRouter.post("/upload-bgm", upload.single("bgm"), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "File musik latar (BGM) tidak ditemukan dalam request.",
+      });
+    }
+
+    console.log(`[BGMUpload] Berhasil mengunggah musik latar: ${req.file.originalname} (${(req.file.size / 1024 / 1024).toFixed(2)}MB)`);
+    return res.status(200).json({
+      success: true,
+      bgmAudioPath: req.file.path,
+      originalName: req.file.originalname,
+      size: req.file.size,
+    });
+  } catch (err: any) {
+    console.error("[BGMUpload] Gagal mengunggah musik latar:", err);
+    return res.status(500).json({
+      success: false,
+      message: err?.message || "Gagal mengunggah musik latar.",
+    });
+  }
+});
+
 const uploadMiddleware = upload.fields([
   { name: "video", maxCount: 1 },
   { name: "file", maxCount: 1 },
+  { name: "bgmAudio", maxCount: 1 },
+  { name: "bgm_audio", maxCount: 1 },
+  { name: "bgm", maxCount: 1 },
 ]);
 
 /**
@@ -216,6 +250,13 @@ processVideoRouter.post("/", (req: Request, res: Response, next) => {
       }
     }
   }
+
+  // Check custom uploaded background music (MP3/WAV)
+  const directBgmFile = files?.["bgmAudio"]?.[0] || files?.["bgm_audio"]?.[0] || files?.["bgm"]?.[0];
+  const bgmAudioPath = directBgmFile?.path || (typeof req.body?.bgmAudioPath === "string" ? req.body.bgmAudioPath : undefined);
+  const enableBgmDucking = req.body?.enableBgmDucking !== undefined ? (req.body.enableBgmDucking === "true" || req.body.enableBgmDucking === true) : true;
+  const bgmBaseVolume = typeof req.body?.bgmBaseVolume === "number" ? req.body.bgmBaseVolume : parseFloat(req.body?.bgmBaseVolume) || 0.15;
+  const duckingDepthDb = typeof req.body?.duckingDepthDb === "number" ? req.body.duckingDepthDb : parseFloat(req.body?.duckingDepthDb) || -20;
 
   // Check YouTube URL
   const rawYoutubeUrl = req.body?.youtube_url || req.body?.youtubeUrl;
@@ -337,6 +378,10 @@ processVideoRouter.post("/", (req: Request, res: Response, next) => {
         enableCloneTopMotion,
         enableCloneBottomMotion,
         jobId,
+        bgmAudioPath,
+        enableBgmDucking,
+        bgmBaseVolume,
+        duckingDepthDb,
       });
     } else {
       console.log(`[ProcessVideo] Memproses tautan YouTube: ${youtubeUrl} (mode: ${pipelineMode}, font: ${subtitleFont})`);
@@ -361,6 +406,10 @@ processVideoRouter.post("/", (req: Request, res: Response, next) => {
         enableCloneTopMotion,
         enableCloneBottomMotion,
         jobId,
+        bgmAudioPath,
+        enableBgmDucking,
+        bgmBaseVolume,
+        duckingDepthDb,
       });
     }
 

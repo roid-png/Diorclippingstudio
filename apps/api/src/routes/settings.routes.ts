@@ -28,6 +28,7 @@ export const RECOGNIZED_KEY_NAMES = [
   // Groq
   "GROQ_API_KEY_PRIMARY",
   "GROQ_API_KEY_BACKUP",
+  "GROQ_API_KEY_BACKSOUND",
   "GROQ_API_KEY",
 ] as const;
 

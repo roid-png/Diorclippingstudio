@@ -102,3 +102,4 @@ export function createCubicBezier(mX1: number, mY1: number, mX2: number, mY2: nu
 
 export const CLONE_POP_EASING = createCubicBezier(0.25, 1, 0.5, 1);
 export const CLONE_CAMERA_EASING = createCubicBezier(0.16, 1, 0.3, 1);
+

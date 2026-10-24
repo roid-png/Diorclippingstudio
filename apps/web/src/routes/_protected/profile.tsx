@@ -162,6 +162,14 @@ const KEY_DEFINITIONS: KeyDefinition[] = [
     quotaRule: "20 RPM • 2,000 RPD • 30k TPM",
   },
   {
+    name: "GROQ_API_KEY_BACKSOUND",
+    label: "Groq Backsound AI Matcher",
+    type: "groq",
+    role: "primary",
+    description: "Analisis mood & pencocokan momen ritme beat musik latar dengan isi video",
+    quotaRule: "30 RPM • 14,400 RPD • 500k TPM",
+  },
+  {
     name: "GROQ_API_KEY_BACKUP",
     label: "Groq Whisper (Cadangan)",
     type: "groq",
@@ -317,7 +325,7 @@ function ProfilePage() {
         showToast("Server offline. Kunci API dimuat dari penyimpanan lokal browser.");
         runKeysCheck(localBackup);
       } else {
-        showToast("Gagal memuat API Keys dari server.");
+        showToast("Sedang menyambungkan ke backend API... Silakan klik 'Refresh Status Limit' setelah server aktif.");
       }
     } finally {
       setIsLoadingKeys(false);

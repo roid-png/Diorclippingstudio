@@ -249,17 +249,17 @@ export function PresetsManagementPage() {
         body: JSON.stringify(payload),
       });
 
-      const result = await res.json();
-      if (result.success) {
+      const result = await res.json().catch(() => ({}));
+      if (res.ok && result.success) {
         setFeedbackMessage(`Preset "${result.data.name}" berhasil disimpan ke server!`);
         setTimeout(() => setFeedbackMessage(null), 3500);
         setIsModalOpen(false);
         await fetchPresets();
       } else {
-        alert(result.message || "Gagal menyimpan preset.");
+        alert(result.message || (res.status === 503 ? "Backend server sedang memuat, silakan coba beberapa detik lagi." : "Gagal menyimpan preset."));
       }
     } catch (err: any) {
-      alert(err?.message || "Terjadi kesalahan jaringan.");
+      alert("Koneksi ke backend terputus atau server sedang restart. Pastikan backend aktif (port 5000) lalu coba kembali.");
     } finally {
       setIsSaving(false);
     }

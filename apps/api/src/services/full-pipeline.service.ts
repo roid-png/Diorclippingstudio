@@ -55,6 +55,7 @@ import {
   getActiveTempCloneBlueprint,
   type UniversalParametricBlueprint,
 } from "./clone_engine";
+import { matchOptimalBgmOffsetWithGroq, sliceBgmForClip } from "./audio_mixer";
 import { pLimit } from "../utils/p-limit";
 import { cleanupTempFiles } from "./cleanup.service";
 import { HttpError } from "../lib/http-error";
@@ -103,6 +104,10 @@ export interface PipelineGenerateInput {
   enableTopMotion?: boolean;
   enableBottomMotion?: boolean;
   jobId?: string;
+  bgmAudioPath?: string;
+  enableBgmDucking?: boolean;
+  bgmBaseVolume?: number;
+  duckingDepthDb?: number;
 }
 
 export interface GeneratedClipResult {
@@ -679,6 +684,33 @@ export async function executeRealPipeline(input: PipelineGenerateInput): Promise
         }
       }
 
+      // [FASE 1: BGM PREPARATION & GROQ AI BACKSOUND MOMENT MATCHER]
+      let clipBgmPath: string | undefined = undefined;
+      const userBgm = input.bgmAudioPath;
+      if (userBgm && fs.existsSync(userBgm)) {
+        try {
+          const matchResult = await matchOptimalBgmOffsetWithGroq({
+            bgmPath: userBgm,
+            clipDurationSec: moment.duration,
+            clipTitle: moment.title,
+            clipTranscript: fullClipTranscript || moment.hook_description,
+          });
+          const destCutBgm = path.join(clipDir, `bgm_cut_${clipId}.wav`);
+          await sliceBgmForClip({
+            inputBgmPath: userBgm,
+            outputBgmPath: destCutBgm,
+            startOffsetSec: matchResult.startOffsetSec,
+            durationSec: moment.duration,
+          });
+          if (fs.existsSync(destCutBgm)) {
+            clipBgmPath = destCutBgm;
+            console.log(`[AudioMixer] Klip #${i + 1} BGM siap (offset: ${matchResult.startOffsetSec}s, durasi: ${moment.duration}s): ${matchResult.reason}`);
+          }
+        } catch (bgmErr: any) {
+          console.warn(`[AudioMixer] BGM matching notice klip #${i + 1}:`, bgmErr?.message);
+        }
+      }
+
       // 5. Render Vertical 9:16 Video (Router: Universal Clone Engine vs Regular Pipeline)
       const activeBlueprint = input.tempCloneBlueprint || getActiveTempCloneBlueprint();
       const isUniversalCloneMode =
@@ -705,6 +737,9 @@ export async function executeRealPipeline(input: PipelineGenerateInput): Promise
               enableBottomMotion: isCloneBottomMotion,
               animatedHeaderTrackPath: isCloneTopMotion ? animatedHeaderTrackPath : undefined,
               accentColor: preset.accentColor || "#2cd3c6",
+              bgmFilePath: clipBgmPath,
+              bgmBaseVolume: input.bgmBaseVolume ?? 0.15,
+              duckingDepthDb: input.duckingDepthDb ?? -20,
             })
           );
         } else {
@@ -730,6 +765,9 @@ export async function executeRealPipeline(input: PipelineGenerateInput): Promise
               preset,
               tempJobDir: clipDir, // auto-cleanup clipDir when done
               enableMotionGraphic: shouldGenerateMotionHeader,
+              bgmFilePath: clipBgmPath,
+              bgmBaseVolume: input.bgmBaseVolume ?? 0.15,
+              duckingDepthDb: input.duckingDepthDb ?? -20,
             })
           );
         }
@@ -918,6 +956,10 @@ export interface DirectUploadPipelineInput {
   enableTopMotion?: boolean;
   enableBottomMotion?: boolean;
   jobId?: string;
+  bgmAudioPath?: string;
+  enableBgmDucking?: boolean;
+  bgmBaseVolume?: number;
+  duckingDepthDb?: number;
 }
 
 /**
@@ -1535,6 +1577,33 @@ export async function executeDirectVideoUploadPipeline(
         }
       }
 
+      // [FASE 1: BGM PREPARATION & GROQ AI BACKSOUND MOMENT MATCHER]
+      let clipBgmPath: string | undefined = undefined;
+      const userBgm = input.bgmAudioPath;
+      if (userBgm && fs.existsSync(userBgm)) {
+        try {
+          const matchResult = await matchOptimalBgmOffsetWithGroq({
+            bgmPath: userBgm,
+            clipDurationSec: moment.duration,
+            clipTitle: moment.title,
+            clipTranscript: fullClipTranscript || moment.hook_description,
+          });
+          const destCutBgm = path.join(clipDir, `bgm_cut_${clipId}.wav`);
+          await sliceBgmForClip({
+            inputBgmPath: userBgm,
+            outputBgmPath: destCutBgm,
+            startOffsetSec: matchResult.startOffsetSec,
+            durationSec: moment.duration,
+          });
+          if (fs.existsSync(destCutBgm)) {
+            clipBgmPath = destCutBgm;
+            console.log(`[AudioMixer] Klip #${i + 1} BGM siap (offset: ${matchResult.startOffsetSec}s, durasi: ${moment.duration}s): ${matchResult.reason}`);
+          }
+        } catch (bgmErr: any) {
+          console.warn(`[AudioMixer] BGM matching notice klip #${i + 1}:`, bgmErr?.message);
+        }
+      }
+
       // Render 9:16 vertical clip (Router: Universal Clone Engine vs Regular Pipeline)
       const activeBlueprint = input.tempCloneBlueprint || getActiveTempCloneBlueprint();
       const isUniversalCloneMode =
@@ -1561,6 +1630,9 @@ export async function executeDirectVideoUploadPipeline(
               enableBottomMotion: isCloneBottomMotion,
               animatedHeaderTrackPath: isCloneTopMotion ? animatedHeaderTrackPath : undefined,
               accentColor: preset.accentColor || "#2cd3c6",
+              bgmFilePath: clipBgmPath,
+              bgmBaseVolume: input.bgmBaseVolume ?? 0.15,
+              duckingDepthDb: input.duckingDepthDb ?? -20,
             })
           );
         } else {
@@ -1586,6 +1658,9 @@ export async function executeDirectVideoUploadPipeline(
               preset,
               tempJobDir: clipDir, // auto-cleanup clipDir when done
               enableMotionGraphic: shouldGenerateMotionHeader,
+              bgmFilePath: clipBgmPath,
+              bgmBaseVolume: input.bgmBaseVolume ?? 0.15,
+              duckingDepthDb: input.duckingDepthDb ?? -20,
             })
           );
         }

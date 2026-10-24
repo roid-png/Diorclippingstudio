@@ -74,6 +74,11 @@ function StudioPotongVideoPage() {
   const [enableCloneTopMotion, setEnableCloneTopMotion] = useState<boolean>(false);
   const [enableCloneBottomMotion, setEnableCloneBottomMotion] = useState<boolean>(false);
 
+  // Fase 1: Custom Background Music (BGM) & Auto-Ducking
+  const [uploadedBgmFile, setUploadedBgmFile] = useState<File | null>(null);
+  const [enableBgmDucking, setEnableBgmDucking] = useState<boolean>(true);
+  const [bgmBaseVolume, setBgmBaseVolume] = useState<number>(0.15);
+
   // Processing telemetry
   const [status, setStatus] = useState<ProcessingStatus>("idle");
   const [statusMessage, setStatusMessage] = useState<string>("");
@@ -358,6 +363,9 @@ function StudioPotongVideoPage() {
     setEnablePolish(true);
     setEnableCloneTopMotion(false);
     setEnableCloneBottomMotion(false);
+    setUploadedBgmFile(null);
+    setEnableBgmDucking(true);
+    setBgmBaseVolume(0.15);
     setClips([]);
     setStatus("idle");
     setStatusMessage("");
@@ -732,6 +740,28 @@ function StudioPotongVideoPage() {
     try {
       let response: Response;
 
+      // Upload file musik latar kustom (BGM) jika ada
+      let uploadedBgmPathToUse: string | undefined = undefined;
+      if (uploadedBgmFile) {
+        setStatusMessage("Mengunggah musik latar kustom (BGM)...");
+        const bgmFormData = new FormData();
+        bgmFormData.append("bgm", uploadedBgmFile);
+        try {
+          const bgmRes = await fetch(`${API_URL}/api/process-video/upload-bgm`, {
+            method: "POST",
+            body: bgmFormData,
+          });
+          if (bgmRes.ok) {
+            const bgmData = await bgmRes.json().catch(() => ({}));
+            if (bgmData.success && bgmData.bgmAudioPath) {
+              uploadedBgmPathToUse = bgmData.bgmAudioPath;
+            }
+          }
+        } catch (bgmErr) {
+          console.warn("[BGM] Gagal upload BGM terpisah, fallback otomatis:", bgmErr);
+        }
+      }
+
       if (inputMode === "upload" && uploadedVideoFile) {
         let uploadIdToUse: string | null = null;
 
@@ -781,6 +811,10 @@ function StudioPotongVideoPage() {
               jobId,
               uploadId: uploadIdToUse,
               originalFileName: uploadedVideoFile.name,
+              bgmAudioPath: uploadedBgmPathToUse,
+              enableBgmDucking,
+              bgmBaseVolume,
+              duckingDepthDb: -20,
               clipCount,
               maxClips: clipCount,
               targetDuration,
@@ -804,6 +838,14 @@ function StudioPotongVideoPage() {
           const formData = new FormData();
           formData.append("jobId", jobId);
           formData.append("video", uploadedVideoFile);
+          if (uploadedBgmPathToUse) {
+            formData.append("bgmAudioPath", uploadedBgmPathToUse);
+          } else if (uploadedBgmFile) {
+            formData.append("bgmAudio", uploadedBgmFile);
+          }
+          formData.append("enableBgmDucking", String(enableBgmDucking));
+          formData.append("bgmBaseVolume", String(bgmBaseVolume));
+          formData.append("duckingDepthDb", "-20");
           formData.append("clipCount", String(clipCount));
           formData.append("maxClips", String(clipCount));
           formData.append("targetDuration", String(targetDuration));
@@ -835,6 +877,10 @@ function StudioPotongVideoPage() {
           body: JSON.stringify({
             jobId,
             youtubeUrl: youtubeUrl.trim(),
+            bgmAudioPath: uploadedBgmPathToUse,
+            enableBgmDucking,
+            bgmBaseVolume,
+            duckingDepthDb: -20,
             clipCount,
             maxClips: clipCount,
             targetDuration,
@@ -981,6 +1027,12 @@ function StudioPotongVideoPage() {
         setEnableCloneTopMotion={setEnableCloneTopMotion}
         enableCloneBottomMotion={enableCloneBottomMotion}
         setEnableCloneBottomMotion={setEnableCloneBottomMotion}
+        uploadedBgmFile={uploadedBgmFile}
+        setUploadedBgmFile={setUploadedBgmFile}
+        enableBgmDucking={enableBgmDucking}
+        setEnableBgmDucking={setEnableBgmDucking}
+        bgmBaseVolume={bgmBaseVolume}
+        setBgmBaseVolume={setBgmBaseVolume}
         status={status}
         statusMessage={statusMessage}
         onGenerate={handleGenerate}

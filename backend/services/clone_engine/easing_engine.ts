@@ -113,3 +113,4 @@ export const CLONE_POP_EASING = createCubicBezier(0.25, 1, 0.5, 1);
  * cubic-bezier(0.16, 1, 0.3, 1) -> Ultra smooth cinematic drift
  */
 export const CLONE_CAMERA_EASING = createCubicBezier(0.16, 1, 0.3, 1);
+

@@ -19,6 +19,7 @@ import {
   Type,
   Wand2,
   Check,
+  Music,
 } from "lucide-react";
 
 function YoutubeIcon(props: SVGProps<SVGSVGElement>) {
@@ -107,6 +108,14 @@ export interface StudioControlPanelProps {
   enableCloneBottomMotion?: boolean;
   setEnableCloneBottomMotion?: (enabled: boolean) => void;
 
+  // Fase 1: Custom Background Music (BGM) Upload
+  uploadedBgmFile?: File | null;
+  setUploadedBgmFile?: (file: File | null) => void;
+  enableBgmDucking?: boolean;
+  setEnableBgmDucking?: (enabled: boolean) => void;
+  bgmBaseVolume?: number;
+  setBgmBaseVolume?: (vol: number) => void;
+
   // System & Action Props
   status: string;
   statusMessage: string;
@@ -182,6 +191,12 @@ export function StudioControlPanel(props: StudioControlPanelProps) {
     setEnableCinematicHook,
     colorPolish,
     setColorPolish,
+    uploadedBgmFile,
+    setUploadedBgmFile,
+    enableBgmDucking = true,
+    setEnableBgmDucking,
+    bgmBaseVolume = 0.15,
+    setBgmBaseVolume,
   } = props;
 
   // Resolve values with fallback to backward-compat aliases
@@ -217,6 +232,7 @@ export function StudioControlPanel(props: StudioControlPanelProps) {
 
   const refFileInputRef = useRef<HTMLInputElement>(null);
   const videoFileInputRef = useRef<HTMLInputElement>(null);
+  const bgmFileInputRef = useRef<HTMLInputElement>(null);
   const [pasteNotice, setPasteNotice] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
@@ -857,6 +873,92 @@ export function StudioControlPanel(props: StudioControlPanelProps) {
                   <FileText className="w-3 h-3 text-[#2cd3c6] shrink-0" />
                   <span className="truncate">{refFileName}</span>
                   <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                </div>
+              )}
+            </div>
+
+            {/* Custom Background Music (BGM) Upload & Auto-Ducking */}
+            <div className="mb-3.5 pt-2 border-t border-[#18343b]">
+              <div className="flex items-center justify-between pb-1.5 mb-1.5">
+                <span className="text-[10px] font-bold tracking-wider uppercase text-[#2cd3c6] flex items-center gap-1.5">
+                  <Music className="w-3 h-3 text-[#2cd3c6]" />
+                  Custom Backsound MP3
+                </span>
+                <span className="text-[9px] text-[#719097] font-medium">Groq AI Matcher</span>
+              </div>
+
+              <input
+                type="file"
+                ref={bgmFileInputRef}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setUploadedBgmFile?.(file);
+                  }
+                }}
+                accept="audio/*,.mp3,.wav,.m4a,.aac"
+                className="hidden"
+              />
+
+              {!uploadedBgmFile ? (
+                <button
+                  type="button"
+                  onClick={() => bgmFileInputRef.current?.click()}
+                  disabled={isProcessing}
+                  className="w-full h-8 border border-dashed border-[#20444d] bg-[#0b1a1e] hover:bg-[#132c32] hover:border-[#2cd3c6]/60 rounded-lg px-2.5 text-[11px] text-[#93adb3] flex items-center justify-center gap-2 transition cursor-pointer select-none group"
+                >
+                  <Music className="w-3.5 h-3.5 text-[#2cd3c6] group-hover:scale-110 transition-transform" />
+                  <span>Pilih Musik Backsound (MP3/WAV)</span>
+                </button>
+              ) : (
+                <div className="flex items-center justify-between p-2 rounded-lg bg-[#0f282e] border border-[#2cd3c6]/50 shadow-sm">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Music className="w-3.5 h-3.5 text-[#2cd3c6] shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[11px] font-bold text-white truncate">
+                        {uploadedBgmFile.name}
+                      </span>
+                      <span className="text-[9px] text-[#2cd3c6]">
+                        {(uploadedBgmFile.size / 1024 / 1024).toFixed(1)} MB • Auto-cut {targetDuration}s (Groq AI)
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadedBgmFile?.(null);
+                      if (bgmFileInputRef.current) bgmFileInputRef.current.value = "";
+                    }}
+                    disabled={isProcessing}
+                    className="p-1 rounded text-rose-400 hover:text-white hover:bg-rose-900/50 transition cursor-pointer shrink-0"
+                    title="Hapus file musik"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Auto-Ducking Info & Toggle */}
+              {uploadedBgmFile && (
+                <div className="flex items-center justify-between p-2 rounded-lg bg-[#0b1a1e] border border-[#18343b] mt-1.5">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-semibold text-white">Auto-Ducking Vokal (-20dB)</span>
+                    <span className="text-[9px] text-[#719097]">Musik mengecil saat vokal bicara (Hook 4.5s)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEnableBgmDucking?.(!enableBgmDucking)}
+                    disabled={isProcessing}
+                    className={`w-9 h-4.5 flex items-center rounded-full p-0.5 transition cursor-pointer shrink-0 ${
+                      enableBgmDucking ? "bg-[#2cd3c6] justify-end" : "bg-[#18343b] justify-start"
+                    }`}
+                  >
+                    <span
+                      className={`w-3.5 h-3.5 rounded-full bg-white shadow-md transform transition ${
+                        enableBgmDucking ? "bg-[#0b171a]" : "bg-gray-400"
+                      }`}
+                    />
+                  </button>
                 </div>
               )}
             </div>

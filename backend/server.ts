@@ -85,5 +85,12 @@ async function shutdown(signal: string) {
 process.once("SIGTERM", () => shutdown("SIGTERM"));
 process.once("SIGINT", () => shutdown("SIGINT"));
 
+process.on("unhandledRejection", (reason) => {
+  logger.error({ err: reason }, "[BackendServer] Unhandled promise rejection (server kept alive)");
+});
+process.on("uncaughtException", (err) => {
+  logger.error({ err }, "[BackendServer] Uncaught exception (server kept alive)");
+});
+
 export default server;
 

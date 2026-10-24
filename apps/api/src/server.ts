@@ -62,12 +62,20 @@ process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));
 
 process.on("unhandledRejection", (reason) => {
-  logger.fatal({ err: reason }, "Unhandled promise rejection");
-  logger.flush();
-  process.exit(1);
+  if (env.isProduction) {
+    logger.fatal({ err: reason }, "Unhandled promise rejection");
+    logger.flush();
+    process.exit(1);
+  } else {
+    logger.error({ err: reason }, "Unhandled promise rejection (kept alive in dev mode)");
+  }
 });
 process.on("uncaughtException", (err) => {
-  logger.fatal({ err }, "Uncaught exception");
-  logger.flush();
-  process.exit(1);
+  if (env.isProduction) {
+    logger.fatal({ err }, "Uncaught exception");
+    logger.flush();
+    process.exit(1);
+  } else {
+    logger.error({ err }, "Uncaught exception (kept alive in dev mode)");
+  }
 });

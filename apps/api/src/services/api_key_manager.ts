@@ -18,6 +18,7 @@ const DEFAULT_GEMINI_STYLE_CLONER_BACKUP = process.env.GEMINI_API_KEY_STYLE_CLON
 
 const DEFAULT_GROQ_PRIMARY = process.env.GROQ_API_KEY_PRIMARY || process.env.GROQ_API_KEY || "";
 const DEFAULT_GROQ_BACKUP = process.env.GROQ_API_KEY_BACKUP || "";
+const DEFAULT_GROQ_BACKSOUND = process.env.GROQ_API_KEY_BACKSOUND || process.env.GROQ_API_KEY_PRIMARY || "";
 
 export interface GeminiKeyEntry {
   key: string;
@@ -337,6 +338,15 @@ export interface GroqKeyEntry {
   label: "PRIMARY" | "BACKUP";
 }
 
+export function getGroqBacksoundKey(): string {
+  const custom = sanitizeKey(
+    process.env.GROQ_API_KEY_BACKSOUND,
+    DEFAULT_GROQ_BACKSOUND
+  );
+  if (custom && custom.length > 10) return custom;
+  return getGroqKeys()[0]!.key;
+}
+
 export function getGroqKeys(): GroqKeyEntry[] {
   const primary =
     process.env.GROQ_API_KEY_PRIMARY ||
@@ -345,8 +355,12 @@ export function getGroqKeys(): GroqKeyEntry[] {
   const backup =
     process.env.GROQ_API_KEY_BACKUP ||
     DEFAULT_GROQ_BACKUP;
+  const backsound =
+    process.env.GROQ_API_KEY_BACKSOUND ||
+    DEFAULT_GROQ_BACKSOUND;
 
   return [
+    { key: backsound, label: "PRIMARY" },
     { key: primary, label: "PRIMARY" },
     { key: backup, label: "BACKUP" },
   ];
